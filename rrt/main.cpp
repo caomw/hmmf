@@ -35,6 +35,7 @@ void read_input(char obs_file[])
     while(fscanf(fpobs, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]) == 3)
     {
         double to_put[2] = {dat[0], dat[1]};
+        // create config-space by adding bot_rad to obs_rad
         obs_rad[c] = dat[2] + robot_radius;
         kd_insert(obstree, to_put, &obs_rad[c]);
         
@@ -63,7 +64,7 @@ void read_input(char obs_file[])
     fclose(fpbox);
 }
 
-
+// print node-parent pair for plotting
 void print_path(list<Node> whichpath)
 {
     list<Node>::iterator i;
@@ -82,9 +83,6 @@ void print_path(list<Node> whichpath)
                 fprintf(fpoints, "%f ", (curr.parent)->state.x[i]);
             }
             fprintf(fpoints, "\n");
-
-            //Node *p = curr.parent;
-            //p->state.print();
         }
     }
 }
@@ -115,7 +113,7 @@ int main(int argc, char* argv[])
         i++;
     }
     */
-    double cost = rrt_plan(5000);
+    double cost = rrtstar_plan(10000);
     fprintf(fpoints, "%f \n", cost);
     fprintf(fpoints, "Duration: %.3f \n", get_msec() - start);
     print_path(tree);

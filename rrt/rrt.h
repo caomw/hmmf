@@ -123,9 +123,7 @@ bool can_join_nodes(Node n1, Node n2);
 void process_tree_rrt(Node goal_node);
 double rrt_plan(unsigned int num_iter);
 
-
 int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, double curr_min_cost);
 double rrtstar_plan(unsigned int num_iter);
-void process_tree_rrtstar(Node *goal_node);
 
 #endif

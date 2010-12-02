@@ -47,6 +47,7 @@ bool is_inside_goal(State c)
         return false;
 }
 
+// return 1 if sampled state is inside obstacle
 bool is_obstructed(State s)
 {
     kdres *presults;
@@ -76,6 +77,7 @@ bool is_obstructed(State s)
     return false;
 }
 
+// sample goal every 1/GOAL_PROB times, otherwise sample randomly
 State sample_state()
 {
     double t = randdouble();
@@ -98,6 +100,7 @@ State sample_state()
     return test;
 }
 
+// nearest node in tree (without kdtree)
 Node* nearest(State s)
 {
     list<Node>::iterator i;
@@ -117,6 +120,7 @@ Node* nearest(State s)
     return min_node;
 }
 
+// nearest node in tree (using kdtree)
 Node* nearest_kdtree(kdtree *node_tree, State s)
 {
     kdres *pres;
@@ -139,6 +143,7 @@ Node* nearest_kdtree(kdtree *node_tree, State s)
     }
 }
 
+//extend EXTEND_DIST towards state s from near
 Node extend_rrt(Node *near, State s)
 {
     double totdist = dist(near->state, s);
@@ -173,6 +178,7 @@ int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, 
             RRT_BOWL_SIZE = MAX_RRT_BOWL_SIZE;
         pres = kd_nearest_range(node_tree, newnode.state.x, RRT_BOWL_SIZE);
 
+        // find neighbor inside bowl with minimum cost
         double min_cost_neighbor = 1000;
 
         kdres *pres_temp = kd_nearest(node_tree, s.x);
@@ -196,7 +202,7 @@ int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, 
             kd_res_next( pres );
         }
 
-        // near_node now has the nearest code node
+        // near_node now has the nearest cost node
         // make it the parent of newnode and write the costs
         // insert in tree
         newnode.parent = near_node;
@@ -204,9 +210,11 @@ int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, 
         newnode.csrc = near_node->csrc + t;
         newnode.cparent = t;
         newnode.cgoal = dist(newnode.state, goal.state);
-        
+
+#if BRANCH_N_BOUND
         if( (newnode.csrc + newnode.cgoal) < curr_min_cost)
         {
+#endif
             tree.push_back(newnode);
 
             // try to rewire parents of all the nodes in the bowl 
@@ -228,10 +236,11 @@ int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, 
                 }
                 kd_res_next( pres );
             }
+#if BRANCH_N_BOUND
         }
         else
             return 1;
-        
+#endif
         kd_res_free(pres);
         returned_node = newnode;
         return 0;
@@ -276,7 +285,7 @@ bool does_line_hit(State s1, State s2, double *pos, double rad)
     return false;
 }
 
-
+// returns 1 if you can draw a line in config space from n1 to n2
 bool can_join_nodes(Node n1, Node n2)
 {
     double length = dist(n1.state, n2.state);
@@ -308,6 +317,9 @@ bool can_join_nodes(Node n1, Node n2)
     return true;
 }
 
+// smoothening of path
+// starting from goal, join the longest node with obstacle free line, start from that node till you reach source
+// only valid for euclidean spaces
 void process_tree_rrt(Node goal_node)
 {
     path.clear();
@@ -364,6 +376,7 @@ void process_tree_rrt(Node goal_node)
     return;
 }
 
+/* Neglect
 void remove_bad_nodes(double min_cost)
 {
     list<Node> tree_old(tree);
@@ -410,6 +423,8 @@ void remove_bad_nodes(double min_cost)
     
     return;
 }
+*/
+
 
 double rrt_plan(unsigned int num_iter)
 {
@@ -417,7 +432,8 @@ double rrt_plan(unsigned int num_iter)
     tree.clear();
     
     node_tree = kd_create(NUM_STATES);
-
+    
+    // push start
     Node start(robot, NULL);
     tree.push_back(start);
 
@@ -453,9 +469,11 @@ double rrt_plan(unsigned int num_iter)
                     //curr.state.print();
                     //(curr.parent)->state.print();
                     //printf("\n");
-                    
+                   
+#if BRANCH_N_BOUND
                     if( (curr.csrc + curr.cgoal) < min_cost)
                     {
+#endif
                         tree.push_back(curr);
                         assert(0 == kd_insert(node_tree, curr.state.x, &(tree.back()) ));
 
@@ -468,13 +486,8 @@ double rrt_plan(unsigned int num_iter)
                         }
                         iter++;
 #if BRANCH_N_BOUND
-                        if( (iter % 500 == 0) && (reached) )
-                        {
-                            printf("iter: %d ", iter);
-                            remove_bad_nodes(min_cost);
-                        }
-#endif
                     }
+#endif
                 }
             }
         }
@@ -485,20 +498,6 @@ double rrt_plan(unsigned int num_iter)
     
     return min_cost;
 };
-
-void process_tree_rrtstar(Node *goal_node)
-{
-    path.clear();
-    optpath.clear();
-
-    Node *n = goal_node;
-    while( n->parent != NULL)
-    {
-        optpath.push_back(*n);
-        n = n->parent;
-    }
-    return;
-}
 
 
 double rrtstar_plan(unsigned int num_iter)
@@ -546,13 +545,6 @@ double rrtstar_plan(unsigned int num_iter)
                         node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
                     }
                     iter++;
-#if BRANCH_N_BOUND
-                    if ( (iter % 500 == 0) && reached )
-                    {
-                        printf("iter: %d ", iter);
-                        remove_bad_nodes(min_cost);
-                    }
-#endif
                 }
             }
         }
