@@ -91,4 +91,41 @@ typedef struct Goal{
     double size;
 }Goal;
 
+typedef struct kdtree kdtree;
+typedef struct kdres kdres;
+
+// extern variables
+
+extern list<Node> tree;        // stores the tree
+extern list<Node> path;        // stores path that reaches goal
+extern list<Node> optpath;     // stores softened path
+
+extern kdtree *obstree;
+extern Goal goal;
+extern State robot;
+extern Box box;
+extern double robot_radius;
+extern double MAX_OBS_SIZE;
+extern double NUM_OBSTACLES;
+extern double obs_rad[100];
+
+// prototypes
+
+double dist(State s1, State s2); 
+bool is_inside_goal(State c);
+bool is_obstructed(State s);
+State sample_state();
+Node* nearest(State s);
+Node* nearest_kdtree(kdtree *node_tree, State s);
+Node extend_rrt(Node *near, State s);
+bool does_line_hit(State s1, State s2, double *pos, double rad);
+bool can_join_nodes(Node n1, Node n2);
+void process_tree_rrt(Node goal_node);
+double rrt_plan(double old_cost);
+
+
+int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, double curr_min_cost);
+double rrtstar_plan(int num_iter);
+void process_tree_rrtstar(Node *goal_node);
+
 #endif

@@ -1,9 +1,9 @@
 CC = gcc
 CPP = g++
 
-BIN = ./rrt
+BIN = ./main
 C_SRCS = kdtree.c
-CPP_SRCS = random.cpp rrt.cpp
+CPP_SRCS = random.cpp rrt.cpp main.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)
@@ -16,7 +16,7 @@ DEPS=$(C_DEPS) $(CPP_DEPS)
 LIBS =  
 INCS = 
 
-CFLAGS = -g -O3 -Wall -lpthread -DUSE_LIST_NODE_ALLOCATOR -lm
+CFLAGS = -g -pg -O3 -Wall -lpthread -DUSE_LIST_NODE_ALLOCATOR -lm
 
 all: $(BIN)
 

@@ -4,11 +4,9 @@
 
 #define INF             (1000)
 #define EXTEND_DIST     (0.5)
+#define RRT_BOWL_SIZE   (5)
 #define GOAL_PROB       (0.01)
 #define USE_KDTREE      (1)
-
-typedef struct kdtree kdtree;
-typedef struct kdres kdres;
 
 list<Node> tree;        // stores the tree
 list<Node> path;        // stores path that reaches goal
@@ -33,65 +31,6 @@ double dist(State s1, State s2)
         dist_sq += diff*diff;
     }
     return sqrt(dist_sq);
-}
-
-void read_input(char obs_file[])
-{
-    FILE *fpgoal, *fpobs, *fpbot, *fpbox;
-
-    fpgoal = fopen("input/goal.txt", "r");
-    fpobs = fopen(obs_file, "r");
-    fpbot = fopen("input/bot.txt", "r");
-    fpbox = fopen("input/box.txt", "r");
-
-    double dat[2*NUM_STATES];
- 
-    // Get bot
-    assert(0 != fscanf(fpbot, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]));
-    robot = State(dat);
-    robot_radius = dat[2];
-    //printf("Got robot: %f, %f, %f\n\n", dat[0], dat[1], dat[2]);
-    fclose(fpbot);
-   
-    // Get goal
-    assert(0 != fscanf(fpgoal, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]));
-    goal.state = State(dat);
-    goal.size = dat[2];
-    //printf("Got goal: %f, %f, %f\n\n", dat[0], dat[1], dat[2]);
-    fclose(fpgoal);
-
-    // Get obstacles
-    obstree = kd_create(NUM_STATES);
-    int c = 0;
-    while(fscanf(fpobs, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]) == 3)
-    {
-        double to_put[2] = {dat[0], dat[1]};
-        obs_rad[c] = dat[2] + robot_radius;
-        kd_insert(obstree, to_put, &obs_rad[c]);
-        
-        if( obs_rad[c] > MAX_OBS_SIZE)
-            MAX_OBS_SIZE = obs_rad[c];
-
-        NUM_OBSTACLES = c;
-
-        //printf("Inserted %f, %f, %f, %f\n", dat[0], dat[1], dat[2], obs_rad[c]);
-        c++;
-    }
-    //for(int i=0; i<11; i++)
-    //    printf("%f\n", obs_rad[i]);
-
-    //printf("MAX_OBS_SIZE: %f\n\n", MAX_OBS_SIZE);
-    fclose(fpobs);
-    
-     
-    // Get box
-    assert(0 != fscanf(fpbox, "%lf, %lf, %lf, %lf", &dat[0], &dat[1], &dat[2], &dat[3]));
-    box.center = State(dat);
-    for(int i=0; i<NUM_STATES; i++)
-        box.size[i] = dat[NUM_STATES+i];
-    
-    //printf("Got center: %f, %f, %f, %f\n\n", dat[0], dat[1], dat[2], dat[3]);
-    fclose(fpbox);
 }
 
 bool is_inside_goal(State c)
@@ -194,13 +133,13 @@ Node* nearest_kdtree(kdtree *node_tree, State s)
     }
 }
 
-Node extend(Node *near, State s)
+Node extend_rrt(Node *near, State s)
 {
     double totdist = dist(near->state, s);
+    Node newnode;
     if(totdist < EXTEND_DIST)
     {
-        Node newnode(s, near);
-        return newnode;
+        newnode = Node(s, near);
     }
     else
     {
@@ -210,11 +149,87 @@ Node extend(Node *near, State s)
             newdist[i] = (near->state).x[i] + (s.x[i] - (near->state).x[i])/totdist*EXTEND_DIST;
         }
         State newstate(newdist);
-        Node newnode(newstate, near);
-        return newnode;
+        newnode = Node(newstate, near);
     }
+
+    return newnode;
 }
 
+int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, double curr_min_cost)
+{
+    Node newnode = extend_rrt(near, s);
+
+    if( can_join_nodes(newnode, *near) )
+    {
+        kdres *pres;
+        pres = kd_nearest_range(node_tree, newnode.state.x, RRT_BOWL_SIZE);
+
+        double min_cost_neighbor = 1000;
+
+        kdres *pres_temp = kd_nearest(node_tree, s.x);
+        Node *near_node = (Node *)kd_res_item_data(pres_temp);
+        kd_res_free(pres_temp);
+
+        Node *temp_node;
+        while( !kd_res_end(pres) )
+        {
+            temp_node = (Node *)kd_res_item_data(pres); 
+
+            if (can_join_nodes(newnode, *temp_node) )
+            {
+                double t = temp_node->csrc + dist(temp_node->state, newnode.state);
+                if( t < min_cost_neighbor)
+                {
+                    near_node = temp_node;
+                    min_cost_neighbor = t;
+                }
+            }
+            kd_res_next( pres );
+        }
+
+        // near_node now has the nearest code node
+        // make it the parent of newnode and write the costs
+        // insert in tree
+        newnode.parent = near_node;
+        double t = dist(newnode.state, near_node->state);
+        newnode.csrc = near_node->csrc + t;
+        newnode.cparent = t;
+        newnode.cgoal = dist(newnode.state, goal.state);
+
+        if( (newnode.csrc + newnode.cgoal) < curr_min_cost)
+        {
+            tree.push_back(newnode);
+
+            // try to rewire parents of all the nodes in the bowl 
+            while( !kd_res_end(pres) )
+            {
+                temp_node = (Node *)kd_res_item_data(pres); 
+
+                if (can_join_nodes(newnode, *temp_node) )
+                {
+                    double pardist = dist(temp_node->state, newnode.state);
+                    double t = newnode.csrc + pardist;
+                    if( t < temp_node->csrc)
+                    {
+                        // you can reach temp_node quicker through newnode than its parent, rewire it
+                        temp_node->parent = &(tree.back());
+                        temp_node->csrc = t;
+                        temp_node->cparent = pardist;
+                    }
+                }
+                kd_res_next( pres );
+            }
+
+            kd_res_free(pres);
+
+            returned_node = newnode;
+            return 0;
+        }
+        else
+            return 1;
+    }
+    return 1;
+}
 
 /*
  * Given that p1 and p2 both lie outside the obstacle, the line segment between p1
@@ -285,7 +300,7 @@ bool can_join_nodes(Node n1, Node n2)
     return true;
 }
 
-void process_tree(Node goal_node)
+void process_tree_rrt(Node goal_node)
 {
     path.clear();
     optpath.clear();
@@ -330,7 +345,7 @@ void process_tree(Node goal_node)
         // update cost and wire it to new parent
         n->parent = runner_child;
         double t = dist( n->state, runner_child->state);
-        n->csrc = runner_child->csrc + t;
+        runner_child->cgoal = n->cgoal + t;
         n->cparent = t;
 
         optpath.push_back(*n);
@@ -340,7 +355,6 @@ void process_tree(Node goal_node)
     
     return;
 }
-
 
 double rrt_plan(double old_cost)
 {
@@ -367,7 +381,7 @@ double rrt_plan(double old_cost)
         if(near != NULL)
         {
             //printf("near is not NULL\n");
-            curr = extend(near, t);        // extend near in the direction of t
+            curr = extend_rrt(near, t);        // extend near in the direction of t
             
             double t = dist(curr.state, near->state);
             curr.csrc = near->csrc + t;
@@ -393,77 +407,73 @@ double rrt_plan(double old_cost)
     }
     kd_free(node_tree);
 
-    process_tree(curr);
+    process_tree_rrt(curr);
     
     return cost;
 };
 
-void print_path(list<Node> whichpath)
+void process_tree_rrtstar(Node *goal_node)
 {
-    list<Node>::iterator i;
-    for(i=whichpath.begin(); i != whichpath.end(); i++)
+    path.clear();
+    optpath.clear();
+
+    Node *n = goal_node;
+    while( n->parent != NULL)
     {
-        Node curr = *i;
-        if(curr.parent != NULL)
+        optpath.push_back(*n);
+        n = n->parent;
+    }
+    return;
+}
+
+double rrtstar_plan(int num_iter)
+{
+    tree.clear();
+    kdtree *node_tree;
+    node_tree = kd_create(NUM_STATES);
+
+    Node start(robot, NULL);
+    tree.push_back(start);
+
+    kd_insert(node_tree, start.state.x, &(tree.front()) );
+
+    Node curr;
+    bool reached = false;
+    Node *node_that_reached = NULL;
+    double min_cost = 1000;
+
+    while(num_iter || (!reached))
+    {
+        State t = sample_state();
+        
+        Node *near = nearest_kdtree(node_tree, t);
+        
+        if(near != NULL)
         {
-            curr.state.print();
-            (curr.parent)->state.print();
-            //Node *p = curr.parent;
-            //p->state.print();
+            //printf("near is not NULL\n");
+            if( extend_rrtstar(node_tree, near, t, curr, min_cost) == 0)          // extend near in the direction of t
+            {
+                //curr.state.print();
+                //(curr.parent)->state.print();
+                //printf("\n");
+                //getchar();
+
+                assert(0 == kd_insert(node_tree, curr.state.x, &(tree.back()) ));
+                if( is_inside_goal(curr.state) && (curr.csrc < min_cost) )
+                {
+                    reached = true;
+                    min_cost = curr.csrc;
+                    node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
+                }
+            }
         }
+        num_iter--;
     }
-}
+    kd_free(node_tree);
 
-void branch_and_bound(int num, int output_path)
-{
-    double start = get_msec();
-    double cost = 1000, newcost;
+    process_tree_rrtstar( node_that_reached );
+    
+    return min_cost;
+};
 
-    for(int i=0; i<num; i++)
-    {
-        newcost = rrt_plan(cost);
-        if (!output_path)
-            printf("Run %d cost: %f optpath_cost: %f \n", i+1, newcost, optpath.front().csrc);
-        if (newcost < cost)
-        {
-            cost = newcost;
-        }
-    }
-    start = get_msec() - start;
-    
-    if(output_path)
-        printf("%f \n", cost);
-    printf("Duration: %.3f \n", start);
-}
-
-int main(int argc, char* argv[])
-{
-    init_rand();
-    
-    int output_path = 0;
-    if(argc == 3)
-        output_path = atoi(argv[2]);
-    
-    if(argc >= 2)
-        read_input(argv[1]);
-    else
-        read_input("input/obs1.txt");
-    
-    if(output_path == 0)
-    {
-        branch_and_bound(3, output_path);
-    }
-    else
-    {
-        branch_and_bound(3, output_path);
-        print_path(tree);
-        printf("optpath\n");
-        print_path(optpath);
-        printf("optpath_cost: %f \n", optpath.front().csrc);
-    }
-     
-    
-    kd_free (obstree);
-    return 0;
-}
 
