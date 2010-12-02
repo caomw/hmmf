@@ -366,37 +366,29 @@ void process_tree_rrt(Node goal_node)
 
 void remove_bad_nodes(double min_cost)
 {
+    list<Node> tree_old(tree);
+
+    tree.clear();
     list<Node>::iterator s;
     list<Node>::iterator r;
-
+    
     int num_deleted = 0; 
-    for(s = tree.begin(); s != tree.end(); s++)
+    for(s = tree_old.begin(); s != tree_old.end(); s++)
     {
         bool delete_children = false;
         if( ((*s).csrc + (*s).cgoal) > min_cost)
         {
-            printf("F bad P ");
-            s->state.print();
-            delete_children = true;
-        }
-        for(r = tree.begin(); r != tree.end(); r++)
-        {
-            if( r != s )
+            for(r = tree_old.begin(); r != tree_old.end(); r++)
             {
-                if( r->parent == (&(*s)) )          // child of s
+                if( r != s )
                 {
-                    if(delete_children)
+                    if( r->parent == (&(*s)) )          // child of s
                     {
-                        printf("F bad C of bad P ");
-                        r->state.print();
                         r = tree.erase(r);
                         num_deleted++;
                     }
                 }
             }
-        }
-        if(delete_children)
-        {
             s = tree.erase(s);
             num_deleted++;
         }
@@ -472,7 +464,7 @@ double rrt_plan(unsigned int num_iter)
                             reached = true;
                             min_cost = curr.csrc;
                             node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
-                            printf("iter_reached: %d cost: %.3f\n", iter, min_cost);
+                            //printf("iter_reached: %d cost: %.3f\n", iter, min_cost);
                         }
                         iter++;
 #if BRANCH_N_BOUND
@@ -548,7 +540,7 @@ double rrtstar_plan(unsigned int num_iter)
                     num_nodes++;
                     if( is_inside_goal(curr.state) && ( (curr.csrc +curr.cgoal) < min_cost) )
                     {
-                        printf("iter_reached: %d\n", iter);
+                        //printf("iter_reached: %d\n", iter);
                         reached = true;
                         min_cost = curr.csrc;
                         node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid

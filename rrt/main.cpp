@@ -103,16 +103,26 @@ int main(int argc, char* argv[])
         read_input("input/obs1.txt");
     
     fpoints = fopen("points.dat", "w");
-    double start = get_msec();
+    double start = get_msec(), delt;
+    /*
+    int i = 0;
+    while(i < 1)
+    {
+        start = get_msec();
+        double cost = rrt_plan(15000);
+        delt = get_msec() - start;
+        printf("%d\t%f\t%f\n", i, optpath.back().cgoal, delt);
+        i++;
+    }
+    */
     double cost = rrt_plan(5000);
-    
     fprintf(fpoints, "%f \n", cost);
     fprintf(fpoints, "Duration: %.3f \n", get_msec() - start);
     print_path(tree);
     fprintf(fpoints, "optpath\n");
     print_path(optpath);
     fprintf(fpoints, "optpath_cost: %f \n", optpath.back().cgoal);
-    
+
     fclose(fpoints);
     kd_free (obstree);
     return 0;
