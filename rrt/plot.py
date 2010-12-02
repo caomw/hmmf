@@ -19,7 +19,6 @@ bot = open('input/bot.txt', 'r');
 goal = open('input/goal.txt', 'r');
 box = open('input/box.txt', 'r');
 
-
 num_obs = 0
 obsx = []
 obsy = []
@@ -68,18 +67,19 @@ if box:
     box.close()
 
 if points:
+    
+    found_optpath = 0
     # Read cost on the first line
     l = points.readline()
     s = l.split('\n')
     if len(s) == 2:
         print "Path Cost: ", float(s[0])
     
-    # ignore the first node
-    l = points.readline()
     while l:
+        
         l = points.readline()
         s = l.split(' ')
-        
+
         if len(s) > 2:
             px = []
             py = []
@@ -91,7 +91,14 @@ if points:
             px.append( float( s[0]))
             py.append( float( s[1]))
         
-            plt.plot(px, py, 'y-', linewidth=1.5)
+            if found_optpath == 1:
+                plt.plot(px, py, 'ko-', linewidth=1.5)
+            else:
+                plt.plot(px, py, 'yo-', linewidth=1.5)
+        
+        if (len(s) == 1) and (s[0] == "optpath\n"):
+            print "Found optpath"
+            found_optpath = 1
        
 box_minx = box_cx - box_xsize/2
 box_maxx = box_cx + box_xsize/2

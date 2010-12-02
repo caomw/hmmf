@@ -38,6 +38,16 @@ class State
             }
             return true;
         }
+        bool operator!=(State s)
+        {
+            for(int i=0; i<NUM_STATES; i++)
+            {
+                if(s.x[i] != x[i])
+                    return true;
+            }
+            return false;
+        }
+
         void print()
         {
             for(unsigned int i=0; i<NUM_STATES; i++)

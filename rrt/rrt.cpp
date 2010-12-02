@@ -4,13 +4,16 @@
 
 #define INF             (1000)
 #define EXTEND_DIST     (1)
-#define GOAL_PROB       (0.01)
+#define GOAL_PROB       (0.5)
 #define USE_KDTREE      (1)
 
 typedef struct kdtree kdtree;
 typedef struct kdres kdres;
 
-list<Node> tree;
+list<Node> tree;        // stores the tree
+list<Node> path;        // stores path that reaches goal
+list<Node> optpath;     // stores softened path
+
 kdtree *obstree;
 Goal goal;
 State robot;
@@ -268,7 +271,7 @@ bool can_join_nodes(Node n1, Node n2)
         
         State temp = State(pos);
         
-        //printf("Found: %f, %f, %.3f\n", pos[0], pos[1], rad);
+        printf("Found: %f, %f, %.3f\n", pos[0], pos[1], rad);
 
         if(does_line_hit(n1.state, n2.state, pos, rad))
             return false;
@@ -280,6 +283,60 @@ bool can_join_nodes(Node n1, Node n2)
 
     return true;
 }
+
+void process_tree(Node goal_node)
+{
+    path.clear();
+    optpath.clear();
+
+    // calculate the smoothened path
+    // curr is the goal state now -> travel back along it's parents
+    Node *n = new Node(goal_node.state, goal_node.parent);
+
+    path.push_back(*n);
+    while( n->parent != NULL)
+    {
+        Node *n1 = n->parent;
+        path.push_back(*n1);
+        n = n1;
+    }
+    
+    list<Node> temp(path);
+    n = &(temp.front());
+    while( n->state != robot)
+    {
+        Node *runner = n->parent;
+        Node *runner_child = n;
+        
+        int can_join_flag = 1;
+        while( can_join_flag )
+        {
+            if(runner != NULL)
+            {
+                printf("n ");
+                n->state.print();
+                can_join_flag = can_join_nodes(*n, *runner);
+                printf("r ");
+                runner->state.print();
+                printf("can_join_flag: %d\n", can_join_flag);
+                getchar();
+                    
+                runner_child = runner;
+                runner = runner->parent;
+            }
+            if(runner == NULL)
+                break;
+        }
+        n->parent = runner_child;
+        
+        optpath.push_back(*n);
+        n = n->parent;
+    }
+    optpath.push_back(*n);
+    
+    return;
+}
+
 
 double rrt_plan(double old_cost)
 {
@@ -293,6 +350,7 @@ double rrt_plan(double old_cost)
 
     kd_insert(node_tree, start.state.x, &(tree.front()) );
 
+    Node curr;
     bool reached = false;
     while(!reached)
     {
@@ -305,7 +363,7 @@ double rrt_plan(double old_cost)
         if(near != NULL)
         {
             //printf("near is not NULL\n");
-            Node curr = extend(near, t);        // extend near in the direction of t
+            curr = extend(near, t);        // extend near in the direction of t
             
             double t = dist(curr.state, near->state);
             curr.csrc = near->csrc + t;
@@ -330,18 +388,21 @@ double rrt_plan(double old_cost)
         }
     }
     kd_free(node_tree);
+
+    process_tree(curr);
+    
     return cost;
 };
 
-void print_path(list<Node> path)
+void print_path(list<Node> whichpath)
 {
     list<Node>::iterator i;
-    for(i=path.begin(); i != path.end(); i++)
+    for(i=whichpath.begin(); i != whichpath.end(); i++)
     {
         Node curr = *i;
-        curr.state.print();
         if(curr.parent != NULL)
         {
+            curr.state.print();
             (curr.parent)->state.print();
             //Node *p = curr.parent;
             //p->state.print();
@@ -349,10 +410,31 @@ void print_path(list<Node> path)
     }
 }
 
+void branch_and_bound(int num)
+{
+    printf("Starting RRT\n");
+    double start = get_msec();
+    double cost = 1000, newcost;
+
+    for(int i=0; i<num; i++)
+    {
+        newcost = rrt_plan(cost);
+        printf("Run %d cost: %f\n", i+1, newcost);
+        if (newcost < cost)
+        {
+            cost = newcost;
+        }
+    }
+    printf("Cost: %f \n", cost);
+    start = get_msec() - start;
+    printf("Duration: %.3f [ms]\n", start);
+}
+
 int main(int argc, char* argv[])
 {
     init_rand();
     
+    /*
     int time_this = 0;
     if(argc == 3)
         time_this = atoi(argv[2]);
@@ -362,32 +444,28 @@ int main(int argc, char* argv[])
     else
         read_input("input/obstacles.txt");
     
-    double cost = 1000, newcost = 0;
     if(time_this)
     {
-        printf("Starting RRT\n");
-        double start = get_msec();
-        for(int i=0; i<4; i++)
-        {
-            newcost = rrt_plan(cost);
-            printf("Run %d cost: %f\n", i+1, newcost);
-            if (newcost < cost)
-            {
-                cost = newcost;
-            }
-        }
-        printf("Cost: %f \n", cost);
-        start = get_msec() - start;
-        printf("Duration: %.3f [ms]\n", start);
+        branch_and_bound(4);
     }
     else
     {
+        double cost = 1000, newcost = 0;
         cost = rrt_plan(cost);
         printf("%f \n", cost);
         print_path(tree);
     }
-    kd_free (obstree);
+    */
+    
+    read_input("input/obs1.txt");
+    double c = rrt_plan(1000);
+    printf("%f \n", c);
+    
+    print_path(tree);
+    printf("optpath\n");
+    print_path(optpath);
 
+    kd_free (obstree);
     return 0;
 }
 
