@@ -125,7 +125,7 @@ double rrt_plan(double old_cost);
 
 
 int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, double curr_min_cost);
-double rrtstar_plan(int num_iter);
+double rrtstar_plan(unsigned int num_iter);
 void process_tree_rrtstar(Node *goal_node);
 
 #endif

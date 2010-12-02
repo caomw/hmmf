@@ -426,7 +426,7 @@ void process_tree_rrtstar(Node *goal_node)
     return;
 }
 
-double rrtstar_plan(int num_iter)
+double rrtstar_plan(unsigned int num_iter)
 {
     tree.clear();
     kdtree *node_tree;
@@ -471,7 +471,7 @@ double rrtstar_plan(int num_iter)
     }
     kd_free(node_tree);
 
-    process_tree_rrtstar( node_that_reached );
+    process_tree_rrt( *node_that_reached );
     
     return min_cost;
 };

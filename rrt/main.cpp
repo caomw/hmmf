@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
         print_path(tree);
         printf("optpath\n");
         print_path(optpath);
-        printf("optpath_cost: %f \n", optpath.front().csrc);
+        printf("optpath_cost: %f \n", optpath.back().cgoal);
     }
     */
    
@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
     print_path(tree);
     printf("optpath\n");
     print_path(optpath);
-    printf("optpath_cost: %f \n", optpath.front().csrc);
+    printf("optpath_cost: %f \n", optpath.back().cgoal);
     kd_free (obstree);
     return 0;
 }

@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
         double y = rdlim(MIN, MAX);
         double r;
         if(c < 0.9*num_obs)
-            r = rdlim(0.5, 0.3*max_size);
+            r = rdlim(0.5, 0.5*max_size);
         else
             r = rdlim(0.5*max_size, max_size);
 
