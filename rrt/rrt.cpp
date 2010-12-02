@@ -3,10 +3,14 @@
 #include "rrt.h"
 
 #define INF             (1000)
-#define EXTEND_DIST     (1.0)
+#define EXTEND_DIST     (.2)
 #define GOAL_PROB       (0.01)
 
-struct kdtree *obstree;
+typedef struct kdtree kdtree;
+typedef struct kdres kdres;
+
+list<Node> tree;
+kdtree *obstree;
 Goal goal;
 State robot;
 Box box;
@@ -46,7 +50,7 @@ void read_input()
     fclose(fpgoal);
 
     // Get obstacles
-    obstree = kd_create(2);
+    obstree = kd_create(NUM_STATES);
     int c = 0;
     while(fscanf(fpobs, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]) == 3)
     {
@@ -100,7 +104,7 @@ bool is_inside_goal(State c)
 
 bool is_obstructed(State s)
 {
-    struct kdres *presults;
+    kdres *presults;
     double t[NUM_STATES];
 
     for(int i=0; i<NUM_STATES; i++)
@@ -149,10 +153,10 @@ State sample_state()
     return test;
 }
 
-Node nearest(list<Node> tree, State s)
+Node* nearest(State s)
 {
     list<Node>::iterator i;
-    list<Node>::iterator min_node = tree.begin();
+    Node *min_node = NULL;
     double min = INF;
 
     for(i = tree.begin(); i != tree.end(); i++)
@@ -161,19 +165,38 @@ Node nearest(list<Node> tree, State s)
         if( t < min)
         {
             min = t;
-            min_node = i;
+            min_node = &(*i);
         }
     }
 
-    return (*min_node);
+    return min_node;
 }
 
-Node extend(list<Node> tree, Node near, State s)
+/*
+Node* nearest(kdtree *node_tree, State s)
 {
-    double totdist = dist(near.state, s);
+    kdres *pres;
+    pres = kd_nearest(node_tree, s.x);
+
+    if(kd_res_end(pres))
+    {
+        printf("Couldn't find nearest node, exiting..\n");
+        exit(1);
+    }
+    else
+    {
+        Node *n = (Node *)kd_res_item_data(pres);
+        return n;
+    }
+}
+*/
+
+Node extend(Node *near, State s)
+{
+    double totdist = dist(near->state, s);
     if(totdist < EXTEND_DIST)
     {
-        Node newnode(s, &near);
+        Node newnode(s, near);
         return newnode;
     }
     else
@@ -181,10 +204,10 @@ Node extend(list<Node> tree, Node near, State s)
         double newdist[NUM_STATES];
         for(int i=0; i<NUM_STATES; i++)
         {
-            newdist[i] = near.state.x[i] + (s.x[i] - near.state.x[i])/totdist*EXTEND_DIST;
+            newdist[i] = (near->state).x[i] + (s.x[i] - (near->state).x[i])/totdist*EXTEND_DIST;
         }
         State newstate(newdist);
-        Node newnode(newstate, &near);
+        Node newnode(newstate, near);
         return newnode;
     }
 }
@@ -231,7 +254,7 @@ bool can_join_nodes(Node n1, Node n2)
 {
     double length = dist(n1.state, n2.state);
     double center[NUM_STATES];
-    struct kdres *pres; 
+    kdres *pres; 
     double pos[NUM_STATES];
     
     for(int i=0; i<NUM_STATES; i++)
@@ -258,35 +281,58 @@ bool can_join_nodes(Node n1, Node n2)
     return true;
 }
 
-list<Node> rrt_plan()
+void rrt_plan()
 {
-    list<Node> tree;
-    Node s = Node(robot, NULL);
-    tree.push_back(s);
+    //kdtree *node_tree;
+    //node_tree = kd_create(NUM_STATES);
 
-    int c = 100;
+    Node start;
+    start.state = robot;
+    start.parent = NULL;
+    tree.push_back(start);
+
+    //kd_insert(node_tree, start.state.x, tree.front().parent);
+
     bool reached = false;
     while(!reached)
     {
         State t = sample_state();
-        if( !is_obstructed(t))
+        Node *near = nearest(t);
+        if(near != NULL)
         {
-            Node near = nearest(tree, t);
-            Node curr = extend(tree, near, t);        // extend near in the direction of t
-            
-            if(can_join_nodes(curr, near))
+            Node curr = extend(near, t);        // extend near in the direction of t
+
+            if(can_join_nodes(curr, *near))
             {
-                //printf("adding: ");
-                curr.state.print();
+                //curr.state.print();
+                //(curr.parent)->state.print();
+                //printf("\n");
+
                 tree.push_back(curr);
+                //assert(0 == kd_insert(node_tree, curr.state.x, curr.parent));
                 reached = is_inside_goal(curr.state);
             }
         }
-        c--;
     }
-    return tree;
+    //kd_free(node_tree);
+    return;
 };
 
+void print_path(list<Node> path)
+{
+    list<Node>::iterator i;
+    for(i=path.begin(); i != path.end(); i++)
+    {
+        Node curr = *i;
+        curr.state.print();
+        if(curr.parent != NULL)
+        {
+            (curr.parent)->state.print();
+            //Node *p = curr.parent;
+            //p->state.print();
+        }
+    }
+}
 
 int main()
 {
@@ -295,6 +341,8 @@ int main()
     
     rrt_plan();
     
+    print_path(tree);
+
     kd_free (obstree);
 
     return 0;
