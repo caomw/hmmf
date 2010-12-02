@@ -134,13 +134,14 @@ int main(int argc, char* argv[])
     */
    
     double start = get_msec();
-    double cost = rrtstar_plan(5000);
+    double cost = rrtstar_plan(10000);
     printf("%f \n", cost);
     printf("Duration: %.3f \n", get_msec() - start);
     print_path(tree);
     printf("optpath\n");
     print_path(optpath);
     printf("optpath_cost: %f \n", optpath.back().cgoal);
+    
     kd_free (obstree);
     return 0;
 }

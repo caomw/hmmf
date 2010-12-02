@@ -7,24 +7,26 @@
 Box	rrt.h	/^typedef struct Box{$/;"	s
 Box	rrt.h	/^}Box;$/;"	t	typeref:struct:Box
 EXTEND_DIST	rrt.cpp	6;"	d	file:
-GOAL_PROB	rrt.cpp	8;"	d	file:
+GAMMA	rrt.cpp	8;"	d	file:
+GOAL_PROB	rrt.cpp	9;"	d	file:
 Goal	rrt.h	/^typedef struct Goal{$/;"	s
 Goal	rrt.h	/^}Goal;$/;"	t	typeref:struct:Goal
 INF	rrt.cpp	5;"	d	file:
 MAX	genobs.c	6;"	d	file:
 MAX_OBS_SIZE	rrt.cpp	/^double MAX_OBS_SIZE = 0;$/;"	v
+MAX_RRT_BOWL_SIZE	rrt.cpp	7;"	d	file:
 MIN	genobs.c	5;"	d	file:
 NUM_OBSTACLES	rrt.cpp	/^double NUM_OBSTACLES = 0;$/;"	v
 NUM_STATES	rrt.h	13;"	d
 Node	rrt.h	/^        Node()$/;"	f	class:Node
 Node	rrt.h	/^        Node(State s, Node *p, double c1=0, double c2=0, double c3=0)$/;"	f	class:Node
 Node	rrt.h	/^class Node$/;"	c
-RRT_BOWL_SIZE	rrt.cpp	7;"	d	file:
+RRT_BOWL_SIZE	rrt.cpp	/^double RRT_BOWL_SIZE = MAX_RRT_BOWL_SIZE;$/;"	v
 SQ	kdtree.c	83;"	d	file:
 State	rrt.h	/^        State()$/;"	f	class:State
 State	rrt.h	/^        State(double *s)$/;"	f	class:State
 State	rrt.h	/^class State$/;"	c
-USE_KDTREE	rrt.cpp	9;"	d	file:
+USE_KDTREE	rrt.cpp	10;"	d	file:
 _KDTREE_H_	kdtree.h	28;"	d
 __RANDOM_H__	random.h	2;"	d
 __RRT_H__	rrt.h	2;"	d
@@ -108,6 +110,7 @@ min	kdtree.c	/^    double *min, *max;              \/* minimum\/maximum coords *
 nearest	rrt.cpp	/^Node* nearest(State s)$/;"	f
 nearest_kdtree	rrt.cpp	/^Node* nearest_kdtree(kdtree *node_tree, State s)$/;"	f
 next	kdtree.c	/^    struct res_node *next;$/;"	m	struct:res_node	typeref:struct:res_node::res_node	file:
+num_nodes	rrt.cpp	/^int num_nodes = 0;$/;"	v
 obs_rad	rrt.cpp	/^double obs_rad[100];$/;"	v
 obstree	rrt.cpp	/^kdtree *obstree;$/;"	v
 operator !=	rrt.h	/^        bool operator!=(State s)$/;"	f	class:State
@@ -135,7 +138,7 @@ robot	rrt.cpp	/^State robot;$/;"	v
 robot_radius	rrt.cpp	/^double robot_radius;$/;"	v
 root	kdtree.c	/^    struct kdnode *root;$/;"	m	struct:kdtree	typeref:struct:kdtree::kdnode	file:
 rrt_plan	rrt.cpp	/^double rrt_plan(double old_cost)$/;"	f
-rrtstar_plan	rrt.cpp	/^double rrtstar_plan(int num_iter)$/;"	f
+rrtstar_plan	rrt.cpp	/^double rrtstar_plan(unsigned int num_iter)$/;"	f
 sample_state	rrt.cpp	/^State sample_state()$/;"	f
 size	kdtree.c	/^    int size;$/;"	m	struct:kdres	file:
 size	rrt.h	/^    double size;$/;"	m	struct:Goal

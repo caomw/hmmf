@@ -18,7 +18,7 @@ double rdlim(double min, double max)
 int is_valid(double x, double y, double r)
 {
     double dist = sqrt(x*x + y*y);
-    if (dist < (r+1))
+    if (dist < (r+2))
         return 0;
     else
         return 1;

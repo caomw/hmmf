@@ -14,6 +14,8 @@ list<Node> path;        // stores path that reaches goal
 list<Node> optpath;     // stores softened path
 
 kdtree *obstree;
+kdtree *node_tree;
+
 Goal goal;
 State robot;
 Box box;
@@ -165,7 +167,7 @@ int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, 
     if( can_join_nodes(newnode, *near) )
     {
         kdres *pres;
-        RRT_BOWL_SIZE = GAMMA*sqrt(log(num_nodes)/num_nodes);
+        RRT_BOWL_SIZE = GAMMA*sqrt(log((double)num_nodes)/(double)num_nodes);
         if(RRT_BOWL_SIZE > MAX_RRT_BOWL_SIZE)
             RRT_BOWL_SIZE = MAX_RRT_BOWL_SIZE;
         pres = kd_nearest_range(node_tree, newnode.state.x, RRT_BOWL_SIZE);
@@ -436,23 +438,58 @@ void process_tree_rrtstar(Node *goal_node)
 
 void remove_bad_nodes(double min_cost)
 {
-    list<Node>::iterator i;
-    start = tree.begin();
-     
+    list<Node>::iterator s;
+    list<Node>::iterator r;
+
+    int num_deleted = 0; 
+    for(s = tree.begin(); s != tree.end(); s++)
+    {
+        if( ((*s).csrc + (*s).cgoal) > min_cost)
+        {
+            for(r = tree.begin(); r != tree.end(); r++)
+            {
+                if( r != s )
+                {
+                    if( r->parent == (&(*s)) )
+                    {
+                        r->state.print();
+                        getchar();
+                        r = tree.erase(r);
+                        num_deleted++;
+                    }
+                }
+            }
+            s = tree.erase(s);
+            s->state.print();
+            getchar();
+            num_deleted++;
+        }
+    }
+    
+    //remove all elements of old tree
+    kd_clear(node_tree);
+    
+    //build tree again
+    num_nodes = 0;
+    for(s = tree.begin(); s!= tree.end(); s++)
+    {
+        assert( 0 == kd_insert(node_tree, (*s).state.x, &(*s)) );
+        num_nodes++;
+    }
+    //printf("Removed: %d, Left: %d\n", num_deleted, num_nodes);
+    
     return;
 }
-
 
 double rrtstar_plan(unsigned int num_iter)
 {
     tree.clear();
-    kdtree *node_tree;
-    node_tree = kd_create(NUM_STATES);
 
     Node start(robot, NULL);
     tree.push_back(start);
     num_nodes++;
 
+    node_tree = kd_create(NUM_STATES);
     kd_insert(node_tree, start.state.x, &(tree.front()) );
 
     Node curr;
@@ -491,8 +528,9 @@ double rrtstar_plan(unsigned int num_iter)
         }
         num_iter--;
         
-        if(num_iter %500 == 0)
+        if ( (num_iter%500 == 0) )
             remove_bad_nodes(min_cost);
+
     }
     kd_free(node_tree);
 
