@@ -3,8 +3,8 @@
 #include "rrt.h"
 
 #define INF             (1000)
-#define EXTEND_DIST     (1)
-#define GOAL_PROB       (0.5)
+#define EXTEND_DIST     (0.5)
+#define GOAL_PROB       (0.1)
 #define USE_KDTREE      (1)
 
 typedef struct kdtree kdtree;
@@ -74,7 +74,7 @@ void read_input(char obs_file[])
 
         NUM_OBSTACLES = c;
 
-        //printf("Inserted %f, %f, %f\n", dat[0], dat[1], obs_rad[c]);
+        //printf("Inserted %f, %f, %f, %f\n", dat[0], dat[1], dat[2], obs_rad[c]);
         c++;
     }
     //for(int i=0; i<11; i++)
@@ -226,16 +226,17 @@ bool does_line_hit(State s1, State s2, double *pos, double rad)
 {
     State obs = State(pos);
     if( (dist(s1, obs) <= rad) || (dist(s2, obs) <= rad))
+    {
+        //printf("Point inside obstacle\n");
         return true;
-    
+    }
     double xp, yp, dotProduct, obsDist;
     double xo = pos[0], yo = pos[1];        // Obstacle x, y co-ordinates
     
-    double endy = s2.x[1], starty = s1.x[1], startx = s1.x[0], endx = s1.x[0];
+    double endy = s2.x[1], starty = s1.x[1], startx = s1.x[0], endx = s2.x[0];
     double a = endy - starty;
     double b = startx - endx;
     double c = (endx - startx)*starty - (endy - starty)*startx;
-
 
     xp = xo - a*(a*xo + b*yo + c)/(a*a + b*b);
     yp = yo - b*(a*xo + b*yo + c)/(a*a + b*b);
@@ -271,7 +272,7 @@ bool can_join_nodes(Node n1, Node n2)
         
         State temp = State(pos);
         
-        printf("Found: %f, %f, %.3f\n", pos[0], pos[1], rad);
+        //printf("Found: %f, %f, %.3f\n", pos[0], pos[1], rad);
 
         if(does_line_hit(n1.state, n2.state, pos, rad))
             return false;
@@ -308,27 +309,30 @@ void process_tree(Node goal_node)
         Node *runner = n->parent;
         Node *runner_child = n;
         
-        int can_join_flag = 1;
-        while( can_join_flag )
+        while( can_join_nodes(*n, *runner) )
         {
             if(runner != NULL)
             {
+                /*
                 printf("n ");
                 n->state.print();
-                can_join_flag = can_join_nodes(*n, *runner);
                 printf("r ");
                 runner->state.print();
                 printf("can_join_flag: %d\n", can_join_flag);
                 getchar();
-                    
+                */    
                 runner_child = runner;
                 runner = runner->parent;
             }
             if(runner == NULL)
                 break;
         }
+        // update cost and wire it to new parent
         n->parent = runner_child;
-        
+        double t = dist( n->state, runner_child->state);
+        n->csrc = runner_child->csrc + t;
+        n->cparent = t;
+
         optpath.push_back(*n);
         n = n->parent;
     }
@@ -464,6 +468,7 @@ int main(int argc, char* argv[])
     print_path(tree);
     printf("optpath\n");
     print_path(optpath);
+    printf("optpath_cost: %f \n", optpath.front().csrc);
 
     kd_free (obstree);
     return 0;
