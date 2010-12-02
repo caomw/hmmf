@@ -2,11 +2,12 @@
 #include "kdtree.h"
 #include "rrt.h"
 
-#define INF             (1000)
-#define EXTEND_DIST     (0.5)
-#define RRT_BOWL_SIZE   (5)
-#define GOAL_PROB       (0.01)
-#define USE_KDTREE      (1)
+#define INF                 (1000)
+#define EXTEND_DIST         (1.0)
+#define MAX_RRT_BOWL_SIZE   (10.0)
+#define GAMMA               (30)
+#define GOAL_PROB           (0.01)
+#define USE_KDTREE          (1)
 
 list<Node> tree;        // stores the tree
 list<Node> path;        // stores path that reaches goal
@@ -20,6 +21,8 @@ double robot_radius;
 double MAX_OBS_SIZE = 0;
 double NUM_OBSTACLES = 0;
 double obs_rad[100];
+double RRT_BOWL_SIZE = MAX_RRT_BOWL_SIZE;
+int num_nodes = 0;
 
 double dist(State s1, State s2) 
 {
@@ -162,6 +165,9 @@ int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, 
     if( can_join_nodes(newnode, *near) )
     {
         kdres *pres;
+        RRT_BOWL_SIZE = GAMMA*sqrt(log(num_nodes)/num_nodes);
+        if(RRT_BOWL_SIZE > MAX_RRT_BOWL_SIZE)
+            RRT_BOWL_SIZE = MAX_RRT_BOWL_SIZE;
         pres = kd_nearest_range(node_tree, newnode.state.x, RRT_BOWL_SIZE);
 
         double min_cost_neighbor = 1000;
@@ -226,7 +232,9 @@ int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, 
             return 0;
         }
         else
+        {
             return 1;
+        }
     }
     return 1;
 }
@@ -426,6 +434,15 @@ void process_tree_rrtstar(Node *goal_node)
     return;
 }
 
+void remove_bad_nodes(double min_cost)
+{
+    list<Node>::iterator i;
+    start = tree.begin();
+     
+    return;
+}
+
+
 double rrtstar_plan(unsigned int num_iter)
 {
     tree.clear();
@@ -434,40 +451,48 @@ double rrtstar_plan(unsigned int num_iter)
 
     Node start(robot, NULL);
     tree.push_back(start);
+    num_nodes++;
 
     kd_insert(node_tree, start.state.x, &(tree.front()) );
 
     Node curr;
     bool reached = false;
     Node *node_that_reached = NULL;
-    double min_cost = 1000;
+    double min_cost = 500;
 
     while(num_iter || (!reached))
     {
         State t = sample_state();
         
-        Node *near = nearest_kdtree(node_tree, t);
-        
-        if(near != NULL)
+        if(! is_obstructed(t))
         {
-            //printf("near is not NULL\n");
-            if( extend_rrtstar(node_tree, near, t, curr, min_cost) == 0)          // extend near in the direction of t
-            {
-                //curr.state.print();
-                //(curr.parent)->state.print();
-                //printf("\n");
-                //getchar();
+            Node *near = nearest_kdtree(node_tree, t);
 
-                assert(0 == kd_insert(node_tree, curr.state.x, &(tree.back()) ));
-                if( is_inside_goal(curr.state) && (curr.csrc < min_cost) )
+            if(near != NULL)
+            {
+                //printf("near is not NULL\n");
+                if( extend_rrtstar(node_tree, near, t, curr, min_cost) == 0)          // extend near in the direction of t
                 {
-                    reached = true;
-                    min_cost = curr.csrc;
-                    node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
+                    //curr.state.print();
+                    //(curr.parent)->state.print();
+                    //printf("\n");
+                    //getchar();
+
+                    assert(0 == kd_insert(node_tree, curr.state.x, &(tree.back()) ));
+                    num_nodes++;
+                    if( is_inside_goal(curr.state) && (curr.csrc < min_cost) )
+                    {
+                        reached = true;
+                        min_cost = curr.csrc;
+                        node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
+                    }
                 }
             }
         }
         num_iter--;
+        
+        if(num_iter %500 == 0)
+            remove_bad_nodes(min_cost);
     }
     kd_free(node_tree);
 

@@ -102,7 +102,7 @@ if points:
                     if found_optpath == 1:
                         plt.plot(px, py, 'ko-', linewidth=1.5)
                     else:
-                        plt.plot(px, py, 'y-', linewidth=1.5)
+                        plt.plot(px, py, 'y-', linewidth=0.5)
         
             if (len(s) == 1) and (s[0] == 'optpath\n'):
                 print "Found optpath"

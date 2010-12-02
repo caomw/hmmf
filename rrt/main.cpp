@@ -134,7 +134,7 @@ int main(int argc, char* argv[])
     */
    
     double start = get_msec();
-    double cost = rrtstar_plan(30000);
+    double cost = rrtstar_plan(5000);
     printf("%f \n", cost);
     printf("Duration: %.3f \n", get_msec() - start);
     print_path(tree);
