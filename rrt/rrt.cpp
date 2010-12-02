@@ -2,20 +2,29 @@
 #include "kdtree.h"
 #include "rrt.h"
 
+#define INF             (1000)
+#define EXTEND_DIST     (1.0)
+#define GOAL_PROB       (0.01)
+
 struct kdtree *obstree;
-State goal;
+Goal goal;
 State robot;
 Box box;
 double robot_radius;
+double MAX_OBS_SIZE = 0;
+double NUM_OBSTACLES = 0;
+double obs_rad[20];
 
-static double dist_sq( double *a1, double *a2, int dims ) 
+double dist(State s1, State s2) 
 {
     double dist_sq = 0, diff;
-    while( --dims >= 0 ) {
-        diff = (a1[dims] - a2[dims]);
+    int dims = NUM_STATES;
+    while( --dims >= 0 ) 
+    {
+        diff = (s1.x[dims] - s2.x[dims]);
         dist_sq += diff*diff;
     }
-    return dist_sq;
+    return sqrt(dist_sq);
 }
 
 void read_input()
@@ -27,53 +36,266 @@ void read_input()
     fpbot = fopen("input/bot.txt", "r");
     fpbox = fopen("input/box.txt", "r");
 
-    float dat[2*NUM_STATES];
+    double dat[2*NUM_STATES];
     
     // Get goal
-    assert(0 != fscanf(fpgoal, "%f, %f, %f", &dat[0], &dat[1], &dat[2]));
-    vector<double> t (dat, dat+NUM_STATES);
-    goal = State(t);
-    printf("Got goal: %f, %f, %f\n", dat[0], dat[1], dat[2]);
-    cout<<endl;
+    assert(0 != fscanf(fpgoal, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]));
+    goal.state = State(dat);
+    goal.size = dat[2];
+    //printf("Got goal: %f, %f, %f\n\n", dat[0], dat[1], dat[2]);
     fclose(fpgoal);
 
     // Get obstacles
     obstree = kd_create(2);
-    while(fscanf(fpobs, "%f, %f, %f", &dat[0], &dat[1], &dat[2]) == 3)
+    int c = 0;
+    while(fscanf(fpobs, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]) == 3)
     {
         double to_put[2] = {dat[0], dat[1]};
-        kd_insert(obstree, to_put, &dat[2]);
-        printf("Inserted %f, %f, %f\n", dat[0], dat[1], dat[2]);
+        obs_rad[c] = dat[2];
+        kd_insert(obstree, to_put, &obs_rad[c]);
+        
+        if( obs_rad[c] > MAX_OBS_SIZE)
+            MAX_OBS_SIZE = obs_rad[c];
+
+        NUM_OBSTACLES = c;
+
+        //printf("Inserted %f, %f, %f\n", dat[0], dat[1], obs_rad[c]);
+        c++;
     }
-    cout<<endl;
+    //for(int i=0; i<11; i++)
+    //    printf("%f\n", obs_rad[i]);
+
+    //printf("MAX_OBS_SIZE: %f\n\n", MAX_OBS_SIZE);
     fclose(fpobs);
     
     // Get bot
-    assert(0 != fscanf(fpbot, "%f, %f, %f", &dat[0], &dat[1], &dat[2]));
-    t = vector<double>(dat, dat+NUM_STATES);
-    robot = State(t);
+    assert(0 != fscanf(fpbot, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]));
+    robot = State(dat);
     robot_radius = dat[2];
-    printf("Got robot: %f, %f, %f\n", dat[0], dat[1], dat[2]);
-    cout<<endl;
+
+    // add robot-size to obs radius
+    for(int i=0; i<NUM_OBSTACLES; i++)
+        obs_rad[i] += robot_radius;    
+
+    //printf("Got robot: %f, %f, %f\n\n", dat[0], dat[1], dat[2]);
     fclose(fpbot);
      
     // Get box
-    assert(0 != fscanf(fpbox, "%f, %f, %f, %f", &dat[0], &dat[1], &dat[2], &dat[3]));
-    t = vector<double>(dat, dat+NUM_STATES);
-    box.center = State(t);
-    box.width = dat[NUM_STATES];
-    box.height = dat[NUM_STATES+1];
-    printf("Got center: %f, %f, %f, %f\n", dat[0], dat[1], dat[2], dat[3]);
+    assert(0 != fscanf(fpbox, "%lf, %lf, %lf, %lf", &dat[0], &dat[1], &dat[2], &dat[3]));
+    box.center = State(dat);
+    for(int i=0; i<NUM_STATES; i++)
+        box.size[i] = dat[NUM_STATES+i];
+    
+    //printf("Got center: %f, %f, %f, %f\n\n", dat[0], dat[1], dat[2], dat[3]);
     fclose(fpbox);
 }
+
+bool is_inside_goal(State c)
+{
+    if( dist(c, goal.state) <= goal.size)
+        return true;
+    else
+        return false;
+}
+
+bool is_obstructed(State s)
+{
+    struct kdres *presults;
+    double t[NUM_STATES];
+
+    for(int i=0; i<NUM_STATES; i++)
+        t[i] = s.x[i];
+
+    double pos[NUM_STATES];
+    presults = kd_nearest_range(obstree, t, MAX_OBS_SIZE);
+
+    while( !kd_res_end(presults))
+    {
+        double rad = *((double *)kd_res_item(presults, pos)); 
+        State temp = State(pos);
+        
+        //printf("Found: %f, %f, %.3f\n", pos[0], pos[1], rad);
+        //printf("Dist is %f\n", dist(temp, s));
+
+        if( dist(temp, s) <= (rad))
+            return true;
+        
+        kd_res_next( presults );
+
+    }
+    kd_res_free(presults);
+    return false;
+}
+
+State sample_state()
+{
+    double t = randdouble();
+    if(t < GOAL_PROB)
+    {
+        return goal.state;
+    }
+    double sample[NUM_STATES];
+    for(int i=0; i<NUM_STATES; i++)
+    {
+        double min = box.center.x[i] - box.size[i]/2;
+        double max = box.center.x[i] + box.size[i]/2;
+        //printf("min: %f, max: %f\n", min, max);
+
+        double t = randdouble(min, max);
+        sample[i] = t;
+    }
+    State test = State(sample);
+    //test.print();
+    return test;
+}
+
+Node nearest(list<Node> tree, State s)
+{
+    list<Node>::iterator i;
+    list<Node>::iterator min_node = tree.begin();
+    double min = INF;
+
+    for(i = tree.begin(); i != tree.end(); i++)
+    {
+        double t = dist(s, (*i).state);
+        if( t < min)
+        {
+            min = t;
+            min_node = i;
+        }
+    }
+
+    return (*min_node);
+}
+
+Node extend(list<Node> tree, Node near, State s)
+{
+    double totdist = dist(near.state, s);
+    if(totdist < EXTEND_DIST)
+    {
+        Node newnode(s, &near);
+        return newnode;
+    }
+    else
+    {
+        double newdist[NUM_STATES];
+        for(int i=0; i<NUM_STATES; i++)
+        {
+            newdist[i] = near.state.x[i] + (s.x[i] - near.state.x[i])/totdist*EXTEND_DIST;
+        }
+        State newstate(newdist);
+        Node newnode(newstate, &near);
+        return newnode;
+    }
+}
+
+
+/*
+ * Given that p1 and p2 both lie outside the obstacle, the line segment between p1
+ * and p2 hits an obstacle iff:
+ * 1) The distance between the line joining p1, p2 is less than the obstacle radius.
+ * 2) The projection of the center of the obstacle is lies between p1 and p2.
+ */
+bool does_line_hit(State s1, State s2, double *pos, double rad)
+{
+    State obs = State(pos);
+    if( (dist(s1, obs) <= rad) || (dist(s2, obs) <= rad))
+        return true;
+    
+    double xp, yp, dotProduct, obsDist;
+    double xo = pos[0], yo = pos[1];        // Obstacle x, y co-ordinates
+    
+    double endy = s2.x[1], starty = s1.x[1], startx = s1.x[0], endx = s1.x[0];
+    double a = endy - starty;
+    double b = startx - endx;
+    double c = (endx - startx)*starty - (endy - starty)*startx;
+
+
+    xp = xo - a*(a*xo + b*yo + c)/(a*a + b*b);
+    yp = yo - b*(a*xo + b*yo + c)/(a*a + b*b);
+
+    obsDist = sqrt( (xp - xo)*(xp - xo) + (yp -yo)*(yp -yo) );
+
+    if( obsDist <  rad)
+    {
+        dotProduct = (startx - xp)*(endx - xp) + (starty - yp)*(endy - yp);
+        if(dotProduct < 0)
+            return true;
+    }
+
+    return false;
+}
+
+
+bool can_join_nodes(Node n1, Node n2)
+{
+    double length = dist(n1.state, n2.state);
+    double center[NUM_STATES];
+    struct kdres *pres; 
+    double pos[NUM_STATES];
+    
+    for(int i=0; i<NUM_STATES; i++)
+        center[i] = (n1.state.x[i] + n2.state.x[i])/2;
+
+    pres = kd_nearest_range(obstree, center, (MAX_OBS_SIZE + length/2) );
+
+    while( !kd_res_end(pres))
+    {
+        double rad = *((double *)kd_res_item(pres, pos)); 
+        
+        State temp = State(pos);
+        
+        //printf("Found: %f, %f, %.3f\n", pos[0], pos[1], rad);
+
+        if(does_line_hit(n1.state, n2.state, pos, rad))
+            return false;
+
+        kd_res_next( pres);
+
+    }
+    kd_res_free(pres);
+
+    return true;
+}
+
+list<Node> rrt_plan()
+{
+    list<Node> tree;
+    Node s = Node(robot, NULL);
+    tree.push_back(s);
+
+    int c = 100;
+    bool reached = false;
+    while(!reached)
+    {
+        State t = sample_state();
+        if( !is_obstructed(t))
+        {
+            Node near = nearest(tree, t);
+            Node curr = extend(tree, near, t);        // extend near in the direction of t
+            
+            if(can_join_nodes(curr, near))
+            {
+                //printf("adding: ");
+                curr.state.print();
+                tree.push_back(curr);
+                reached = is_inside_goal(curr.state);
+            }
+        }
+        c--;
+    }
+    return tree;
+};
+
 
 int main()
 {
     init_rand();
     read_input();
     
+    rrt_plan();
     
-
     kd_free (obstree);
+
     return 0;
 }

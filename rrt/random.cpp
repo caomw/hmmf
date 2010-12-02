@@ -5,29 +5,16 @@ void init_rand()
     srand( time(0));
 }
 
-// random int between min and max
-int randint(int min, int max)
-{
-    if (min>max)
-    {
-        return max+int((min-max+1)*((double)rand())/(RAND_MAX+1.0));
-    }
-    else
-    {
-        return min+int((max-min+1)*((double)rand())/(RAND_MAX+1.0));
-    }
-}
-
 // random double between min and max
 double randdouble(double min, double max)
 {
     if (min>max)
     {
-        return rand()/(double(RAND_MAX)+1)*(min-max)+max;
+        return ((double)rand()/RAND_MAX)*(min-max) + max;
     }
     else
     {
-        return rand()/(double(RAND_MAX)+1)*(max-min)+min;
+        return ((double)rand()/RAND_MAX)*(max-min) + min;
     }
 }
 
@@ -36,11 +23,11 @@ float randfloat(float min, float max)
 {
     if (min>max)
     {
-        return rand()/(float(RAND_MAX)+1)*(min-max)+max;
+        return ((float)rand()/RAND_MAX)*(min-max) + min;
     }
     else
     {
-        return rand()/(float(RAND_MAX)+1)*(max-min)+min;
+        return ((float)rand()/RAND_MAX)*(max - min) + min;
     }
 }
 

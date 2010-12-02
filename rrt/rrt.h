@@ -4,6 +4,7 @@
 #include <iostream>
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include <vector>
 #include <list>
@@ -14,29 +15,28 @@ using namespace std;
 class State
 {
     public:
-        vector<double> x;
-        
+        double x[NUM_STATES];
         State()
         {
             ;
         };
-        State(vector<double> init)
+        State(double *s)
         {
-            x = init;
+            for(int i=0; i<NUM_STATES; i++)
+            {
+                x[i] = (*s);
+                s++;                // inc the pointer
+            }
         };
+
         bool operator==(State s)
         {
-            if(s.x ==  x)
-                return true;
-            else
-                return false;
-        }
-        bool operator!=(State s)
-        {
-            if(s.x == x)
-                return false;
-            else
-                return true;
+            for(int i=0; i<NUM_STATES; i++)
+            {
+                if(s.x[i] != x[i])
+                    return false;
+            }
+            return true;
         }
         void print()
         {
@@ -48,18 +48,30 @@ class State
         }
 };
 
-
 class Node
 {
     public:
         State state;
         Node *parent;
+        Node(State s, Node *p)
+        {
+            state = s;
+            parent = p;
+        };
+        Node()
+        {
+        };
 };
 
 typedef struct Box{
     State center;
-    double width;
-    double height;
+    double size[NUM_STATES];
 }Box;
+
+
+typedef struct Goal{
+    State state;
+    double size;
+}Goal;
 
 #endif
