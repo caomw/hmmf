@@ -5,6 +5,7 @@
 #define INF             (1000)
 #define EXTEND_DIST     (.2)
 #define GOAL_PROB       (0.01)
+#define USE_KDTREE      (0)
 
 typedef struct kdtree kdtree;
 typedef struct kdres kdres;
@@ -17,7 +18,7 @@ Box box;
 double robot_radius;
 double MAX_OBS_SIZE = 0;
 double NUM_OBSTACLES = 0;
-double obs_rad[20];
+double obs_rad[100];
 
 double dist(State s1, State s2) 
 {
@@ -31,17 +32,24 @@ double dist(State s1, State s2)
     return sqrt(dist_sq);
 }
 
-void read_input()
+void read_input(char obs_file[])
 {
     FILE *fpgoal, *fpobs, *fpbot, *fpbox;
 
     fpgoal = fopen("input/goal.txt", "r");
-    fpobs = fopen("input/obstacles.txt", "r");
+    fpobs = fopen(obs_file, "r");
     fpbot = fopen("input/bot.txt", "r");
     fpbox = fopen("input/box.txt", "r");
 
     double dat[2*NUM_STATES];
-    
+ 
+    // Get bot
+    assert(0 != fscanf(fpbot, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]));
+    robot = State(dat);
+    robot_radius = dat[2];
+    //printf("Got robot: %f, %f, %f\n\n", dat[0], dat[1], dat[2]);
+    fclose(fpbot);
+   
     // Get goal
     assert(0 != fscanf(fpgoal, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]));
     goal.state = State(dat);
@@ -55,7 +63,7 @@ void read_input()
     while(fscanf(fpobs, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]) == 3)
     {
         double to_put[2] = {dat[0], dat[1]};
-        obs_rad[c] = dat[2];
+        obs_rad[c] = dat[2] + robot_radius;
         kd_insert(obstree, to_put, &obs_rad[c]);
         
         if( obs_rad[c] > MAX_OBS_SIZE)
@@ -72,17 +80,6 @@ void read_input()
     //printf("MAX_OBS_SIZE: %f\n\n", MAX_OBS_SIZE);
     fclose(fpobs);
     
-    // Get bot
-    assert(0 != fscanf(fpbot, "%lf, %lf, %lf", &dat[0], &dat[1], &dat[2]));
-    robot = State(dat);
-    robot_radius = dat[2];
-
-    // add robot-size to obs radius
-    for(int i=0; i<NUM_OBSTACLES; i++)
-        obs_rad[i] += robot_radius;    
-
-    //printf("Got robot: %f, %f, %f\n\n", dat[0], dat[1], dat[2]);
-    fclose(fpbot);
      
     // Get box
     assert(0 != fscanf(fpbox, "%lf, %lf, %lf, %lf", &dat[0], &dat[1], &dat[2], &dat[3]));
@@ -172,10 +169,11 @@ Node* nearest(State s)
     return min_node;
 }
 
-/*
-Node* nearest(kdtree *node_tree, State s)
+Node* nearest_kdtree(kdtree *node_tree, State s)
 {
     kdres *pres;
+    //printf("query nearest ...."); getchar();
+    //cout<<endl;
     pres = kd_nearest(node_tree, s.x);
 
     if(kd_res_end(pres))
@@ -185,11 +183,13 @@ Node* nearest(kdtree *node_tree, State s)
     }
     else
     {
+        //printf("get item from kdtree ...."); getchar();
+        //cout<<endl;
+
         Node *n = (Node *)kd_res_item_data(pres);
         return n;
     }
 }
-*/
 
 Node extend(Node *near, State s)
 {
@@ -283,23 +283,28 @@ bool can_join_nodes(Node n1, Node n2)
 
 void rrt_plan()
 {
-    //kdtree *node_tree;
-    //node_tree = kd_create(NUM_STATES);
+    kdtree *node_tree;
+    node_tree = kd_create(NUM_STATES);
 
     Node start;
     start.state = robot;
     start.parent = NULL;
     tree.push_back(start);
 
-    //kd_insert(node_tree, start.state.x, tree.front().parent);
+    kd_insert(node_tree, start.state.x, &(tree.front()) );
 
     bool reached = false;
     while(!reached)
     {
         State t = sample_state();
+#if USE_KDTREE
+        Node *near = nearest_kdtree(node_tree, t);
+#else
         Node *near = nearest(t);
+#endif
         if(near != NULL)
         {
+            //printf("near is not NULL\n");
             Node curr = extend(near, t);        // extend near in the direction of t
 
             if(can_join_nodes(curr, *near))
@@ -309,12 +314,12 @@ void rrt_plan()
                 //printf("\n");
 
                 tree.push_back(curr);
-                //assert(0 == kd_insert(node_tree, curr.state.x, curr.parent));
+                assert(0 == kd_insert(node_tree, curr.state.x, &(tree.back()) ));
                 reached = is_inside_goal(curr.state);
             }
         }
     }
-    //kd_free(node_tree);
+    kd_free(node_tree);
     return;
 };
 
@@ -334,16 +339,34 @@ void print_path(list<Node> path)
     }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     init_rand();
-    read_input();
     
-    rrt_plan();
+    int time_this = 0;
+    if(argc == 3)
+        time_this = atoi(argv[2]);
     
-    print_path(tree);
-
+    if(argc >= 2)
+        read_input(argv[1]);
+    else
+        read_input("input/obstacles.txt");
+    
+    if(time_this)
+    {
+        printf("Starting RRT\n");
+        double start = get_msec();
+        rrt_plan();
+        start = get_msec() - start;
+        printf("Duration: %.3f [ms]\n", start);
+    }
+    else
+    {
+        rrt_plan();
+        print_path(tree);
+    }
     kd_free (obstree);
 
     return 0;
 }
+

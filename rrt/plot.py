@@ -8,16 +8,17 @@ from matplotlib.patches import Circle
 
 
 if len(sys.argv) <= 1:
-    print "usage:", sys.argv[0], "<data file>"
+    print "usage:", sys.argv[0], "<obs file>"
     sys.exit() 
 
-obs = open('input/obstacles.txt', 'r');
+obsfile = sys.argv[1]
+obs = open( obsfile, 'r');
+
+points= open('points.dat', 'r');
 bot = open('input/bot.txt', 'r');
 goal = open('input/goal.txt', 'r');
 box = open('input/box.txt', 'r');
 
-pointsfile = sys.argv[1]
-points = open(pointsfile, 'r');
 
 num_obs = 0
 obsx = []
@@ -82,7 +83,7 @@ if points:
             px.append( float( s[0]))
             py.append( float( s[1]))
         
-            plt.plot(px, py, 'y-', linewidth=2)
+            plt.plot(px, py, 'y-', linewidth=1.5)
         
 
 box_minx = box_cx - box_xsize/2
