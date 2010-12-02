@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define MIN         (-10)
-#define MAX         (10)
+#define MIN         (-50)
+#define MAX         (50)
 
 double rd()
 {

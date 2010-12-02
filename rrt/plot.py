@@ -68,11 +68,19 @@ if box:
     box.close()
 
 if points:
+    # Read cost on the first line
+    l = points.readline()
+    s = l.split('\n')
+    if len(s) == 2:
+        print "Path Cost: ", float(s[0])
+    
+    # ignore the first node
     l = points.readline()
     while l:
         l = points.readline()
         s = l.split(' ')
-        if len(s) > 1:
+        
+        if len(s) > 2:
             px = []
             py = []
             px.append( float( s[0]))
@@ -84,8 +92,7 @@ if points:
             py.append( float( s[1]))
         
             plt.plot(px, py, 'y-', linewidth=1.5)
-        
-
+       
 box_minx = box_cx - box_xsize/2
 box_maxx = box_cx + box_xsize/2
 

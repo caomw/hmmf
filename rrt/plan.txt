@@ -5,8 +5,8 @@
 3. stl list
 4. node
 5. working rrt
-
-    add kdtree for nodes
+6. add kdtree for nodes
+    
     cost for nodes
     branch and bound
     

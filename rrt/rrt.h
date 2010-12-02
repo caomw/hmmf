@@ -53,10 +53,17 @@ class Node
     public:
         State state;
         Node *parent;
-        Node(State s, Node *p)
+        double csrc;        // cost from src
+        double cgoal;       // heuristic
+        double cparent;     // cost from parent
+
+        Node(State s, Node *p, double c1=0, double c2=0, double c3=0)
         {
             state = s;
             parent = p;
+            csrc = c1;
+            cgoal = c2;
+            cparent = c3;
         };
         Node()
         {
