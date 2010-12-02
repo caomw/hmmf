@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
     
     fpoints = fopen("points.dat", "w");
     double start = get_msec();
-    double cost = rrtstar_plan(10000);
+    double cost = rrt_plan(5000);
     
     fprintf(fpoints, "%f \n", cost);
     fprintf(fpoints, "Duration: %.3f \n", get_msec() - start);

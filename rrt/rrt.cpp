@@ -8,7 +8,7 @@
 #define GAMMA               (30)
 #define GOAL_PROB           (0.05)
 #define USE_KDTREE          (1)
-#define BRANCH_N_BOUND      (1)
+#define BRANCH_N_BOUND      (0)
 
 list<Node> tree;        // stores the tree
 list<Node> path;        // stores path that reaches goal
@@ -204,31 +204,35 @@ int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, 
         newnode.csrc = near_node->csrc + t;
         newnode.cparent = t;
         newnode.cgoal = dist(newnode.state, goal.state);
-
-        tree.push_back(newnode);
-
-        // try to rewire parents of all the nodes in the bowl 
-        while( !kd_res_end(pres) )
+        
+        if( (newnode.csrc + newnode.cgoal) < curr_min_cost)
         {
-            temp_node = (Node *)kd_res_item_data(pres); 
+            tree.push_back(newnode);
 
-            if (can_join_nodes(newnode, *temp_node) )
+            // try to rewire parents of all the nodes in the bowl 
+            while( !kd_res_end(pres) )
             {
-                double pardist = dist(temp_node->state, newnode.state);
-                double t = newnode.csrc + pardist;
-                if( t < temp_node->csrc)
+                temp_node = (Node *)kd_res_item_data(pres); 
+
+                if (can_join_nodes(newnode, *temp_node) )
                 {
-                    // you can reach temp_node quicker through newnode than its parent, rewire it
-                    temp_node->parent = &(tree.back());
-                    temp_node->csrc = t;
-                    temp_node->cparent = pardist;
+                    double pardist = dist(temp_node->state, newnode.state);
+                    double t = newnode.csrc + pardist;
+                    if( t < temp_node->csrc)
+                    {
+                        // you can reach temp_node quicker through newnode than its parent, rewire it
+                        temp_node->parent = &(tree.back());
+                        temp_node->csrc = t;
+                        temp_node->cparent = pardist;
+                    }
                 }
+                kd_res_next( pres );
             }
-            kd_res_next( pres );
         }
-
+        else
+            return 1;
+        
         kd_res_free(pres);
-
         returned_node = newnode;
         return 0;
     }
@@ -368,24 +372,32 @@ void remove_bad_nodes(double min_cost)
     int num_deleted = 0; 
     for(s = tree.begin(); s != tree.end(); s++)
     {
+        bool delete_children = false;
         if( ((*s).csrc + (*s).cgoal) > min_cost)
         {
-            for(r = tree.begin(); r != tree.end(); r++)
+            printf("F bad P ");
+            s->state.print();
+            delete_children = true;
+        }
+        for(r = tree.begin(); r != tree.end(); r++)
+        {
+            if( r != s )
             {
-                if( r != s )
+                if( r->parent == (&(*s)) )          // child of s
                 {
-                    if( r->parent == (&(*s)) )
+                    if(delete_children)
                     {
-                        //r->state.print();
-                        //getchar();
+                        printf("F bad C of bad P ");
+                        r->state.print();
                         r = tree.erase(r);
                         num_deleted++;
                     }
                 }
             }
-            //s = tree.erase(s);
-            //s->state.print();
-            //getchar();
+        }
+        if(delete_children)
+        {
+            s = tree.erase(s);
             num_deleted++;
         }
     }
@@ -394,10 +406,12 @@ void remove_bad_nodes(double min_cost)
     kd_clear(node_tree);
     
     //build tree again
+    //printf("\nInserting..\n");
     num_nodes = 0;
     for(s = tree.begin(); s!= tree.end(); s++)
     {
         assert( 0 == kd_insert(node_tree, (*s).state.x, &(*s)) );
+        //s->state.print();
         num_nodes++;
     }
     printf("Removed: %d, Left: %d\n", num_deleted, num_nodes);
@@ -418,11 +432,11 @@ double rrt_plan(unsigned int num_iter)
     kd_insert(node_tree, start.state.x, &(tree.front()) );
 
     Node curr;
+    Node *node_that_reached;
     bool reached = false;
     unsigned int iter = 0;
-    bool run_flag = true;
-
-    while(run_flag)
+    
+    while( (iter< num_iter) || (!reached) )
     {
         State t = sample_state();
         if(! is_obstructed(t))
@@ -447,39 +461,35 @@ double rrt_plan(unsigned int num_iter)
                     //curr.state.print();
                     //(curr.parent)->state.print();
                     //printf("\n");
-
-                    tree.push_back(curr);
-                    assert(0 == kd_insert(node_tree, curr.state.x, &(tree.back()) ));
                     
-                    if( (reached == 0) && (is_inside_goal(curr.state)) )
+                    if( (curr.csrc + curr.cgoal) < min_cost)
                     {
-                        reached = true;
-                        printf("Reached at iter: %d\n", iter);
-                        if(min_cost > (curr.csrc + curr.cgoal) )
-                            min_cost = (curr.csrc + curr.cgoal);
+                        tree.push_back(curr);
+                        assert(0 == kd_insert(node_tree, curr.state.x, &(tree.back()) ));
+
+                        if( is_inside_goal(curr.state) && ( (curr.csrc + curr.cgoal) < min_cost) )
+                        {
+                            reached = true;
+                            min_cost = curr.csrc;
+                            node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
+                            printf("iter_reached: %d cost: %.3f\n", iter, min_cost);
+                        }
+                        iter++;
+#if BRANCH_N_BOUND
+                        if( (iter % 500 == 0) && (reached) )
+                        {
+                            printf("iter: %d ", iter);
+                            remove_bad_nodes(min_cost);
+                        }
+#endif
                     }
-                    iter++;
                 }
             }
         }
-/*
-#if BRANCH_N_BOUND
-        if( (iter % 1000 == 0) && (reached) )
-        {
-            double start = get_msec();
-            printf("Going into remove_bad\n");
-            remove_bad_nodes(min_cost);
-            printf("remove_bad took: %.3f [ms]\n", get_msec() - start);
-        }
-        run_flag = ( (reached == false) || (iter < num_iter) );          // run till end of steps for BRANCH AND BOUND
-#else
-*/
-        run_flag = (!reached);
-//#endif
     }
     kd_free(node_tree);
 
-    process_tree_rrt(curr);
+    process_tree_rrt(*node_that_reached);
     
     return min_cost;
 };
@@ -519,7 +529,7 @@ double rrtstar_plan(unsigned int num_iter)
     while( (iter< num_iter) || (!reached) )
     {
         State t = sample_state();
-        
+
         if(! is_obstructed(t))
         {
             Node *near = nearest_kdtree(node_tree, t);
@@ -536,7 +546,7 @@ double rrtstar_plan(unsigned int num_iter)
 
                     assert(0 == kd_insert(node_tree, curr.state.x, &(tree.back()) ));
                     num_nodes++;
-                    if( is_inside_goal(curr.state) && (curr.csrc < min_cost) )
+                    if( is_inside_goal(curr.state) && ( (curr.csrc +curr.cgoal) < min_cost) )
                     {
                         printf("iter_reached: %d\n", iter);
                         reached = true;
@@ -544,16 +554,16 @@ double rrtstar_plan(unsigned int num_iter)
                         node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
                     }
                     iter++;
+#if BRANCH_N_BOUND
+                    if ( (iter % 500 == 0) && reached )
+                    {
+                        printf("iter: %d ", iter);
+                        remove_bad_nodes(min_cost);
+                    }
+#endif
                 }
             }
         }
-#if BRANCH_N_BOUND
-        if ( (iter % 200 == 0) && reached )
-        {
-            printf("iter: %d ", iter);
-            remove_bad_nodes(min_cost);
-        }
-#endif
     }
     kd_free(node_tree);
 

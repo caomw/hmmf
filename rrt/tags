@@ -4,6 +4,7 @@
 !_TAG_PROGRAM_NAME	Exuberant Ctags	//
 !_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
 !_TAG_PROGRAM_VERSION	5.8	//
+BRANCH_N_BOUND	rrt.cpp	11;"	d	file:
 Box	rrt.h	/^typedef struct Box{$/;"	s
 Box	rrt.h	/^}Box;$/;"	t	typeref:struct:Box
 EXTEND_DIST	rrt.cpp	6;"	d	file:
@@ -34,7 +35,6 @@ alloc_mutex	kdtree.c	/^static pthread_mutex_t alloc_mutex = PTHREAD_MUTEX_INITIA
 alloc_resnode	kdtree.c	/^static struct res_node *alloc_resnode(void)$/;"	f	file:
 alloc_resnode	kdtree.c	101;"	d	file:
 box	rrt.cpp	/^Box box;$/;"	v
-branch_and_bound	main.cpp	/^void branch_and_bound(int num, int output_path)$/;"	f
 can_join_nodes	rrt.cpp	/^bool can_join_nodes(Node n1, Node n2)$/;"	f
 center	rrt.h	/^    State center;$/;"	m	struct:Box
 cgoal	rrt.h	/^        double cgoal;       \/\/ heuristic$/;"	m	class:Node
@@ -53,6 +53,7 @@ does_line_hit	rrt.cpp	/^bool does_line_hit(State s1, State s2, double *pos, doub
 extend_rrt	rrt.cpp	/^Node extend_rrt(Node *near, State s)$/;"	f
 extend_rrtstar	rrt.cpp	/^int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, double curr_min_cost)$/;"	f
 find_nearest	kdtree.c	/^static int find_nearest(struct kdnode *node, const double *pos, double range, struct res_node *list, int ordered, int dim)$/;"	f	file:
+fpoints	main.cpp	/^FILE *fpoints;$/;"	v
 free_nodes	kdtree.c	/^static struct res_node *free_nodes;$/;"	v	typeref:struct:res_node	file:
 free_resnode	kdtree.c	/^static void free_resnode(struct res_node *node)$/;"	f	file:
 free_resnode	kdtree.c	102;"	d	file:
@@ -110,6 +111,7 @@ min	kdtree.c	/^    double *min, *max;              \/* minimum\/maximum coords *
 nearest	rrt.cpp	/^Node* nearest(State s)$/;"	f
 nearest_kdtree	rrt.cpp	/^Node* nearest_kdtree(kdtree *node_tree, State s)$/;"	f
 next	kdtree.c	/^    struct res_node *next;$/;"	m	struct:res_node	typeref:struct:res_node::res_node	file:
+node_tree	rrt.cpp	/^kdtree *node_tree;$/;"	v
 num_nodes	rrt.cpp	/^int num_nodes = 0;$/;"	v
 obs_rad	rrt.cpp	/^double obs_rad[100];$/;"	v
 obstree	rrt.cpp	/^kdtree *obstree;$/;"	v
@@ -129,6 +131,7 @@ rd	genobs.c	/^double rd()$/;"	f
 rdlim	genobs.c	/^double rdlim(double min, double max)$/;"	f
 read_input	main.cpp	/^void read_input(char obs_file[])$/;"	f
 rect	kdtree.c	/^    struct kdhyperrect *rect;$/;"	m	struct:kdtree	typeref:struct:kdtree::kdhyperrect	file:
+remove_bad_nodes	rrt.cpp	/^void remove_bad_nodes(double min_cost)$/;"	f
 res_node	kdtree.c	/^struct res_node {$/;"	s	file:
 right	kdtree.c	/^    struct kdnode *left, *right;	\/* negative\/positive side *\/$/;"	m	struct:kdnode	typeref:struct:kdnode::	file:
 riter	kdtree.c	/^    struct res_node *rlist, *riter;$/;"	m	struct:kdres	typeref:struct:kdres::	file:
@@ -137,7 +140,7 @@ rlist_insert	kdtree.c	/^static int rlist_insert(struct res_node *list, struct kd
 robot	rrt.cpp	/^State robot;$/;"	v
 robot_radius	rrt.cpp	/^double robot_radius;$/;"	v
 root	kdtree.c	/^    struct kdnode *root;$/;"	m	struct:kdtree	typeref:struct:kdtree::kdnode	file:
-rrt_plan	rrt.cpp	/^double rrt_plan(double old_cost)$/;"	f
+rrt_plan	rrt.cpp	/^double rrt_plan(unsigned int num_iter)$/;"	f
 rrtstar_plan	rrt.cpp	/^double rrtstar_plan(unsigned int num_iter)$/;"	f
 sample_state	rrt.cpp	/^State sample_state()$/;"	f
 size	kdtree.c	/^    int size;$/;"	m	struct:kdres	file:
