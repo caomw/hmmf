@@ -81,30 +81,32 @@ if points:
         s = l.split(' ')
         #print s
 
-        if (len(s) == 3) and (s[0] == 'optpath_cost:'):
-            print "optpath_cost: ", float(s[1])
+        if (len(s) == 3) and (s[0] == 'Duration:'):
+            print "Duration: ", float(s[1]), '[ms]'
         
-        else: 
-            if len(s) == 3:
-                px = []
-                py = []
-                px.append( float( s[0]))
-                py.append( float( s[1]))
+        else:
+            if (len(s) == 3) and (s[0] == 'optpath_cost:'):
+                print "optpath_cost: ", float(s[1])
+            else: 
+                if len(s) == 3:
+                    px = []
+                    py = []
+                    px.append( float( s[0]))
+                    py.append( float( s[1]))
 
-                l = points.readline()
-                s = l.split(' ')
-                px.append( float( s[0]))
-                py.append( float( s[1]))
+                    l = points.readline()
+                    s = l.split(' ')
+                    px.append( float( s[0]))
+                    py.append( float( s[1]))
         
-                if found_optpath == 1:
-                    plt.plot(px, py, 'ko-', linewidth=1.5)
-                else:
-                    plt.plot(px, py, 'y-', linewidth=1.5)
+                    if found_optpath == 1:
+                        plt.plot(px, py, 'ko-', linewidth=1.5)
+                    else:
+                        plt.plot(px, py, 'y-', linewidth=1.5)
         
-        if (len(s) == 1) and (s[0] == 'optpath\n'):
-            print "Found optpath"
-            found_optpath = 1
-
+            if (len(s) == 1) and (s[0] == 'optpath\n'):
+                print "Found optpath"
+                found_optpath = 1
 
        
 box_minx = box_cx - box_xsize/2

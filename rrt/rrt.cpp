@@ -4,7 +4,7 @@
 
 #define INF             (1000)
 #define EXTEND_DIST     (0.5)
-#define GOAL_PROB       (0.1)
+#define GOAL_PROB       (0.01)
 #define USE_KDTREE      (1)
 
 typedef struct kdtree kdtree;
@@ -414,62 +414,55 @@ void print_path(list<Node> whichpath)
     }
 }
 
-void branch_and_bound(int num)
+void branch_and_bound(int num, int output_path)
 {
-    printf("Starting RRT\n");
     double start = get_msec();
     double cost = 1000, newcost;
 
     for(int i=0; i<num; i++)
     {
         newcost = rrt_plan(cost);
-        printf("Run %d cost: %f\n", i+1, newcost);
+        if (!output_path)
+            printf("Run %d cost: %f optpath_cost: %f \n", i+1, newcost, optpath.front().csrc);
         if (newcost < cost)
         {
             cost = newcost;
         }
     }
-    printf("Cost: %f \n", cost);
     start = get_msec() - start;
-    printf("Duration: %.3f [ms]\n", start);
+    
+    if(output_path)
+        printf("%f \n", cost);
+    printf("Duration: %.3f \n", start);
 }
 
 int main(int argc, char* argv[])
 {
     init_rand();
     
-    /*
-    int time_this = 0;
+    int output_path = 0;
     if(argc == 3)
-        time_this = atoi(argv[2]);
+        output_path = atoi(argv[2]);
     
     if(argc >= 2)
         read_input(argv[1]);
     else
-        read_input("input/obstacles.txt");
+        read_input("input/obs1.txt");
     
-    if(time_this)
+    if(output_path == 0)
     {
-        branch_and_bound(4);
+        branch_and_bound(3, output_path);
     }
     else
     {
-        double cost = 1000, newcost = 0;
-        cost = rrt_plan(cost);
-        printf("%f \n", cost);
+        branch_and_bound(3, output_path);
         print_path(tree);
+        printf("optpath\n");
+        print_path(optpath);
+        printf("optpath_cost: %f \n", optpath.front().csrc);
     }
-    */
+     
     
-    read_input("input/obs1.txt");
-    double c = rrt_plan(1000);
-    printf("%f \n", c);
-    
-    print_path(tree);
-    printf("optpath\n");
-    print_path(optpath);
-    printf("optpath_cost: %f \n", optpath.front().csrc);
-
     kd_free (obstree);
     return 0;
 }
