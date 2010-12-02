@@ -121,7 +121,7 @@ Node extend_rrt(Node *near, State s);
 bool does_line_hit(State s1, State s2, double *pos, double rad);
 bool can_join_nodes(Node n1, Node n2);
 void process_tree_rrt(Node goal_node);
-double rrt_plan(double old_cost);
+double rrt_plan(unsigned int num_iter);
 
 
 int extend_rrtstar(kdtree *node_tree, Node *near, State s, Node &returned_node, double curr_min_cost);

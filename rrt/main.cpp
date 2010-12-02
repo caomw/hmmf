@@ -2,6 +2,7 @@
 #include "kdtree.h"
 #include "rrt.h"
 
+FILE *fpoints;
 
 void read_input(char obs_file[])
 {
@@ -71,44 +72,27 @@ void print_path(list<Node> whichpath)
         Node curr = *i;
         if(curr.parent != NULL)
         {
-            curr.state.print();
-            (curr.parent)->state.print();
+            for(unsigned int i=0; i<NUM_STATES; i++)
+            {
+                fprintf(fpoints, "%f ", curr.state.x[i]);
+            }
+            fprintf(fpoints, "\n");
+            for(unsigned int i=0; i<NUM_STATES; i++)
+            {
+                fprintf(fpoints, "%f ", (curr.parent)->state.x[i]);
+            }
+            fprintf(fpoints, "\n");
+
             //Node *p = curr.parent;
             //p->state.print();
         }
     }
 }
 
-void branch_and_bound(int num, int output_path)
-{
-    double start = get_msec();
-    double cost = 1000, newcost;
-
-    for(int i=0; i<num; i++)
-    {
-        double delt = get_msec();
-        newcost = rrt_plan(cost);
-        if (!output_path)
-        {
-            delt = get_msec() - delt;
-            printf("Run %d cost: %f optpath_cost: %f duration: %.3f \n", i+1, newcost, optpath.back().cgoal, delt);
-        }
-        if (newcost < cost)
-        {
-            cost = newcost;
-        }
-    }
-    start = get_msec() - start;
-    
-    if(output_path)
-        printf("%f \n", cost);
-    printf("Duration: %.3f \n", start);
-}
-
 int main(int argc, char* argv[])
 {
     init_rand();
-    
+        
     int output_path = 0;
     if(argc == 3)
         output_path = atoi(argv[2]);
@@ -118,30 +102,18 @@ int main(int argc, char* argv[])
     else
         read_input("input/obs1.txt");
     
-    /*
-    if(output_path == 0)
-    {
-        branch_and_bound(3, output_path);
-    }
-    else
-    {
-        branch_and_bound(3, output_path);
-        print_path(tree);
-        printf("optpath\n");
-        print_path(optpath);
-        printf("optpath_cost: %f \n", optpath.back().cgoal);
-    }
-    */
-   
+    fpoints = fopen("points.dat", "w");
     double start = get_msec();
     double cost = rrtstar_plan(10000);
-    printf("%f \n", cost);
-    printf("Duration: %.3f \n", get_msec() - start);
-    print_path(tree);
-    printf("optpath\n");
-    print_path(optpath);
-    printf("optpath_cost: %f \n", optpath.back().cgoal);
     
+    fprintf(fpoints, "%f \n", cost);
+    fprintf(fpoints, "Duration: %.3f \n", get_msec() - start);
+    print_path(tree);
+    fprintf(fpoints, "optpath\n");
+    print_path(optpath);
+    fprintf(fpoints, "optpath_cost: %f \n", optpath.back().cgoal);
+    
+    fclose(fpoints);
     kd_free (obstree);
     return 0;
 }
