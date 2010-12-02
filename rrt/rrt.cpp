@@ -2,13 +2,13 @@
 #include "kdtree.h"
 #include "rrt.h"
 
-#define INF                 (1000)
+#define INF                 (10000)
 #define EXTEND_DIST         (1.0)
 #define MAX_RRT_BOWL_SIZE   (10.0)
 #define GAMMA               (30)
 #define GOAL_PROB           (0.05)
 #define USE_KDTREE          (1)
-#define BRANCH_N_BOUND      (0)
+#define BRANCH_N_BOUND      (1)
 
 list<Node> tree;        // stores the tree
 list<Node> path;        // stores path that reaches goal
@@ -23,7 +23,7 @@ Box box;
 double robot_radius;
 double MAX_OBS_SIZE = 0;
 double NUM_OBSTACLES = 0;
-double obs_rad[100];
+double obs_rad[500];
 double RRT_BOWL_SIZE = MAX_RRT_BOWL_SIZE;
 int num_nodes = 0;
 

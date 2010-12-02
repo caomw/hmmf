@@ -107,7 +107,7 @@ extern Box box;
 extern double robot_radius;
 extern double MAX_OBS_SIZE;
 extern double NUM_OBSTACLES;
-extern double obs_rad[100];
+extern double obs_rad[500];
 
 // prototypes
 

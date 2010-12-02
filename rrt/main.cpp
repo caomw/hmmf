@@ -4,12 +4,12 @@
 
 FILE *fpoints;
 
-void read_input(char obs_file[])
+void read_input(void)
 {
     FILE *fpgoal, *fpobs, *fpbot, *fpbox;
 
     fpgoal = fopen("input/goal.txt", "r");
-    fpobs = fopen(obs_file, "r");
+    fpobs = fopen("input/obs2.txt", "r");
     fpbot = fopen("input/bot.txt", "r");
     fpbox = fopen("input/box.txt", "r");
 
@@ -90,37 +90,32 @@ void print_path(list<Node> whichpath)
 int main(int argc, char* argv[])
 {
     init_rand();
-        
-    int output_path = 0;
-    if(argc == 3)
-        output_path = atoi(argv[2]);
     
-    if(argc >= 2)
-        read_input(argv[1]);
-    else
-        read_input("input/obs1.txt");
-    
+    read_input();
     fpoints = fopen("points.dat", "w");
+    
     double start = get_msec(), delt;
-    /*
+  
+    /* 
     int i = 0;
-    while(i < 1)
+    while(i < 100)
     {
         start = get_msec();
-        double cost = rrt_plan(15000);
+        double cost = rrt_plan(8000);
         delt = get_msec() - start;
         printf("%d\t%f\t%f\n", i, optpath.back().cgoal, delt);
         i++;
     }
     */
-    double cost = rrtstar_plan(10000);
+     
+    double cost = rrtstar_plan(3000);
     fprintf(fpoints, "%f \n", cost);
     fprintf(fpoints, "Duration: %.3f \n", get_msec() - start);
     print_path(tree);
     fprintf(fpoints, "optpath\n");
     print_path(optpath);
     fprintf(fpoints, "optpath_cost: %f \n", optpath.back().cgoal);
-
+    
     fclose(fpoints);
     kd_free (obstree);
     return 0;

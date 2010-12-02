@@ -12,12 +12,14 @@ if len(sys.argv) <= 1:
     sys.exit() 
 
 obsfile = sys.argv[1]
-obs = open( obsfile, 'r');
+goalfile = "input/goal.txt"
+boxfile = "input/box.txt"
 
+obs = open( obsfile, 'r');
+goal = open( goalfile, 'r');
+box = open(boxfile, 'r');
 points= open('points.dat', 'r');
 bot = open('input/bot.txt', 'r');
-goal = open('input/goal.txt', 'r');
-box = open('input/box.txt', 'r');
 
 num_obs = 0
 obsx = []
