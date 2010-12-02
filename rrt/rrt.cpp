@@ -310,8 +310,9 @@ double rrt_plan(double old_cost)
             double t = dist(curr.state, near->state);
             curr.csrc = near->csrc + t;
             curr.cparent = t;
+            curr.cgoal = dist(curr.state, goal.state);
 
-            if(curr.csrc < old_cost)
+            if( (curr.csrc + curr.cgoal) < old_cost)
             {
                 if(can_join_nodes(curr, *near))
                 {
@@ -366,7 +367,7 @@ int main(int argc, char* argv[])
     {
         printf("Starting RRT\n");
         double start = get_msec();
-        for(int i=0; i<2; i++)
+        for(int i=0; i<4; i++)
         {
             newcost = rrt_plan(cost);
             printf("Run %d cost: %f\n", i+1, newcost);
