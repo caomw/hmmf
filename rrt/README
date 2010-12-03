@@ -1,0 +1,22 @@
+Instructions to execute the code
+================================
+
+Compiling:
+    1. make inside the source code folder to compile RRT* code
+    2. ./genobs <num_obs> <max_size> > input/obs3.txt to generate the obstacles randomly
+    3. RRT* generates a file points.dat which stores the tree and the costs
+    4. Plot this using "python plot.py <obs_file>"
+ 
+
+ Obstacle generation:
+    I generated obstacles randomly given a numnber of obstacles.
+    90% obstacles are generated within sizes (0.1, 0.5*max_size)
+    The rest are generated between (0.5*max_size, max_size)
+    The robot location is fixed at (0, 0) and genobs.c takes care
+    not to put obstacles that overlap this. However, the goal location
+    has to be explicitly chosen. To do this, run the python plotter with
+    an empty points.dat file and the newly generated obstacle file.
+
+
+Matlab histogram code:
+    This generated the histogram given the statistics plots from RRT* code.

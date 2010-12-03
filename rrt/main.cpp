@@ -9,7 +9,7 @@ void read_input(void)
     FILE *fpgoal, *fpobs, *fpbot, *fpbox;
 
     fpgoal = fopen("input/goal.txt", "r");
-    fpobs = fopen("input/obs2.txt", "r");
+    fpobs = fopen("input/obs3.txt", "r");
     fpbot = fopen("input/bot.txt", "r");
     fpbox = fopen("input/box.txt", "r");
 
@@ -95,20 +95,20 @@ int main(int argc, char* argv[])
     fpoints = fopen("points.dat", "w");
     
     double start = get_msec(), delt;
-  
-    /* 
+    
+    /*
     int i = 0;
-    while(i < 100)
+    while(i < 50)
     {
         start = get_msec();
-        double cost = rrt_plan(8000);
+        double cost = rrtstar_plan(20000);
         delt = get_msec() - start;
         printf("%d\t%f\t%f\n", i, optpath.back().cgoal, delt);
         i++;
     }
     */
      
-    double cost = rrtstar_plan(3000);
+    double cost = rrtstar_plan(5000);
     fprintf(fpoints, "%f \n", cost);
     fprintf(fpoints, "Duration: %.3f \n", get_msec() - start);
     print_path(tree);

@@ -9,6 +9,7 @@
 #define GOAL_PROB           (0.05)
 #define USE_KDTREE          (1)
 #define BRANCH_N_BOUND      (1)
+#define PLOT_AVG            (0)
 
 list<Node> tree;        // stores the tree
 list<Node> path;        // stores path that reaches goal
@@ -428,6 +429,10 @@ void remove_bad_nodes(double min_cost)
 
 double rrt_plan(unsigned int num_iter)
 {
+#if PLOT_AVG
+    FILE *avgcost;
+    avgcost = fopen("avgcost.dat", "w");
+#endif
     double min_cost = 1000;
     tree.clear();
     
@@ -484,6 +489,9 @@ double rrt_plan(unsigned int num_iter)
                             node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
                             //printf("iter_reached: %d cost: %.3f\n", iter, min_cost);
                         }
+#if PLOT_AVG
+                        fprintf(avgcost, "%d %f \n", iter, min_cost);
+#endif
                         iter++;
 #if BRANCH_N_BOUND
                     }
@@ -495,13 +503,18 @@ double rrt_plan(unsigned int num_iter)
     kd_free(node_tree);
 
     process_tree_rrt(*node_that_reached);
-    
+#if PLOT_AVG
+    fclose(avgcost);
+#endif
     return min_cost;
 };
 
-
 double rrtstar_plan(unsigned int num_iter)
 {
+#if PLOT_AVG
+    FILE *avgcost;
+    avgcost = fopen("avgcost.dat", "w");
+#endif
     tree.clear();
 
     Node start(robot, NULL);
@@ -544,6 +557,11 @@ double rrtstar_plan(unsigned int num_iter)
                         min_cost = curr.csrc;
                         node_that_reached = &(tree.back());     // just inserted this curr in the tree, hence valid
                     }
+                    if(is_inside_goal(curr.state))
+                        reached = true;
+#if PLOT_AVG
+                    fprintf(avgcost, "%d %f \n", iter, min_cost);
+#endif
                     iter++;
                 }
             }
@@ -552,7 +570,9 @@ double rrtstar_plan(unsigned int num_iter)
     kd_free(node_tree);
 
     process_tree_rrt( *node_that_reached );
-    
+#if PLOT_AVG
+    fclose(avgcost);
+#endif
     return min_cost;
 };
 
