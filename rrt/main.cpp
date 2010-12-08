@@ -87,6 +87,17 @@ void print_path(list<Node> whichpath)
     }
 }
 
+bool is_leaf_node(list<Node> which, list<Node>::iterator pos)
+{
+    list<Node>::iterator i;
+    for(i = which.begin; ( i != which.end()) || (i!= pos) ); i++)
+    {
+        if( (*i).parent == (&(*pos)))
+            return false;
+    }
+    return true;
+}
+
 int main(int argc, char* argv[])
 {
     init_rand();
@@ -108,13 +119,13 @@ int main(int argc, char* argv[])
     }
     */
      
-    double cost = rrtstar_plan(5000);
-    fprintf(fpoints, "%f \n", cost);
-    fprintf(fpoints, "Duration: %.3f \n", get_msec() - start);
+    double cost = rrtstar_plan(4000);
+    printf("%f \n", cost);
+    printf("Duration: %.3f \n", get_msec() - start);
     print_path(tree);
-    fprintf(fpoints, "optpath\n");
-    print_path(optpath);
-    fprintf(fpoints, "optpath_cost: %f \n", optpath.back().cgoal);
+    //fprintf(fpoints, "optpath\n");
+    //print_path(optpath);
+    printf("optpath_cost: %f \n", optpath.back().cgoal);
     
     fclose(fpoints);
     kd_free (obstree);

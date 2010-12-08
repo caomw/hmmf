@@ -14,11 +14,9 @@ if len(sys.argv) <= 1:
 obsfile = sys.argv[1]
 goalfile = "input/goal.txt"
 boxfile = "input/box.txt"
-
 obs = open( obsfile, 'r');
 goal = open( goalfile, 'r');
 box = open(boxfile, 'r');
-points= open('points.dat', 'r');
 bot = open('input/bot.txt', 'r');
 
 num_obs = 0
@@ -68,49 +66,17 @@ if box:
         box_ysize = float(s[3])
     box.close()
 
-if points:
-    
-    found_optpath = 0
-    # Read cost on the first line
-    l = points.readline()
-    s = l.split('\n')
-    if len(s) == 2:
-        print "Path Cost: ", float(s[0])
-    
-    while l:
-        
-        l = points.readline()
-        s = l.split(' ')
-        #print s
+points = loadtxt('points.dat')
+px = points[:,0]
+py = points[:,1]
 
-        if (len(s) == 3) and (s[0] == 'Duration:'):
-            print "Duration: ", float(s[1]), '[ms]'
-        
-        else:
-            if (len(s) == 3) and (s[0] == 'optpath_cost:'):
-                print "optpath_cost: ", float(s[1])
-            else: 
-                if len(s) == 3:
-                    px = []
-                    py = []
-                    px.append( float( s[0]))
-                    py.append( float( s[1]))
+i = 0
+while i < len(px):
+    tx = [px[i], px[i+1]]
+    ty = [py[i], py[i+1]]
+    plt.plot(tx, ty, 'y-', linewidth=0.5)
+    i = i+2
 
-                    l = points.readline()
-                    s = l.split(' ')
-                    px.append( float( s[0]))
-                    py.append( float( s[1]))
-        
-                    if found_optpath == 1:
-                        plt.plot(px, py, 'ko-', linewidth=1.5)
-                    else:
-                        plt.plot(px, py, 'y-', linewidth=0.5)
-        
-            if (len(s) == 1) and (s[0] == 'optpath\n'):
-                print "Found optpath"
-                found_optpath = 1
-
-       
 box_minx = box_cx - box_xsize/2
 box_maxx = box_cx + box_xsize/2
 
