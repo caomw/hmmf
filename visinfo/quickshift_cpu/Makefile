@@ -1,9 +1,9 @@
 CC = gcc
 CPP = g++
 
-BIN = sift
-C_SRCS = sift.c
-CPP_SRCS =
+BIN = main
+C_SRCS = 
+CPP_SRCS = main.cpp Image.cpp quickshift_cpu.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)
@@ -16,11 +16,8 @@ DEPS = $(C_DEPS) $(CPP_DEPS)
 OPENCV_LIB_DIR = /usr/lib
 OPENCV_INC_DIR = /usr/include/opencv
 
-VLFEAT_LIB_DIR = lib/
-VLFEAT_INC_DIR = .
-
-LIBS = -L$(VLFEAT_LIB_DIR) -lcxcore -lcv -lhighgui -lvl -lm
-INCS = -I$(VLFEAT_INC_DIR)
+LIBS = -L$(OPENCV_LIB_DIR) -lcxcore -lcv -lhighgui -lm
+INCS = -I$(OPENCV_INC_DIR)
 
 CFLAGS = -O2 -Wall -Wextra
 
