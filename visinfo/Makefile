@@ -2,8 +2,8 @@ CC = gcc
 CPP = g++
 
 BIN = sift
-C_SRCS = sift.c
-CPP_SRCS =
+C_SRCS =
+CPP_SRCS = sift.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)
@@ -13,24 +13,19 @@ C_DEPS = $(C_SRCS:.c=.d)
 CPP_DEPS = $(CPP_SRCS:.cpp=.d)
 DEPS = $(C_DEPS) $(CPP_DEPS)
 
-OPENCV_LIB_DIR = /usr/lib
-OPENCV_INC_DIR = /usr/include/opencv
-
 VLFEAT_LIB_DIR = lib/
 VLFEAT_INC_DIR = .
 
-LIBS = -L$(VLFEAT_LIB_DIR) -lcxcore -lcv -lhighgui -lvl -lm
-INCS = -I$(VLFEAT_INC_DIR)
+LIBS = `pkg-config --libs opencv` -L$(VLFEAT_LIB_DIR) -lvl -lm
+INCS = `pkg-config --cflags opencv` -I$(VLFEAT_INC_DIR)
 
-CFLAGS = -O2 -Wall -Wextra
+CFLAGS = -O2
 
 all: $(BIN)
 
 $(BIN): $(DEPS) $(OBJS)
-	@echo "  [LD]	 $@"
+	@echo "  [LD]    $@"
 	@$(CPP) $(CFLAGS) -o $(BIN) $(OBJS) $(LIBS)
-	@echo
-	@echo "Add \"$(OPENCV_LIB_DIR)\" to your LD_LIBRARY_PATH env variable (if not added already) and export it"
 	@echo
 
 %.d: %.c
