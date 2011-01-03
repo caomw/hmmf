@@ -21,7 +21,7 @@ double get_msec()
     return start.tv_sec*1000 + start.tv_usec/1000.0;
 }
 
-IplImage* process(IplImage *img, vector<KeyPoint> keypoints) 
+IplImage* process(IplImage *img, vector<KeyPoint> keypoints, Mat descriptors) 
 {
     IplImage *newimg = cvCreateImage(cvSize(img->width, img->height), IPL_DEPTH_8U, 1);
     IplImage *toshow = cvCloneImage(img);
@@ -48,13 +48,21 @@ IplImage* process(IplImage *img, vector<KeyPoint> keypoints)
             cvCircle(toshow, cvPoint(keypoints[i].pt.x, keypoints[i].pt.y), 10*keypoints[i].octave, Scalar(0, 255, 0), 1);
         }
         
-        Mat descriptors;
-        SIFT sift(3.0);
+        SIFT sift(1.0);
         sift(frame, Mat(), keypoints, descriptors, true);
-        FileStorage fs("descp.xml", FileStorage::WRITE);
-        fs<<"descp"<<descriptors;
     }
+    descriptors *= 255;
+    //FileStorage fs("descp.xml", FileStorage::WRITE);
+    //fs<<"descp"<<descriptors;
     cout<<count<<endl;
+    
+
+    cv::flann::Index kdtree(descriptors, cv::flann::KDTreeIndexParams(4));
+    Mat indices(1, 2, CV_32S), dists(1, 2, CV_32F);
+    kdtree.knnSearch(descriptors.row(1), indices, dists, 2, cv::flann::SearchParams(64));
+    FileStorage fs("kdtree.xml", FileStorage::WRITE);
+    fs<<"indices"<<indices;
+    fs<<"dists"<<dists;
 
     return toshow;
 }
@@ -102,7 +110,8 @@ int main(int argc, char** argv)
 #else
         IplImage *img = cvLoadImage("a.jpg", 1);
         vector<KeyPoint> keypoints;
-        IplImage *toshow = process(img, keypoints); 
+        Mat descriptors;
+        IplImage *toshow = process(img, keypoints, descriptors);
         imshow(window_name, toshow);
         waitKey();
 #endif
