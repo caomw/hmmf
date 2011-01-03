@@ -16,8 +16,8 @@ DEPS = $(C_DEPS) $(CPP_DEPS)
 VLFEAT_LIB_DIR = lib/
 VLFEAT_INC_DIR = .
 
-LIBS = `pkg-config --libs opencv` -L$(VLFEAT_LIB_DIR) -lvl -lm
-INCS = `pkg-config --cflags opencv` -I$(VLFEAT_INC_DIR)
+LIBS = `pkg-config --libs opencv` -lm
+INCS = `pkg-config --cflags opencv`
 
 CFLAGS = -O2 -g
 

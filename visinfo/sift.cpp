@@ -15,7 +15,25 @@ using namespace std;
 vector<KeyPoint> keypoints;
 Mat descriptors;
 cv::flann::Index *kdtree;
-bool kdtree_empty = true;
+bool empty_tree = true;
+Mat indices(1, 2, CV_32SC1), dists(1, 2, CV_32FC1);
+int first_few = 1;
+
+void print_mat(Mat r)
+{
+    //printf("r: [%d %d]\n", r.rows, r.cols);
+    for(int i=0; i<r.rows; i++)
+    {
+        for(int j=0; j<r.cols; j++)
+        {
+            if(r.depth() == CV_32SC1)
+                printf("%d ", r.at<int>(i, j));
+            else if(r.depth() == CV_32FC1)
+                printf("%.2f ", r.at<float>(i, j));
+        }
+        printf("\n");
+    }
+}
 
 double get_msec()
 {
@@ -26,7 +44,11 @@ double get_msec()
 
 IplImage* process(IplImage *img) 
 {
+    if(first_few >0 )
+        first_few--;
+    
     double start = 0;
+    int match_count = 0;
     start = get_msec();
     IplImage *newimg = cvCreateImage(cvSize(img->width, img->height), IPL_DEPTH_8U, 1);
     IplImage *toshow = cvCloneImage(img);
@@ -36,25 +58,60 @@ IplImage* process(IplImage *img)
 
     vector<float> descp;
     keypoints.clear();
-    SURF surf(5.0e3);
+    SURF surf(500, 4, 2, true);
     surf(frame, Mat(), keypoints, descp, false);
 
     for(int i=0; i< keypoints.size(); i++)
     {
         cvCircle(toshow, cvPoint(keypoints[i].pt.x, keypoints[i].pt.y), 10*keypoints[i].octave, Scalar(0, 255, 0), 1);
     }
-    if(keypoints.size() > 2)
+    if( (keypoints.size() > 0) && (empty_tree == true) )
     {
-        descriptors = Mat(keypoints.size(), 64, CV_32F, &descp[0], 64*sizeof(float));
-        printf("keypoints size: %d, descp size: %d\n", keypoints.size(), descp.size());
+        empty_tree = false;
+        descriptors = Mat(keypoints.size(), 128, CV_32F, &descp[0], 128*sizeof(float))*1000;
+        printf("1: keypoints size: %d, descp size: %d\n", keypoints.size(), descp.size());
         
         kdtree = new cv::flann::Index(descriptors, cv::flann::KDTreeIndexParams(4));
         
+        /*
         // find closest vertex to query
-        Mat indices(1, 1, CV_32SC1), dists(1, 1, CV_32FC1);
-        kdtree->knnSearch( descriptors.row(1), indices, dists, 1, cv::flann::SearchParams(32) );
         printf("Searching for first row...%d, %.3f\n", indices.at<int>(0, 0), dists.at<float>(0, 0));
-        
+        */
+    }
+    else if ( (keypoints.size() > 0) && (empty_tree != true) )
+    {
+        //use old tree
+        Mat descriptors_curr = Mat(keypoints.size(), 128, CV_32F, &descp[0], 128*sizeof(float))*1000;
+        printf("------------------------\nKeypoints size: %d \n", keypoints.size());
+
+        for(int i=0; i<descriptors_curr.rows; i++)
+        {
+            // find closest vertex to row(i)
+            //printf("Descriptors-\n"); print_mat(descriptors_curr.row(i));
+            kdtree->knnSearch( descriptors_curr.row(i), indices, dists, 2, cv::flann::SearchParams(64) );
+            //printf("Indices-\n"); print_mat(indices);
+            //printf("Dists-\n"); print_mat(dists);
+            
+            if( dists.at<float>(0, 0) > 10.0 )
+            {
+                if(first_few > 0)
+                {
+                    //printf("Adding new row: %d\n", i);
+                    Mat new_descp_mat = Mat( descriptors.rows + 1, 128, CV_32F, Scalar(0.0) );
+                    new_descp_mat.rowRange(0, descriptors.rows) = descriptors.rowRange(0, descriptors.rows);        // copy the descriptors matrix fully
+                    new_descp_mat.row(descriptors.rows) = descriptors_curr.row(i);
+
+                    descriptors = new_descp_mat;                                                                    // copy the appended matrix to descriptors
+                    kdtree = new cv::flann::Index(descriptors, cv::flann::KDTreeIndexParams(4));                    // create new kdtree
+                }
+            }
+            else
+            {
+                //printf("Matching row: %d\n", i);
+                match_count++;
+            }
+        }
+        printf("Match stats -- Descriptor size: %d Match count: %d Scene match: %.2f\n\n", descriptors.rows, match_count, ((double)match_count/keypoints.size()) );
     }
     return toshow;
 }
@@ -67,6 +124,7 @@ int main(int argc, char** argv)
     namedWindow(window_name); //resizable window;
 #if 0
     CvCapture *capture = cvCaptureFromCAM(0);
+    waitKey(2000);
 
     for (;;) 
     {
@@ -82,7 +140,7 @@ int main(int argc, char** argv)
         IplImage *toshow = process(img); 
         imshow(window_name, toshow);
 
-        char key = (char)waitKey(5); //delay N millis, usually long enough to display and capture input
+        char key = (char)waitKey(10); //delay N millis, usually long enough to display and capture input
         switch (key) 
         {
             case 'q':
@@ -94,10 +152,29 @@ int main(int argc, char** argv)
         }
     }
 #else
-    IplImage *img = cvLoadImage("a.jpg", 1);
+    IplImage *img = cvLoadImage("box.pgm", 1);
     IplImage *toshow = process(img);
+    IplImage *img1 = cvLoadImage("scene.pgm", 1);
+    IplImage *toshow1 = process(img1);
     imshow(window_name, toshow);
     waitKey();
 #endif
+
+    /*
+     * cv::Mat test
+    double data[3][3] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    Mat M = Mat(3, 3, CV_64F, data);
+    Mat r = M.row(0);
+    printf("r: [%d %d]\n", r.rows, r.cols);
+    for(int i=0; i<r.rows; i++)
+    {
+        for(int j=0; j<r.cols; j++)
+        {
+            printf("%.1f ", r.at<double>(i, j));
+        }
+        printf("\n");
+    }
+*/
+
     return 0;
 }
