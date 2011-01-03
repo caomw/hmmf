@@ -21,12 +21,13 @@ double get_msec()
     return start.tv_sec*1000 + start.tv_usec/1000.0;
 }
 
-IplImage* process(IplImage *img, vector<KeyPoint> keypoints, Mat descriptors) 
+IplImage* process(IplImage *img, vector<KeyPoint> keypoints, Mat &descriptors) 
 {
+    double start = 0;
+    start = get_msec();
     IplImage *newimg = cvCreateImage(cvSize(img->width, img->height), IPL_DEPTH_8U, 1);
     IplImage *toshow = cvCloneImage(img);
     cvConvertImage(img, newimg, CV_BGR2GRAY);
-
     int count = 0;
     for(int octave=0; octave<1; octave++)
     {
@@ -47,23 +48,33 @@ IplImage* process(IplImage *img, vector<KeyPoint> keypoints, Mat descriptors)
             //cout<<i<<" "<<keypoints[i].pt.x<<" "<<keypoints[i].pt.y<<" "<<endl;
             cvCircle(toshow, cvPoint(keypoints[i].pt.x, keypoints[i].pt.y), 10*keypoints[i].octave, Scalar(0, 255, 0), 1);
         }
+        printf("FAST: %.3f\n", get_msec() - start);
+        start = get_msec();
         
-        SIFT sift(1.0);
-        sift(frame, Mat(), keypoints, descriptors, true);
-    }
-    descriptors *= 255;
-    //FileStorage fs("descp.xml", FileStorage::WRITE);
-    //fs<<"descp"<<descriptors;
-    cout<<count<<endl;
-    
+        // descriptors
+        //SIFT sift(1.0);
+        //sift(frame, Mat(), keypoints, descriptors, true);
 
+        vector<float> descp;
+        SURF surf(5.0e3);
+        surf(frame, Mat(), keypoints, descp, true);
+
+        descriptors = Mat(count, 64, CV_32F, (&descp[0]), 64*sizeof(float));
+        printf("Descp: %.3f\n", get_msec() - start);
+
+        //FileStorage fs("descp.xml", FileStorage::WRITE);
+        //fs<<"descp"<<descriptors;
+        //cout<<count<<endl;
+    }
+    
     cv::flann::Index kdtree(descriptors, cv::flann::KDTreeIndexParams(4));
     Mat indices(1, 2, CV_32S), dists(1, 2, CV_32F);
-    kdtree.knnSearch(descriptors.row(1), indices, dists, 2, cv::flann::SearchParams(64));
+    kdtree.knnSearch(descriptors.row(1), indices, dists, 2, cv::flann::SearchParams(32));
+
     FileStorage fs("kdtree.xml", FileStorage::WRITE);
     fs<<"indices"<<indices;
     fs<<"dists"<<dists;
-
+    
     return toshow;
 }
 
