@@ -19,7 +19,7 @@ VLFEAT_INC_DIR = .
 LIBS = `pkg-config --libs opencv` -L$(VLFEAT_LIB_DIR) -lvl -lm
 INCS = `pkg-config --cflags opencv` -I$(VLFEAT_INC_DIR)
 
-CFLAGS = -O2
+CFLAGS = -O2 -g
 
 all: $(BIN)
 
