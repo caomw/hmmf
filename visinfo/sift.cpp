@@ -12,28 +12,15 @@
 using namespace cv;
 using namespace std;
 
-vector<KeyPoint> keypoints;
-Mat descriptors;
+// each element stores all the keypoints found in that scene
+vector< vector<KeyPoint> > keypoints;
+// correspondingly the descriptors of keypoints[i]
+vector<Mat> descriptors;
 cv::flann::Index *kdtree;
-bool empty_tree = true;
-Mat indices(1, 2, CV_32SC1), dists(1, 2, CV_32FC1);
-int first_few = 1;
+bool empty_tree = true, note_this = false;
 
-void print_mat(Mat r)
-{
-    //printf("r: [%d %d]\n", r.rows, r.cols);
-    for(int i=0; i<r.rows; i++)
-    {
-        for(int j=0; j<r.cols; j++)
-        {
-            if(r.depth() == CV_32SC1)
-                printf("%d ", r.at<int>(i, j));
-            else if(r.depth() == CV_32FC1)
-                printf("%.2f ", r.at<float>(i, j));
-        }
-        printf("\n");
-    }
-}
+Mat indices(1, 2, CV_32SC1), dists(1, 2, CV_32FC1);
+
 
 double get_msec()
 {
@@ -44,9 +31,6 @@ double get_msec()
 
 IplImage* process(IplImage *img) 
 {
-    if(first_few >0 )
-        first_few--;
-    
     double start = 0;
     int match_count = 0;
     start = get_msec();
@@ -56,27 +40,44 @@ IplImage* process(IplImage *img)
     
     Mat frame(newimg);
 
-    vector<float> descp;
-    keypoints.clear();
-    SURF surf(500, 4, 2, true);
-    surf(frame, Mat(), keypoints, descp, false);
+    vector<float> descpVec;
+    vector<KeyPoint> key;
+    SURF surf(5000, 4, 2, true);
+    surf(frame, Mat(), key, descpVec, false);
+    Mat descpMat = Mat(key.size(), 128, CV_32F, &descpVec[0], 128*sizeof(float))*1000;
 
-    for(int i=0; i< keypoints.size(); i++)
+    //save the keypoints and descriptors
+    if(note_this == true)
     {
-        cvCircle(toshow, cvPoint(keypoints[i].pt.x, keypoints[i].pt.y), 10*keypoints[i].octave, Scalar(0, 255, 0), 1);
+        note_this = false;
+        keypoints.push_back(key);
+        descriptors.push_back(descpMat);    
     }
+    else
+    {
+        cout<<"Matching...\n";
+        BruteForceMatcher<L2<float> > matcher;
+        for(int i=0; i<descriptors.size(); i++)
+        {
+            vector<DMatch> matches;
+            matcher.match(descriptors[i], descpMat, matches);
+            for(int j=0; j<matches.size(); j++)
+                cout<<matches[j].distance<<endl;
+        }
+    }
+    for(int i=0; i< key.size(); i++)
+    {
+        cvCircle(toshow, cvPoint(key[i].pt.x, key[i].pt.y), 10*key[i].octave, Scalar(0, 255, 0), 1);
+    }
+    
+    /*
     if( (keypoints.size() > 0) && (empty_tree == true) )
     {
         empty_tree = false;
-        descriptors = Mat(keypoints.size(), 128, CV_32F, &descp[0], 128*sizeof(float))*1000;
         printf("1: keypoints size: %d, descp size: %d\n", keypoints.size(), descp.size());
         
         kdtree = new cv::flann::Index(descriptors, cv::flann::KDTreeIndexParams(4));
         
-        /*
-        // find closest vertex to query
-        printf("Searching for first row...%d, %.3f\n", indices.at<int>(0, 0), dists.at<float>(0, 0));
-        */
     }
     else if ( (keypoints.size() > 0) && (empty_tree != true) )
     {
@@ -87,12 +88,11 @@ IplImage* process(IplImage *img)
         for(int i=0; i<descriptors_curr.rows; i++)
         {
             // find closest vertex to row(i)
-            //printf("Descriptors-\n"); print_mat(descriptors_curr.row(i));
             kdtree->knnSearch( descriptors_curr.row(i), indices, dists, 2, cv::flann::SearchParams(64) );
-            //printf("Indices-\n"); print_mat(indices);
-            //printf("Dists-\n"); print_mat(dists);
-            
-            if( dists.at<float>(0, 0) > 10.0 )
+            //cout<<"Indices :"<<indices<<endl;
+            //cout<<"Dists: "<<dists<<endl;
+
+            if( dists.at<float>(0, 0) > 100000.0 )
             {
                 if(first_few > 0)
                 {
@@ -113,6 +113,7 @@ IplImage* process(IplImage *img)
         }
         printf("Match stats -- Descriptor size: %d Match count: %d Scene match: %.2f\n\n", descriptors.rows, match_count, ((double)match_count/keypoints.size()) );
     }
+    */
     return toshow;
 }
 
@@ -143,6 +144,8 @@ int main(int argc, char** argv)
         char key = (char)waitKey(10); //delay N millis, usually long enough to display and capture input
         switch (key) 
         {
+            case 'w':
+                note_this = true;
             case 'q':
             case 'Q':
             case 27: //escape key
@@ -153,10 +156,13 @@ int main(int argc, char** argv)
     }
 #else
     IplImage *img = cvLoadImage("box.pgm", 1);
+    note_this = true;
     IplImage *toshow = process(img);
     IplImage *img1 = cvLoadImage("scene.pgm", 1);
     IplImage *toshow1 = process(img1);
     imshow(window_name, toshow);
+    waitKey();
+    imshow(window_name, toshow1);
     waitKey();
 #endif
 
