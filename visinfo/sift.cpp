@@ -8,6 +8,7 @@
 #include <vector>
 #include <sys/time.h>
 #include <time.h>
+#include <algorithm>
 
 using namespace cv;
 using namespace std;
@@ -51,19 +52,28 @@ IplImage* process(IplImage *img)
     {
         note_this = false;
         keypoints.push_back(key);
-        descriptors.push_back(descpMat);    
+        descriptors.push_back(descpMat);
+        cout<<"Pushed "<<key.size()<<" points\n";
     }
     else
     {
-        cout<<"Matching...\n";
+        cout<<"Matching..."<<endl;
         BruteForceMatcher<L2<float> > matcher;
         for(int i=0; i<descriptors.size(); i++)
         {
+            int count = 0;
             vector<DMatch> matches;
             matcher.match(descriptors[i], descpMat, matches);
+            sort(matches.begin(), matches.end());
             for(int j=0; j<matches.size(); j++)
-                cout<<matches[j].distance<<endl;
+            {
+                if (matches[j].distance <= 300.0)
+                    count++;
+                //cout<<"\t"<<matches[j].distance<<endl;
+            }
+            cout<<"Match count: "<<count<<" Scene: "<<i<<" Ratio: "<<(float)count/keypoints[i].size()<<endl;
         }
+
     }
     for(int i=0; i< key.size(); i++)
     {
@@ -123,7 +133,7 @@ int main(int argc, char** argv)
     string window_name = "video | q or esc to quit";
     cout << "press q or esc to quit" << endl;
     namedWindow(window_name); //resizable window;
-#if 0
+#if 1
     CvCapture *capture = cvCaptureFromCAM(0);
     waitKey(2000);
 
@@ -144,8 +154,9 @@ int main(int argc, char** argv)
         char key = (char)waitKey(10); //delay N millis, usually long enough to display and capture input
         switch (key) 
         {
-            case 'w':
+            case 'n':
                 note_this = true;
+                break;
             case 'q':
             case 'Q':
             case 27: //escape key
