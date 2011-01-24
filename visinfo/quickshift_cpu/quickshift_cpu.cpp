@@ -10,7 +10,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "quickshift_common.h"
+#include <float.h>
+#include "common.h"
 
 /** -----------------------------------------------------------------
  ** @internal
@@ -51,6 +52,30 @@ inline float distance(float const * I,
     return dist ;
 }
 
+inline float distance(Mat I, int i1, int i2, int j1, int j2)
+{
+    int K = I.channels();
+    printf("distance- K: %d [%d %d], [%d %d] \n", K, i1, i2, j1, j2);
+    float dist = 0;
+    dist += (j1-i1)*(j1 - i1) + (j2-i2)*(j2-i2);
+
+    float d;
+    if(K == 1)
+    {
+        d = I.at<float>(i1, i2) - I.at<float>(j1, j2);
+        dist += d*d;
+    }
+    else if(K == 3)
+    {
+        for(int k=0; k<K; k++)
+        {
+            float temp = I.at<Vec3f>(i1, i2)[k] - I.at<Vec3f>(j1, j2)[k];
+            dist += temp*temp;
+        }
+    }
+    return dist;
+}
+
 /** -----------------------------------------------------------------
  ** @internal
  ** @brief Computes the accumulated channel inner product between i,j + the
@@ -89,8 +114,29 @@ inline float inner(float const * I,
     return ker ;
 }
 
+inline float inner(Mat I, int i1, int i2, int j1, int j2)
+{
+    float ker = 0;
+    int K = I.channels();
+    
+    ker += i1*j1 + i2*j2;
+    if(K == 1)
+        ker += I.at<float>(i1, i2)*I.at<float>(j1, j2);
+    else
+    {
+        float d;
+        for(int k=0; k<K; k++)
+        {
+            if(K == 3)
+                d = I.at<Vec3f>(i1, i2)[k]*I.at<Vec3f>(j1, j2)[k];
+            ker += d;
+        }
+    }
+    return ker;
 
-void quickshift(image_t im, float sigma, float tau, float * map, float * gaps, float * E)
+}
+
+void quickshift(Mat I, float sigma, float tau, float * map, float * gaps, float * E)
 {
     int verb = 1 ;
 
@@ -102,15 +148,13 @@ void quickshift(image_t im, float sigma, float tau, float * map, float * gaps, f
 
     int medoid = 0 ;
 
-    float const * I = im.I;
-    N1 = im.N1;
-    N2 = im.N2;
-    K = im.K;
+    float* data = (float *)I.data;
+    N1 = I.cols;
+    N2 = I.rows;
+    K = I.channels();
 
     d = 2 + K ; /* Total dimensions include spatial component (x,y) */
-
     tau2  = tau*tau;
-
 
     if (medoid) { /* n and M are only used in mediod shift */
         M = (float *) calloc(N1*N2*d, sizeof(float)) ;
@@ -141,9 +185,7 @@ void quickshift(image_t im, float sigma, float tau, float * map, float * gaps, f
     if (n) { 
         for (i2 = 0 ; i2 < N2 ; ++ i2) {
             for (i1 = 0 ; i1 < N1 ; ++ i1) {        
-                n [i1 + N1 * i2] = inner(I,N1,N2,K,
-                        i1,i2,
-                        i1,i2) ;
+                n [i1 + N1 * i2] = inner(I,i1,i2,i1,i2) ;
             }
         }
     }
@@ -172,28 +214,30 @@ void quickshift(image_t im, float sigma, float tau, float * map, float * gaps, f
             int j2min = VL_MAX(i2 - R, 0   ) ;
             int j2max = VL_MIN(i2 + R, N2-1) ;      
 
-            /* For each pixel in the window compute the distance between it and the
-             * source pixel */
-            for (j2 = j2min ; j2 <= j2max ; ++ j2) {
-                for (j1 = j1min ; j1 <= j1max ; ++ j1) {
-                    float Dij = distance(I,N1,N2,K, i1,i2, j1,j2) ;          
-                    /* Make distance a similarity */ 
+            // For each pixel in the window compute the distance between it and the
+            // source pixel 
+            for (j2 = j2min ; j2 <= j2max ; ++ j2) 
+            {
+                for (j1 = j1min ; j1 <= j1max ; ++ j1) 
+                {
+                    float Dij = distance(I, i1,i2, j1,j2) ;          
+                    // Make distance a similarity 
                     float Fij = exp(- Dij / (2*sigma*sigma)) ;
 
-                    /* E is E_i above */
+                    // E is E_i above
                     Ei += Fij;
 
                     if (M) {
-                        /* Accumulate votes for the median */
+                        // Accumulate votes for the median 
                         int k ;
                         M [i1 + N1*i2 + (N1*N2) * 0] += j1 * Fij ;
                         M [i1 + N1*i2 + (N1*N2) * 1] += j2 * Fij ;
-                        for (k = 0 ; k < K ; ++k) {
+                        for (k = 0 ; k < K ; ++k) 
+                        {
                             M [i1 + N1*i2 + (N1*N2) * (k+2)] += 
-                                I [j1 + N1*j2 + (N1*N2) * k] * Fij ;
+                                I.at<Vec3f>(j1, j2)[k] * Fij;
                         }
                     } 
-
                 } /* j1 */ 
             } /* j2 */
             /* Normalize */
@@ -239,7 +283,7 @@ void quickshift(image_t im, float sigma, float tau, float * map, float * gaps, f
                         Qij -= 2 * j2 * M [i1 + i2 * N1 + (N1*N2) * 1] ;
                         for (k = 0 ; k < K ; ++k) {
                             Qij -= 2 * 
-                                I [j1 + j2 * N1 + (N1*N2) * k] *
+                                I.at<Vec3f>(j1, j2)[k] *
                                 M [i1 + i2 * N1 + (N1*N2) * (k + 2)] ;
                         }
 
@@ -283,7 +327,7 @@ void quickshift(image_t im, float sigma, float tau, float * map, float * gaps, f
                 for (j2 = j2min ; j2 <= j2max ; ++ j2) {
                     for (j1 = j1min ; j1 <= j1max ; ++ j1) {            
                         if (E [j1 + N1 * j2] > E0) {
-                            float Dij = distance(I,N1,N2,K, i1,i2, j1,j2) ;           
+                            float Dij = distance(I,i1,i2, j1,j2) ;           
                             if (Dij <= tau2 && Dij < d_best) {
                                 d_best = Dij ;
                                 j1_best = j1 ;

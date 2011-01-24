@@ -1,9 +1,9 @@
 CC = gcc
 CPP = g++
 
-BIN = sift
+BIN = temp
 C_SRCS =
-CPP_SRCS = sift.cpp
+CPP_SRCS = temp.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)

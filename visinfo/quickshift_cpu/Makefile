@@ -3,7 +3,7 @@ CPP = g++
 
 BIN = main
 C_SRCS = 
-CPP_SRCS = main.cpp Image.cpp quickshift_cpu.cpp
+CPP_SRCS = main.cpp quickshift_cpu.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)
@@ -13,21 +13,16 @@ C_DEPS = $(C_SRCS:.c=.d)
 CPP_DEPS = $(CPP_SRCS:.cpp=.d)
 DEPS = $(C_DEPS) $(CPP_DEPS)
 
-OPENCV_LIB_DIR = /usr/lib
-OPENCV_INC_DIR = /usr/include/opencv
+LIBS = `pkg-config --libs opencv` -lm
+INCS = `pkg-config --cflags opencv`
 
-LIBS = -L$(OPENCV_LIB_DIR) -lcxcore -lcv -lhighgui -lm
-INCS = -I$(OPENCV_INC_DIR)
-
-CFLAGS = -O2 -Wall -Wextra
+CFLAGS = -O2 -g
 
 all: $(BIN)
 
 $(BIN): $(DEPS) $(OBJS)
 	@echo "  [LD]	 $@"
 	@$(CPP) $(CFLAGS) -o $(BIN) $(OBJS) $(LIBS)
-	@echo
-	@echo "Add \"$(OPENCV_LIB_DIR)\" to your LD_LIBRARY_PATH env variable (if not added already) and export it"
 	@echo
 
 %.d: %.c

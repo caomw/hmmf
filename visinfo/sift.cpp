@@ -3,6 +3,8 @@
 #include "opencv2/core/internal.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc_c.h"
+#include "cv.h"
+#include "highgui.h"
 
 #include <iostream>
 #include <vector>
@@ -133,14 +135,13 @@ int main(int argc, char** argv)
     string window_name = "video | q or esc to quit";
     cout << "press q or esc to quit" << endl;
     namedWindow(window_name); //resizable window;
-#if 1
+#if 0
     CvCapture *capture = cvCaptureFromCAM(0);
-    waitKey(2000);
 
     for (;;) 
     {
         IplImage *img = 0;
-
+        double start = get_msec();
         if (!cvGrabFrame(capture))
         {
             printf("Couldn't capture frame\n");
@@ -150,6 +151,7 @@ int main(int argc, char** argv)
 
         IplImage *toshow = process(img); 
         imshow(window_name, toshow);
+        //printf("dt: %f [ms]\n", get_msec() - start);
 
         char key = (char)waitKey(10); //delay N millis, usually long enough to display and capture input
         switch (key) 
@@ -167,13 +169,9 @@ int main(int argc, char** argv)
     }
 #else
     IplImage *img = cvLoadImage("box.pgm", 1);
-    note_this = true;
-    IplImage *toshow = process(img);
-    IplImage *img1 = cvLoadImage("scene.pgm", 1);
-    IplImage *toshow1 = process(img1);
-    imshow(window_name, toshow);
-    waitKey();
-    imshow(window_name, toshow1);
+    IplImage *img1 = cvLoadImage("box1.pgm", 1);
+    imshow(window_name, img);
+
     waitKey();
 #endif
 
