@@ -46,10 +46,11 @@ def particle_filter(y, N, init):
                 xpart[i] = system(xpart[i])                 # predict
                 w[i] = w[i]*obs_model(xpart[i], y[k])       # calci weights
             
-            if 1/sum(w) < 2*N/3:
+            ct = std(w)**2/mean(w)**2
+            w /= sum(w)     
+            if 1/(1 + ct) < 0.75:
                 #resample
-                w /= sum(w)     
-                xpart, w = resample(xpart, w)    
+                xpart, w = resample(xpart, w)
             xhat[k] = sum(xpart*w)
     
     return xhat
@@ -68,7 +69,7 @@ if __name__=="__main__":
         tmp = x[i+1] + random()             # process noise
         y[i+1] = tmp*tmp/2 + 2*random()     # obs noise
 
-    xhat = particle_filter(y, 50, 1.0)
+    xhat = particle_filter(y, 100, 1.0)
     
     plot(x, 'r-')
     plot(y, 'b-')
