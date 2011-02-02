@@ -1,0 +1,172 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+NUM_INPUTS	optsystem.h	42;"	d
+NUM_STATES	optsystem.h	41;"	d
+PUBLISH_NODES_EDGES	optmain.c	33;"	d	file:
+SQ	kdtree.c	83;"	d	file:
+_KDTREE_H_	kdtree.h	28;"	d
+__OPTSYSTEM_H_	optsystem.h	34;"	d
+__OPTTREE_H_	opttree.h	34;"	d
+_bounding_box_t	opttree.h	/^typedef struct _bounding_box_t {$/;"	s
+_input_t	optsystem.h	/^struct _input_t {$/;"	s
+_node_t	opttree.h	/^struct _node_t {$/;"	s
+_optsystem_t	optsystem.h	/^struct _optsystem_t {$/;"	s
+_opttree_t	opttree.h	/^struct _opttree_t {$/;"	s
+_region_2d_t	optsystem.h	/^struct _region_2d_t {$/;"	s
+_state_t	optsystem.h	/^struct _state_t {$/;"	s
+alloc_mutex	kdtree.c	/^static pthread_mutex_t alloc_mutex = PTHREAD_MUTEX_INITIALIZER;$/;"	v	file:
+alloc_resnode	kdtree.c	/^static struct res_node *alloc_resnode(void)$/;"	f	file:
+alloc_resnode	kdtree.c	101;"	d	file:
+ball_radius_constant	opttree.h	/^    double ball_radius_constant;  \/\/ ball shrink rate constant$/;"	m	struct:_opttree_t
+ball_radius_last	opttree.h	/^    double ball_radius_last;      \/\/ Radius of the ball in the last RRT* iteration$/;"	m	struct:_opttree_t
+ball_radius_max	opttree.h	/^    double ball_radius_max;       \/\/ maximum radius of the shrinking ball$/;"	m	struct:_opttree_t
+bounding_box_t	opttree.h	/^} bounding_box_t;$/;"	t	typeref:struct:_bounding_box_t
+center	optsystem.h	/^    double center[2];$/;"	m	struct:_region_2d_t
+children	opttree.h	/^    GSList *children;               \/\/ Children of this node$/;"	m	struct:_node_t
+clear_rec	kdtree.c	/^static void clear_rec(struct kdnode *node, void (*destr)(void*))$/;"	f	file:
+clear_results	kdtree.c	/^static void clear_results(struct kdres *rset)$/;"	f	file:
+data	kdtree.c	/^	void *data;$/;"	m	struct:kdnode	file:
+destr	kdtree.c	/^	void (*destr)(void*);$/;"	m	struct:kdtree	file:
+dim	kdtree.c	/^	int dim;$/;"	m	struct:kdhyperrect	file:
+dim	kdtree.c	/^	int dim;$/;"	m	struct:kdtree	file:
+dir	kdtree.c	/^	int dir;$/;"	m	struct:kdnode	file:
+dist_sq	kdtree.c	/^	double dist_sq;$/;"	m	struct:res_node	file:
+distance_from_parent	opttree.h	/^    double distance_from_parent;    \/\/ Distance of this node to its parent$/;"	m	struct:_node_t
+distance_from_root	opttree.h	/^    double distance_from_root;      \/\/ Distance of this node from the root$/;"	m	struct:_node_t
+find_nearest	kdtree.c	/^static int find_nearest(struct kdnode *node, const double *pos, double range, struct res_node *list, int ordered, int dim)$/;"	f	file:
+free_nodes	kdtree.c	/^static struct res_node *free_nodes;$/;"	v	typeref:struct:res_node	file:
+free_resnode	kdtree.c	/^static void free_resnode(struct res_node *node)$/;"	f	file:
+free_resnode	kdtree.c	102;"	d	file:
+goal_region	optsystem.h	/^    region_2d_t goal_region;       \/\/ Goal region$/;"	m	struct:_optsystem_t
+hyperrect_create	kdtree.c	/^static struct kdhyperrect* hyperrect_create(int dim, const double *min, const double *max)$/;"	f	file:
+hyperrect_dist_sq	kdtree.c	/^static double hyperrect_dist_sq(struct kdhyperrect *rect, const double *pos)$/;"	f	file:
+hyperrect_duplicate	kdtree.c	/^static struct kdhyperrect* hyperrect_duplicate(const struct kdhyperrect *rect)$/;"	f	file:
+hyperrect_extend	kdtree.c	/^static void hyperrect_extend(struct kdhyperrect *rect, const double *pos)$/;"	f	file:
+hyperrect_free	kdtree.c	/^static void hyperrect_free(struct kdhyperrect *rect)$/;"	f	file:
+initial_state	optsystem.h	/^    state_t *initial_state;     \/\/ Initial state$/;"	m	struct:_optsystem_t
+input_t	optsystem.h	/^typedef struct _input_t input_t;$/;"	t	typeref:struct:_input_t
+inputs_from_parent	opttree.h	/^    GSList *inputs_from_parent;     \/\/ A sequence of inputs when applied starting from the parent state will generate traj_from_parent$/;"	m	struct:_node_t
+insert_rec	kdtree.c	/^static int insert_rec(struct kdnode **nptr, const double *pos, void *data, int dir, int dim)$/;"	f	file:
+item	kdtree.c	/^	struct kdnode *item;$/;"	m	struct:res_node	typeref:struct:res_node::kdnode	file:
+kd_clear	kdtree.c	/^void kd_clear(struct kdtree *tree)$/;"	f
+kd_create	kdtree.c	/^struct kdtree *kd_create(int k)$/;"	f
+kd_data_destructor	kdtree.c	/^void kd_data_destructor(struct kdtree *tree, void (*destr)(void*))$/;"	f
+kd_free	kdtree.c	/^void kd_free(struct kdtree *tree)$/;"	f
+kd_insert	kdtree.c	/^int kd_insert(struct kdtree *tree, const double *pos, void *data)$/;"	f
+kd_insert3	kdtree.c	/^int kd_insert3(struct kdtree *tree, double x, double y, double z, void *data)$/;"	f
+kd_insert3f	kdtree.c	/^int kd_insert3f(struct kdtree *tree, float x, float y, float z, void *data)$/;"	f
+kd_insertf	kdtree.c	/^int kd_insertf(struct kdtree *tree, const float *pos, void *data)$/;"	f
+kd_nearest	kdtree.c	/^struct kdres *kd_nearest(struct kdtree *kd, const double *pos)$/;"	f
+kd_nearest3	kdtree.c	/^struct kdres *kd_nearest3(struct kdtree *tree, double x, double y, double z)$/;"	f
+kd_nearest3f	kdtree.c	/^struct kdres *kd_nearest3f(struct kdtree *tree, float x, float y, float z)$/;"	f
+kd_nearest_i	kdtree.c	/^static void kd_nearest_i(struct kdnode *node, const double *pos, struct kdnode **result, double *result_dist_sq, struct kdhyperrect* rect)$/;"	f	file:
+kd_nearest_range	kdtree.c	/^struct kdres *kd_nearest_range(struct kdtree *kd, const double *pos, double range)$/;"	f
+kd_nearest_range3	kdtree.c	/^struct kdres *kd_nearest_range3(struct kdtree *tree, double x, double y, double z, double range)$/;"	f
+kd_nearest_range3f	kdtree.c	/^struct kdres *kd_nearest_range3f(struct kdtree *tree, float x, float y, float z, float range)$/;"	f
+kd_nearest_rangef	kdtree.c	/^struct kdres *kd_nearest_rangef(struct kdtree *kd, const float *pos, float range)$/;"	f
+kd_nearestf	kdtree.c	/^struct kdres *kd_nearestf(struct kdtree *tree, const float *pos)$/;"	f
+kd_res_end	kdtree.c	/^int kd_res_end(struct kdres *rset)$/;"	f
+kd_res_free	kdtree.c	/^void kd_res_free(struct kdres *rset)$/;"	f
+kd_res_item	kdtree.c	/^void *kd_res_item(struct kdres *rset, double *pos)$/;"	f
+kd_res_item3	kdtree.c	/^void *kd_res_item3(struct kdres *rset, double *x, double *y, double *z)$/;"	f
+kd_res_item3f	kdtree.c	/^void *kd_res_item3f(struct kdres *rset, float *x, float *y, float *z)$/;"	f
+kd_res_item_data	kdtree.c	/^void *kd_res_item_data(struct kdres *set)$/;"	f
+kd_res_itemf	kdtree.c	/^void *kd_res_itemf(struct kdres *rset, float *pos)$/;"	f
+kd_res_next	kdtree.c	/^int kd_res_next(struct kdres *rset)$/;"	f
+kd_res_rewind	kdtree.c	/^void kd_res_rewind(struct kdres *rset)$/;"	f
+kd_res_size	kdtree.c	/^int kd_res_size(struct kdres *set)$/;"	f
+kdhyperrect	kdtree.c	/^struct kdhyperrect {$/;"	s	file:
+kdnode	kdtree.c	/^struct kdnode {$/;"	s	file:
+kdres	kdtree.c	/^struct kdres {$/;"	s	file:
+kdres_t	opttree.h	/^typedef struct kdres kdres_t;$/;"	t	typeref:struct:kdres
+kdtree	kdtree.c	/^struct kdtree {$/;"	s	file:
+kdtree	opttree.h	/^    kdtree_t *kdtree;$/;"	m	struct:_opttree_t
+kdtree_t	opttree.h	/^typedef struct kdtree kdtree_t;$/;"	t	typeref:struct:kdtree
+left	kdtree.c	/^	struct kdnode *left, *right;	\/* negative\/positive side *\/$/;"	m	struct:kdnode	typeref:struct:kdnode::kdnode	file:
+length	opttree.h	/^    double *length;$/;"	m	struct:_bounding_box_t
+list_nodes	opttree.h	/^    GSList *list_nodes;           \/\/ A list of the nodes in the tree (maintained as a single linked list)$/;"	m	struct:_opttree_t
+lower_bound	opttree.h	/^    double lower_bound;           \/\/ Cost of the best path in the tree$/;"	m	struct:_opttree_t
+lower_bound_node	opttree.h	/^    node_t *lower_bound_node;     \/\/ Pointer to the node with lowest cost inside the target region$/;"	m	struct:_opttree_t
+main	optmain.c	/^int main () {$/;"	f
+max	kdtree.c	/^	double *min, *max;              \/* minimum\/maximum coords *\/$/;"	m	struct:kdhyperrect	file:
+min	kdtree.c	/^	double *min, *max;              \/* minimum\/maximum coords *\/$/;"	m	struct:kdhyperrect	file:
+min	opttree.h	/^    double *min;$/;"	m	struct:_bounding_box_t
+next	kdtree.c	/^	struct res_node *next;$/;"	m	struct:res_node	typeref:struct:res_node::res_node	file:
+node_t	opttree.h	/^typedef struct _node_t node_t;$/;"	t	typeref:struct:_node_t
+num_nodes	opttree.h	/^    int num_nodes;                \/\/ Number of nodes in the tree (maintained for fast evaluation of the number of nodes)$/;"	m	struct:_opttree_t
+obstacle_list	optsystem.h	/^    GSList *obstacle_list;         \/\/ A list of obstacles$/;"	m	struct:_optsystem_t
+operating_region	optsystem.h	/^    region_2d_t operating_region;  \/\/ Operating region$/;"	m	struct:_optsystem_t
+optmain_write_optimal_path_to_file	optmain.c	/^int optmain_write_optimal_path_to_file (opttree_t *opttree) $/;"	f
+optmain_write_tree_to_file	optmain.c	/^optmain_write_tree_to_file (opttree_t *opttree) {$/;"	f
+optsys	opttree.h	/^    optsystem_t *optsys;    $/;"	m	struct:_opttree_t
+optsystem_clone_state	optsystem.c	/^state_t *optsystem_clone_state (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_evaluate_cost_to_go	optsystem.c	/^double optsystem_evaluate_cost_to_go (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_evaluate_distance	optsystem.c	/^double optsystem_evaluate_distance (optsystem_t *self, state_t *state_from, state_t *state_to) {$/;"	f
+optsystem_evaluate_distance_for_cost	optsystem.c	/^double optsystem_evaluate_distance_for_cost (optsystem_t *self, GSList *inputs) {$/;"	f
+optsystem_extend_to	optsystem.c	/^int optsystem_extend_to (optsystem_t *self, state_t *state_from, state_t *state_towards, $/;"	f
+optsystem_free_input	optsystem.c	/^int optsystem_free_input (optsystem_t *self, input_t *input) {$/;"	f
+optsystem_free_state	optsystem.c	/^int optsystem_free_state (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_free_system	optsystem.c	/^int optsystem_free_system (optsystem_t *self) {$/;"	f
+optsystem_get_initial_state	optsystem.c	/^int  optsystem_get_initial_state (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_get_num_states	optsystem.c	/^int optsystem_get_num_states (optsystem_t *self) {$/;"	f
+optsystem_get_state_key	optsystem.c	/^double* optsystem_get_state_key (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_is_reaching_target	optsystem.c	/^gboolean optsystem_is_reaching_target (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_new_input	optsystem.c	/^input_t* optsystem_new_input (optsystem_t *self) {$/;"	f
+optsystem_new_state	optsystem.c	/^state_t* optsystem_new_state (optsystem_t *self) {$/;"	f
+optsystem_new_system	optsystem.c	/^int optsystem_new_system (optsystem_t *self) {$/;"	f
+optsystem_on_obstacle	optsystem.c	/^gboolean optsystem_on_obstacle (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_sample_state	optsystem.c	/^int optsystem_sample_state (optsystem_t *self, state_t *random_state) { $/;"	f
+optsystem_sample_target_state	optsystem.c	/^int optsystem_sample_target_state (optsystem_t *self, state_t *random_state) { $/;"	f
+optsystem_segment_on_obstacle	optsystem.c	/^int optsystem_segment_on_obstacle (optsystem_t *self, state_t *state_initial, state_t *state_final, int num_steps) {$/;"	f
+optsystem_set_initial_state	optsystem.c	/^int optsystem_set_initial_state (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_t	optsystem.h	/^typedef struct _optsystem_t optsystem_t;$/;"	t	typeref:struct:_optsystem_t
+optsystem_update_goal_region	optsystem.c	/^gboolean optsystem_update_goal_region (optsystem_t *self, region_2d_t *goal_region) {$/;"	f
+optsystem_update_obstacles	optsystem.c	/^gboolean optsystem_update_obstacles (optsystem_t *self, GSList *obstacle_list) {$/;"	f
+optsystem_update_operating_region	optsystem.c	/^gboolean optsystem_update_operating_region (optsystem_t *self, region_2d_t *operating_region) {$/;"	f
+opttree_add_traj_to_graph	opttree.c	/^node_t *opttree_add_traj_to_graph (opttree_t *self, node_t *node_start, node_t *node_end, $/;"	f
+opttree_create	opttree.c	/^opttree_t* opttree_create () { $/;"	f
+opttree_destroy	opttree.c	/^int opttree_destroy (opttree_t *self) {$/;"	f
+opttree_extend_back_to_tree	opttree.c	/^int opttree_extend_back_to_tree (opttree_t *self, node_t *node_from, GSList *node_list) {$/;"	f
+opttree_extend_towards_sample	opttree.c	/^node_t *opttree_extend_towards_sample (opttree_t *self, node_t *node_from, state_t *state_towards) {$/;"	f
+opttree_extend_towards_sample_no_create_node	opttree.c	/^state_t *opttree_extend_towards_sample_no_create_node (opttree_t *self, node_t *node_from, state_t *state_towards) {$/;"	f
+opttree_find_min_node_in_set	opttree.c	/^node_t* opttree_find_min_node_in_set (opttree_t *self, state_t *state_towards, GSList *list_nodes) {$/;"	f
+opttree_find_nearest_neighbor	opttree.c	/^node_t* opttree_find_nearest_neighbor (opttree_t *self, state_t *state_from) {$/;"	f
+opttree_find_nodes_in_ball	opttree.c	/^GSList *opttree_find_nodes_in_ball (opttree_t *self, state_t *state, double ball_radius) {$/;"	f
+opttree_free_node	opttree.c	/^int opttree_free_node (opttree_t *self, node_t *node) {$/;"	f
+opttree_free_tree	opttree.c	/^int opttree_free_tree (opttree_t *self) {$/;"	f
+opttree_iteration	opttree.c	/^int opttree_iteration (opttree_t *self) {$/;"	f
+opttree_kdtree_to_gslist	opttree.c	/^GSList *opttree_kdtree_to_gslist (state_t * state, kdres_t *kdres) {$/;"	f
+opttree_new_node	opttree.c	/^node_t* opttree_new_node (opttree_t *self) {$/;"	f
+opttree_new_node_no_state	opttree.c	/^node_t* opttree_new_node_no_state () {$/;"	f
+opttree_reinitialize	opttree.c	/^int opttree_reinitialize (opttree_t *self) {$/;"	f
+opttree_set_root_state	opttree.c	/^int opttree_set_root_state (opttree_t *self, state_t *state) {$/;"	f
+opttree_t	opttree.h	/^typedef struct _opttree_t opttree_t;$/;"	t	typeref:struct:_opttree_t
+opttree_update_distance_from_root	opttree.c	/^void opttree_update_distance_from_root (opttree_t *self, node_t *node_parent, node_t *node_curr) {$/;"	f
+parent	opttree.h	/^    node_t *parent;                 \/\/ Parent node to this node$/;"	m	struct:_node_t
+pos	kdtree.c	/^	double *pos;$/;"	m	struct:kdnode	file:
+reaches_target	opttree.h	/^    gboolean reaches_target;        \/\/ True if this node reaches the target$/;"	m	struct:_node_t
+rect	kdtree.c	/^	struct kdhyperrect *rect;$/;"	m	struct:kdtree	typeref:struct:kdtree::kdhyperrect	file:
+region_2d_t	optsystem.h	/^typedef struct _region_2d_t region_2d_t;$/;"	t	typeref:struct:_region_2d_t
+res_node	kdtree.c	/^struct res_node {$/;"	s	file:
+right	kdtree.c	/^	struct kdnode *left, *right;	\/* negative\/positive side *\/$/;"	m	struct:kdnode	typeref:struct:kdnode::	file:
+riter	kdtree.c	/^	struct res_node *rlist, *riter;$/;"	m	struct:kdres	typeref:struct:kdres::	file:
+rlist	kdtree.c	/^	struct res_node *rlist, *riter;$/;"	m	struct:kdres	typeref:struct:kdres::res_node	file:
+rlist_insert	kdtree.c	/^static int rlist_insert(struct res_node *list, struct kdnode *item, double dist_sq)$/;"	f	file:
+root	kdtree.c	/^	struct kdnode *root;$/;"	m	struct:kdtree	typeref:struct:kdtree::kdnode	file:
+root	opttree.h	/^    node_t *root;                 \/\/ Pointer to the root node $/;"	m	struct:_opttree_t
+run_rrtstar	opttree.h	/^    gboolean run_rrtstar;         \/\/ RRT\/RRT* switch; RRT* iteration is executed if this variable is one$/;"	m	struct:_opttree_t
+size	kdtree.c	/^	int size;$/;"	m	struct:kdres	file:
+size	optsystem.h	/^    double size[2];$/;"	m	struct:_region_2d_t
+state	opttree.h	/^    state_t *state;                 \/\/ The state at this node$/;"	m	struct:_node_t
+state_t	optsystem.h	/^typedef struct _state_t state_t;$/;"	t	typeref:struct:_state_t
+target_sample_prob_after_first_solution	opttree.h	/^    double target_sample_prob_after_first_solution;     \/\/ Probability of sampling the target after the first feasible solution$/;"	m	struct:_opttree_t
+target_sample_prob_before_first_solution	opttree.h	/^    double target_sample_prob_before_first_solution;    \/\/ Probability of sampling the target before the first feasible solution$/;"	m	struct:_opttree_t
+traj_from_parent	opttree.h	/^    GSList *traj_from_parent;       \/\/ A sequence of states that connects this node's parent to this node$/;"	m	struct:_node_t
+tree	kdtree.c	/^	struct kdtree *tree;$/;"	m	struct:kdres	typeref:struct:kdres::kdtree	file:
+ts_now	optmain.c	/^int64_t ts_now () $/;"	f
+x	optsystem.h	/^    double x[NUM_INPUTS];$/;"	m	struct:_input_t
+x	optsystem.h	/^    double x[NUM_STATES];$/;"	m	struct:_state_t
