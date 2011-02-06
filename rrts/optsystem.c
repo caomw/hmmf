@@ -32,16 +32,6 @@ http://arxiv.org/abs/1005.0416
 
 #include "optsystem.h"
 
-#define DEL_T   (0.1)
-
-// Returns 1 iff (state) is on an obstacle
-gboolean 
-optsystem_on_obstacle (optsystem_t *self, state_t *state);
-
-// Returns 1 iff the line connecting (state_initial) and (state_final) lies on an obstacle
-int 
-optsystem_segment_on_obstacle (optsystem_t *self, state_t *state_initial, state_t *state_final, int num_steps);
-
 
 // Allocates memory for and initializes an empty dynamical system
 int optsystem_new_system (optsystem_t *self) {
@@ -238,129 +228,24 @@ int optsystem_segment_on_obstacle (optsystem_t *self, state_t *state_initial, st
 }
 
 
-// Extends a given state towards another state
-int optsystem_extend_to (optsystem_t *self, state_t *state_from, state_t *state_towards, 
-                         int *fully_extends, GSList **trajectory,
-                         int *num_node_states, int **nodes_states, GSList **inputs) {
-
-    int discretization_num_steps = 10;
-    
-    GSList *trajectory_curr = NULL; // Start with an empty trajectory
-    GSList *inputs_curr = NULL;
-
-    double dist_x = state_towards->x[0] - state_from->x[0];
-    double dist_y = state_towards->x[1] - state_from->x[1];
-
-    double dist = sqrt (dist_x * dist_x + dist_y * dist_y);
-
-    if (dist < 1.0) 
-    {
-        if (optsystem_segment_on_obstacle (self, state_from, state_towards, discretization_num_steps) ) 
-        {
-            *fully_extends = 0;
-            return 0;
-        }
-
-        int count = 0;
-        // try 100 particles from same state
-        for(int i=0; i<100; i++)
-        {
-            state_t *state_tmp = optsystem_new_state (self);
-            state_tmp->x[0] = state_towards->x[0] + 0.8*(rand()/(RAND_MAX + 1.0));
-            state_tmp->x[1] = state_towards->x[1] + 0.8*(rand()/(RAND_MAX + 1.0));
-
-            if (!optsystem_segment_on_obstacle (self, state_from, state_tmp, discretization_num_steps) ) 
-                count++;
-            optsystem_free_state(self, state_tmp);
-        }
-        if(count > 98)      // extend this
-        {
-            state_t *state_new = optsystem_new_state (self);
-            state_new->x[0] = state_towards->x[0] + 0.8*(rand()/(RAND_MAX + 1.0));
-            state_new->x[1] = state_towards->x[1] + 0.8*(rand()/(RAND_MAX + 1.0));
-
-            if (optsystem_segment_on_obstacle (self, state_from, state_new, discretization_num_steps) ) 
-            {
-                *fully_extends = 0;
-                optsystem_free_state(self, state_new);
-                return 0;
-            }
-
-            trajectory_curr = g_slist_prepend (trajectory_curr, state_new);        
-
-            input_t *input_new = optsystem_new_input (self);
-            input_new->x[0] = dist;
-            //input_new->x[1] = dist_y;
-            inputs_curr = g_slist_prepend (inputs_curr, input_new);
-            *fully_extends = 1;
-        }
-        else
-        {
-            *fully_extends = 0;
-            return 0;
-        }
-    }
-    else 
-    { 
-        *fully_extends = 0;
-        int count = 0;
-        for(int i=0; i<100; i++)
-        {
-            state_t *state_tmp = optsystem_new_state (self);  
-            state_tmp->x[0] = (state_towards->x[0] - state_from->x[0])/dist + state_from->x[0];
-            state_tmp->x[1] = (state_towards->x[1] - state_from->x[1])/dist + state_from->x[1];
-            state_tmp->x[0] += 0.8*(rand()/(RAND_MAX + 1.0));
-            state_tmp->x[1] += 0.8*(rand()/(RAND_MAX + 1.0));
-
-            if (!optsystem_segment_on_obstacle(self, state_from, state_tmp, discretization_num_steps))
-                count++;
-            optsystem_free_state(self, state_tmp);
-        }
-        if(count > 98)
-        {
-            state_t *state_new = optsystem_new_state (self);  
-            state_new->x[0] = (state_towards->x[0] - state_from->x[0])/dist + state_from->x[0];
-            state_new->x[1] = (state_towards->x[1] - state_from->x[1])/dist + state_from->x[1];
-            state_new->x[0] += 0.8*(rand()/(RAND_MAX + 1.0));
-            state_new->x[1] += 0.8*(rand()/(RAND_MAX + 1.0));
-
-            if (optsystem_segment_on_obstacle(self, state_from, state_new, discretization_num_steps)) 
-            {
-                optsystem_free_state(self, state_new);
-                return 0;
-            }
-
-            trajectory_curr = g_slist_prepend (trajectory_curr, state_new);        
-
-            double extend_dist_x = state_new->x[0] - state_from->x[0];
-            double extend_dist_y = state_new->x[1] - state_from->x[1];
-            input_t *input_new = optsystem_new_input (self);
-            input_new->x[0] = 1.0;
-            //input_new->x[0] = extend_dist_x;
-            //input_new->x[1] = extend_dist_y;
-            inputs_curr = g_slist_prepend (inputs_curr, input_new);
-        }
-        else
-        {
-            return 0;
-        }
-    }
-
-    *trajectory = trajectory_curr;
-    *inputs = inputs_curr;
-    *num_node_states = 0;
-    *nodes_states = NULL;
-    
-    return 1;
-}
 
 
 // Checks whether a given state is on an obstacle
-gboolean optsystem_on_obstacle (optsystem_t *self, state_t *state) {
+gboolean optsystem_on_obstacle (optsystem_t *self, state_t *state) 
+{
+
+    for(int i=0; i<NUM_STATES; i++)
+    {
+        double min = self->operating_region.center[i] - self->operating_region.size[i]/2;
+        double max = self->operating_region.center[i] + self->operating_region.size[i]/2;
+        if( (state->x[i] >= max) || (state->x[i] <= min))
+            return 1;
+    }
 
     GSList *obstacle_list_curr = self->obstacle_list;
 
-    while (obstacle_list_curr) {
+    while (obstacle_list_curr) 
+    {
         region_2d_t *obstacle_region = (region_2d_t *) (obstacle_list_curr->data);
 
         if ( (fabs(obstacle_region->center[0] - state->x[0]) <= obstacle_region->size[0]/2.0) &&

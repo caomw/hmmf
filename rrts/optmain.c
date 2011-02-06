@@ -123,7 +123,7 @@ optmain_write_tree_to_file (opttree_t *opttree) {
 int main () {
 
     // Setup the parameters
-    int num_iterations = 10000;
+    int num_iterations = 2000;
 
     // 1. Create opttree structure
     opttree_t *opttree = opttree_create ();
@@ -169,16 +169,17 @@ int main () {
 
     // 2.d create the root state
     state_t root_state = {
-        .x = {0.0, -9.0}
+        .x = {0.0, 0.0}
     };
     opttree_set_root_state (opttree, &root_state);
 
-    opttree->run_rrtstar = 1;  // Run the RRT* algorithm
+    opttree->run_rrtstar = 0;  // Run the RRT* algorithm
     
     // 3. Run opttree in iterations
     int64_t time_start = ts_now(); // Record the start time
-    for (int i = 0; i < num_iterations; i++) {
-
+    for (int i = 0; i < num_iterations; i++) 
+    {
+        //printf("iter: %d\n", i);
         opttree_iteration (opttree);
         if ( (i != 0 ) && (i%1000 == 0) ) 
             printf ("Time: %5.5lf, Cost: %5.5lf\n", 

@@ -109,4 +109,16 @@ int opttree_iteration (opttree_t *self);
 // Empties the tree and reinializes all the related variables
 int opttree_reinitialize (opttree_t *self);
 
+node_t* opttree_find_nearest_neighbor (opttree_t *self, state_t *state_from);
+
+int propagate_to_root(opttree_t *self, state_t *state);
+
+// Extends a given state (state_from) towards a given state (state_towards). Sets 
+//   (fully_extend) to 1 if the extension exactly reaches to state_towards and to 0
+//   if the extension falls short. The resulting sequence of states is returned in 
+//   (trajectory) and the resulting inputs is returned in (inputs). The intermediate
+//   nodes to be put into the tree is returned in (node_states), while the number of
+//   such nodes is teruned in (num_node_states).
+int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from, state_t *state_towards, int *fully_extends, GSList **trajectory, int *num_node_states, int **node_states, GSList **inputs);
+
 #endif 

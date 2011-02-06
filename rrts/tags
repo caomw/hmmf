@@ -4,8 +4,9 @@
 !_TAG_PROGRAM_NAME	Exuberant Ctags	//
 !_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
 !_TAG_PROGRAM_VERSION	5.8	//
-NUM_INPUTS	optsystem.h	42;"	d
-NUM_STATES	optsystem.h	41;"	d
+NOISE	optsystem.h	45;"	d
+NUM_INPUTS	optsystem.h	43;"	d
+NUM_STATES	optsystem.h	42;"	d
 PUBLISH_NODES_EDGES	optmain.c	33;"	d	file:
 SQ	kdtree.c	83;"	d	file:
 _KDTREE_H_	kdtree.h	28;"	d
@@ -107,7 +108,7 @@ optsystem_clone_state	optsystem.c	/^state_t *optsystem_clone_state (optsystem_t 
 optsystem_evaluate_cost_to_go	optsystem.c	/^double optsystem_evaluate_cost_to_go (optsystem_t *self, state_t *state) {$/;"	f
 optsystem_evaluate_distance	optsystem.c	/^double optsystem_evaluate_distance (optsystem_t *self, state_t *state_from, state_t *state_to) {$/;"	f
 optsystem_evaluate_distance_for_cost	optsystem.c	/^double optsystem_evaluate_distance_for_cost (optsystem_t *self, GSList *inputs) {$/;"	f
-optsystem_extend_to	optsystem.c	/^int optsystem_extend_to (optsystem_t *self, state_t *state_from, state_t *state_towards, $/;"	f
+optsystem_extend_to	opttree.c	/^int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from, state_t *state_towards, $/;"	f
 optsystem_free_input	optsystem.c	/^int optsystem_free_input (optsystem_t *self, input_t *input) {$/;"	f
 optsystem_free_state	optsystem.c	/^int optsystem_free_state (optsystem_t *self, state_t *state) {$/;"	f
 optsystem_free_system	optsystem.c	/^int optsystem_free_system (optsystem_t *self) {$/;"	f
@@ -118,7 +119,7 @@ optsystem_is_reaching_target	optsystem.c	/^gboolean optsystem_is_reaching_target
 optsystem_new_input	optsystem.c	/^input_t* optsystem_new_input (optsystem_t *self) {$/;"	f
 optsystem_new_state	optsystem.c	/^state_t* optsystem_new_state (optsystem_t *self) {$/;"	f
 optsystem_new_system	optsystem.c	/^int optsystem_new_system (optsystem_t *self) {$/;"	f
-optsystem_on_obstacle	optsystem.c	/^gboolean optsystem_on_obstacle (optsystem_t *self, state_t *state) {$/;"	f
+optsystem_on_obstacle	optsystem.c	/^gboolean optsystem_on_obstacle (optsystem_t *self, state_t *state) $/;"	f
 optsystem_sample_state	optsystem.c	/^int optsystem_sample_state (optsystem_t *self, state_t *random_state) { $/;"	f
 optsystem_sample_target_state	optsystem.c	/^int optsystem_sample_target_state (optsystem_t *self, state_t *random_state) { $/;"	f
 optsystem_segment_on_obstacle	optsystem.c	/^int optsystem_segment_on_obstacle (optsystem_t *self, state_t *state_initial, state_t *state_final, int num_steps) {$/;"	f
@@ -148,6 +149,7 @@ opttree_t	opttree.h	/^typedef struct _opttree_t opttree_t;$/;"	t	typeref:struct:
 opttree_update_distance_from_root	opttree.c	/^void opttree_update_distance_from_root (opttree_t *self, node_t *node_parent, node_t *node_curr) {$/;"	f
 parent	opttree.h	/^    node_t *parent;                 \/\/ Parent node to this node$/;"	m	struct:_node_t
 pos	kdtree.c	/^	double *pos;$/;"	m	struct:kdnode	file:
+propagate_to_root	opttree.c	/^int propagate_to_root(opttree_t *self, state_t *state)$/;"	f
 reaches_target	opttree.h	/^    gboolean reaches_target;        \/\/ True if this node reaches the target$/;"	m	struct:_node_t
 rect	kdtree.c	/^	struct kdhyperrect *rect;$/;"	m	struct:kdtree	typeref:struct:kdtree::kdhyperrect	file:
 region_2d_t	optsystem.h	/^typedef struct _region_2d_t region_2d_t;$/;"	t	typeref:struct:_region_2d_t

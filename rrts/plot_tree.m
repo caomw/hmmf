@@ -20,3 +20,6 @@ end
 for i = 1:length (optpath)-1
     hold on, plot ([optpath(i,1), optpath(i+1,1)], [optpath(i,2), optpath(i+1,2)], 'r-', 'LineWidth', 4.0);    
 end
+
+grid on;
+axis([-10 10 -10 10]);

@@ -38,15 +38,18 @@ http://arxiv.org/abs/1005.0416
 #include <math.h>
 #include <glib.h>
 
+
 #define NUM_STATES 2       // Number of states
 #define NUM_INPUTS 1       // Number of inputs
+
+#define NOISE   (0.3*(rand()/(RAND_MAX + 1.0)))
+//#define NOISE   0
 
 // Type definitions 
 typedef struct _region_2d_t region_2d_t;
 typedef struct _state_t state_t;
 typedef struct _input_t input_t;
 typedef struct _optsystem_t optsystem_t;
-
 
 // Initializes the optsystem_t structure
 int
@@ -110,19 +113,17 @@ optsystem_evaluate_distance (optsystem_t *self, state_t *state_from, state_t *st
 double 
 optsystem_evaluate_distance_for_cost (optsystem_t *self, GSList *inputs);
 
-// Extends a given state (state_from) towards a given state (state_towards). Sets 
-//   (fully_extend) to 1 if the extension exactly reaches to state_towards and to 0
-//   if the extension falls short. The resulting sequence of states is returned in 
-//   (trajectory) and the resulting inputs is returned in (inputs). The intermediate
-//   nodes to be put into the tree is returned in (node_states), while the number of
-//   such nodes is teruned in (num_node_states).
-int 
-optsystem_extend_to (optsystem_t *self, state_t *state_from, state_t *state_towards, 
-                     int *fully_extends, GSList **trajectory, int *num_node_states, int **node_states, GSList **inputs);
 
 // Returns true iff the given state reaches the goal
 gboolean 
 optsystem_is_reaching_target (optsystem_t *self, state_t *state);
+
+// Returns 1 iff (state) is on an obstacle
+gboolean optsystem_on_obstacle (optsystem_t *self, state_t *state);
+
+// Returns 1 iff the line connecting (state_initial) and (state_final) lies on an obstacle
+int optsystem_segment_on_obstacle (optsystem_t *self, state_t *state_initial, state_t *state_final, int num_steps);
+
 
 
 
