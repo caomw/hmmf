@@ -173,7 +173,7 @@ int main () {
     };
     opttree_set_root_state (opttree, &root_state);
 
-    opttree->run_rrtstar = 0;  // Run the RRT* algorithm
+    opttree->run_rrtstar = 1;  // Run the RRT* algorithm
     
     // 3. Run opttree in iterations
     int64_t time_start = ts_now(); // Record the start time
