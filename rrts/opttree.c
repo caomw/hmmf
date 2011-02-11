@@ -139,7 +139,7 @@ void opttree_update_distance_from_root (opttree_t *self, node_t *node_parent, no
 
 // Adds a given trajectory to the graph and returns a pointer to the the last node
 node_t *opttree_add_traj_to_graph (opttree_t *self, node_t *node_start, node_t *node_end, 
-                                   GSList *trajectory, int num_node_states, int *node_states, GSList *inputs) {
+                                   GSList *trajectory, int num_node_states, int *node_states, GSList *inputs, double *radius) {
 
     node_t *node_prev = node_start;   // This variable maintains the node last added to the graph to update parents
 
@@ -191,7 +191,8 @@ node_t *opttree_add_traj_to_graph (opttree_t *self, node_t *node_start, node_t *
                 node_curr->children = NULL;
                 node_curr->state = state_curr;
                 node_curr->reaches_target = optsystem_is_reaching_target (self->optsys, node_curr->state);
-                
+                node_curr->bowl_radius = *radius;
+
                 kd_insert (self->kdtree, optsystem_get_state_key (self->optsys, node_curr->state), node_curr);
 
                 // Add node to the graph
@@ -319,7 +320,7 @@ node_t *opttree_add_traj_to_graph (opttree_t *self, node_t *node_start, node_t *
 
 // if distance == 1000, it means that the particle collides,
 // those particles are not counted in the mean
-float calci_variance(float *d, int size)
+float calci_stdev(float *d, int size)
 {
     float mean = 0;
     for(int i=0; i<size; i++)
@@ -337,17 +338,27 @@ float calci_variance(float *d, int size)
         if( *(d+i) != 1000)
             var += ((*(d+i)) - mean)*((*(d+i)) - mean);
     }
-    return var/size;
+    return sqrt(var/size);
 }
 
+
+void create_noisy_state(state_t *curr, double *radius)
+{
+    double t = *radius;
+    for(int i=0; i<NUM_STATES; i++)
+    {
+        curr->x[i] += (2*t*random()/(RAND_MAX + 1.0) - t);
+    }
+}
 
 // Extends a given state towards another state
 int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from, state_t *state_towards, 
                          int *fully_extends, GSList **trajectory,
-                         int *num_node_states, int **nodes_states, GSList **inputs) {
+                         int *num_node_states, int **nodes_states, GSList **inputs, double *radius) {
 
     int discretization_num_steps = 10;
-    
+    *radius = 1.0;
+
     GSList *trajectory_curr = NULL; // Start with an empty trajectory
     GSList *inputs_curr = NULL;
 
@@ -356,9 +367,6 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
 
     double dist = sqrt (dist_x * dist_x + dist_y * dist_y);
 
-    float *distances;
-    distances = calloc(100, sizeof(float));
-    
     //printf("extending from: %3.4f %3.4f\n", state_from->x[0], state_from->x[1]);
     //printf("extending to: %3.4f %3.4f\n", state_towards->x[0], state_towards->x[1]);
     if (dist < 1.0) 
@@ -373,35 +381,30 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
         // try 100 particles from same state
         for(int i=0; i<100; i++)
         {
-            if(propagate_to_root(tree, state_from, distances+i))
+            if(propagate_to_root(tree, state_towards, state_from, radius))
                 count++;
         }
         //printf("count: %d\n", count);
         if(count > 98)      // extend this
         {
-            float var = calci_variance(distances, 100);
-            //printf("%f\n", var);
-            if(var < 112.0)
+            state_t *state_new = optsystem_new_state (self);
+            state_new->x[0] = state_towards->x[0] + NOISE;
+            state_new->x[1] = state_towards->x[1] + NOISE;
+
+            if (optsystem_segment_on_obstacle (self, state_from, state_new, discretization_num_steps) ) 
             {
-                state_t *state_new = optsystem_new_state (self);
-                state_new->x[0] = state_towards->x[0] + NOISE;
-                state_new->x[1] = state_towards->x[1] + NOISE;
-
-                if (optsystem_segment_on_obstacle (self, state_from, state_new, discretization_num_steps) ) 
-                {
-                    *fully_extends = 0;
-                    optsystem_free_state(self, state_new);
-                    return 0;
-                }
-
-                trajectory_curr = g_slist_prepend (trajectory_curr, state_new);        
-                //printf("extended to: %3.4f %3.4f\n", state_new->x[0], state_new->x[1]);
-
-                input_t *input_new = optsystem_new_input (self);
-                input_new->x[0] = dist;
-                inputs_curr = g_slist_prepend (inputs_curr, input_new);
-                *fully_extends = 1;
+                *fully_extends = 0;
+                optsystem_free_state(self, state_new);
+                return 0;
             }
+
+            trajectory_curr = g_slist_prepend (trajectory_curr, state_new);        
+            //printf("extended to: %3.4f %3.4f\n", state_new->x[0], state_new->x[1]);
+
+            input_t *input_new = optsystem_new_input (self);
+            input_new->x[0] = dist;
+            inputs_curr = g_slist_prepend (inputs_curr, input_new);
+            *fully_extends = 1;
         }
         else
         {
@@ -414,47 +417,46 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
         *fully_extends = 0;
         int count = 0;
         
+        state_t *state_new = optsystem_new_state (self);  
         for(int i=0; i<100; i++)
         {
-            if (propagate_to_root(tree, state_from, distances+i))
+            state_new->x[0] = (state_towards->x[0] - state_from->x[0])/dist + state_from->x[0];
+            state_new->x[1] = (state_towards->x[1] - state_from->x[1])/dist + state_from->x[1];
+            
+            if(propagate_to_root(tree, state_new, state_from, radius))
                 count++;
         }
-
+        optsystem_free_state(self, state_new);
         //printf("count: %d\n", count);
+        
         if(count > 98)
         {
-            float var = calci_variance(distances, 100);
-            //printf("%f\n", var);
-            if(var < 112.0)
+            state_t *state_new = optsystem_new_state (self);  
+            state_new->x[0] = (state_towards->x[0] - state_from->x[0])/dist + state_from->x[0];
+            state_new->x[1] = (state_towards->x[1] - state_from->x[1])/dist + state_from->x[1];
+            state_new->x[0] += NOISE;
+            state_new->x[1] += NOISE;
+
+            if (optsystem_segment_on_obstacle(self, state_from, state_new, discretization_num_steps)) 
             {
-                state_t *state_new = optsystem_new_state (self);  
-                state_new->x[0] = (state_towards->x[0] - state_from->x[0])/dist + state_from->x[0];
-                state_new->x[1] = (state_towards->x[1] - state_from->x[1])/dist + state_from->x[1];
-                state_new->x[0] += NOISE;
-                state_new->x[1] += NOISE;
-
-                if (optsystem_segment_on_obstacle(self, state_from, state_new, discretization_num_steps)) 
-                {
-                    optsystem_free_state(self, state_new);
-                    return 0;
-                }
-
-                //printf("extended to: %3.4f %3.4f\n", state_new->x[0], state_new->x[1]);
-                trajectory_curr = g_slist_prepend (trajectory_curr, state_new);        
-
-                input_t *input_new = optsystem_new_input (self);
-                input_new->x[0] = 1.0;
-                inputs_curr = g_slist_prepend (inputs_curr, input_new);
+                optsystem_free_state(self, state_new);
+                return 0;
             }
+
+            //printf("extended to: %3.4f %3.4f\n", state_new->x[0], state_new->x[1]);
+            trajectory_curr = g_slist_prepend (trajectory_curr, state_new);        
+
+            input_t *input_new = optsystem_new_input (self);
+            input_new->x[0] = 1.0;
+            inputs_curr = g_slist_prepend (inputs_curr, input_new);
         }
         else
         {
             return 0;
         }
     }
-    //getchar();
     
-    free(distances);
+    //printf("radius: %f\n", *radius);
     *trajectory = trajectory_curr;
     *inputs = inputs_curr;
     *num_node_states = 0;
@@ -474,17 +476,22 @@ node_t *opttree_extend_towards_sample (opttree_t *self, node_t *node_from, state
     int num_node_states = 0;
     int  *node_states = NULL;
     GSList *inputs = NULL;
+    double *radius;
+    radius = calloc(1, sizeof(double));
+
     if (optsystem_extend_to (self, self->optsys, node_from->state, state_towards, 
-                             &fully_extends, &trajectory, &num_node_states, &node_states, &inputs) == 0) {
+                             &fully_extends, &trajectory, &num_node_states, &node_states, &inputs, radius) == 0) {
         return NULL;
     }
     
     // Add all the nodes in the trajectory to the tree
-    node_t *node_curr = opttree_add_traj_to_graph (self, node_from, NULL, trajectory, num_node_states, node_states, inputs);
+    node_t *node_curr = opttree_add_traj_to_graph (self, node_from, NULL, trajectory, num_node_states, node_states, inputs, radius);
     
     // Check for reachability of the target, if so update the lower_bound
-    if (optsystem_is_reaching_target (self->optsys, node_curr->state)) {
-        if (node_curr->distance_from_root < self->lower_bound) {
+    if (optsystem_is_reaching_target (self->optsys, node_curr->state)) 
+    {
+        if (node_curr->distance_from_root < self->lower_bound) 
+        {
             self->lower_bound = node_curr->distance_from_root;
             self->lower_bound_node = node_curr;
         }
@@ -508,8 +515,11 @@ state_t *opttree_extend_towards_sample_no_create_node (opttree_t *self, node_t *
     int num_node_states = 0;
     int *node_states = NULL;
     GSList *inputs = NULL;
+    double *radius;
+    radius = calloc(1, sizeof(double));
+    
     if (optsystem_extend_to (self, self->optsys, node_from->state, state_towards, 
-                             &fully_extends, &trajectory, &num_node_states, &node_states, &inputs) == 0)
+                             &fully_extends, &trajectory, &num_node_states, &node_states, &inputs, radius) == 0)
         return NULL;
 
     {                                      
@@ -566,10 +576,12 @@ node_t* opttree_find_min_node_in_set (opttree_t *self, state_t *state_towards, G
         int num_node_states = 0;
         int *node_states = NULL;
         GSList *inputs = NULL;
+        
+        double *radius;
+        radius = calloc(1, sizeof(double));
 
         if (optsystem_extend_to (self, self->optsys, node_curr->state, state_towards, 
-                                 &fully_extends, &trajectory, &num_node_states, &node_states, &inputs) != 0) {
-
+                                 &fully_extends, &trajectory, &num_node_states, &node_states, &inputs, radius) != 0) {
 
             if (fully_extends)
             {
@@ -680,8 +692,10 @@ int opttree_extend_back_to_tree (opttree_t *self, node_t *node_from, GSList *nod
         int num_node_states = 0;
         int *node_states = NULL;
         GSList *inputs = NULL;
+        double *radius;
+        radius = calloc(1, sizeof(double));
         if (optsystem_extend_to (self, self->optsys, state_from, state_towards, 
-                                 &fully_extends, &trajectory, &num_node_states, &node_states, &inputs) == 0) {
+                                 &fully_extends, &trajectory, &num_node_states, &node_states, &inputs, radius) == 0) {
             fully_extends = 0;
         }
         
@@ -696,7 +710,7 @@ int opttree_extend_back_to_tree (opttree_t *self, node_t *node_from, GSList *nod
 
                 // Add the trajectory to the tree
                 node_t *node_new; 
-                node_new = opttree_add_traj_to_graph (self, node_from, node_curr, trajectory, num_node_states, node_states, inputs);
+                node_new = opttree_add_traj_to_graph (self, node_from, node_curr, trajectory, num_node_states, node_states, inputs, radius);
             } 
             else {                   // If the new distance from the root is not less than the current one
                 free_states = TRUE;  // remember to free up the memory used by the states in the trajectory
@@ -917,20 +931,21 @@ int opttree_destroy (opttree_t *self) {
 }
 
 
-int opttree_set_root_state (opttree_t *self, state_t *state) {
+int opttree_set_root_state (opttree_t *self, state_t *state) 
+{
 
     optsystem_set_initial_state (self->optsys, state); 
     optsystem_get_initial_state (self->optsys, self->root->state);
+    self->root->bowl_radius = 1.0;
 
     return 1;
 }
 
 // propagate state till root, return 0 if collides or cannot find a node within
 // a particular bowl
-int propagate_to_root(opttree_t *self, state_t *state, float *dist_from_root)
+int propagate_to_root(opttree_t *self, state_t *dummy, state_t *state, double *radius)
 {
-    *dist_from_root = 0;
-    
+    *radius = 1.0;
     state_t *state_copy = optsystem_new_state(self->optsys);
     for(int i=0; i<NUM_STATES; i++)
     {
@@ -955,26 +970,21 @@ int propagate_to_root(opttree_t *self, state_t *state, float *dist_from_root)
         {
             node_t *parent = nearest->parent;
             state_t *nearest_p_s = parent->state;
-            float dist = 0;
             for(int i=0; i<NUM_STATES; i++)
             {
                 float del = (nearest_p_s->x[i] - nearest_s->x[i]);
                 state_new->x[i] = state_copy->x[i] + del + NOISE;
-                dist += del*del;
             }
-            *dist_from_root += sqrt(dist);
             //printf("in prop - state_new: %3.5f %3.5f\n", state_new->x[0], state_new->x[1]);
 
             if(optsystem_on_obstacle(self->optsys, state_new))
             {
-                *dist_from_root = 1000;
                 //printf("here1\n");
                 obstacle = 1;
                 break;
             }
             else if(optsystem_segment_on_obstacle(self->optsys, state_copy, state_new, 10))
             {
-                *dist_from_root = 1000;
                 obstacle = 1;
                 break;
             }
@@ -994,3 +1004,48 @@ int propagate_to_root(opttree_t *self, state_t *state, float *dist_from_root)
     return 1;
 }
 
+/*
+// propagate state till root, return 0 if collides or cannot find a node within
+// a particular bowl
+int propagate_to_root(opttree_t *self, state_t *towards, state_t *from, double *curr_radius)
+{
+    state_t *state_new = optsystem_clone_state(self->optsys, towards);
+    create_noisy_state(state_new, curr_radius);
+    state_t *state_copy = optsystem_clone_state(self->optsys, state_new);
+    
+    node_t *nearest = opttree_find_nearest_neighbor(self, from);
+    double to_reach_radius = nearest->bowl_radius;
+    //printf("radius: %f\n", *curr_radius);
+
+    //printf("start prop - state_copy: %3.5f %3.5f\n", state_copy->x[0], state_copy->x[1]);
+    gboolean obstacle = 0, outside_bowl = 0;
+    //printf("nearest: %3.5f %3.5f\n", nearest_s->x[0], nearest_s->x[1]);
+
+    for(int i=0; i<NUM_STATES; i++)
+    {
+        float del = (from->x[i] - state_new->x[i]);
+        state_new->x[i] += (del + NOISE);
+    }
+    //printf("in prop - state_new: %3.5f %3.5f\n", state_new->x[0], state_new->x[1]);
+    double dist_to_from = optsystem_evaluate_distance(self->optsys, state_new, from);
+
+    if(optsystem_segment_on_obstacle(self->optsys, state_copy, state_new, 10))
+        obstacle = 1;
+    else if(dist_to_from > to_reach_radius)
+        outside_bowl = 1;
+
+    if(obstacle || outside_bowl)
+    {
+        //printf("state new: %f %f\n", state_new->x[0], state_new->x[1]);
+        double temp = MAX(optsystem_evaluate_distance(self->optsys, state_new, towards) - 0.05, 0);
+        //printf("temp: %f\n", temp);
+        *curr_radius = MIN(*curr_radius, temp);
+    }
+    optsystem_free_state(self->optsys, state_new);
+    optsystem_free_state(self->optsys, state_copy);
+    if(obstacle || outside_bowl)
+        return 0;
+    //printf("returning 1\n");
+    return 1;
+}
+*/

@@ -1,3 +1,4 @@
+clear; clc;
 load nodes.txt
 load edges.txt
 load optpath.txt
@@ -5,11 +6,16 @@ load optpath.txt
 figure
 daspect ([1 1 1]);
 
-
 % Draw the nodes
 max_a = max(nodes(:,1));
-hold on, plot (nodes (:,1), nodes(:,2), 'g.')
-
+hold on, plot (nodes (:,1), nodes(:,2), 'g.');
+%{
+for i=1:length(nodes)
+    if(nodes(i, 3) > 0)
+        rectangle('Position', [nodes(i,1) - nodes(i,3)*1.414, nodes(i,2) - nodes(i,3)*1.414, nodes(i,3)*2, nodes(i,3)*2], 'facecolor', 'b', 'curvature', [1 1], 'edgecolor', 'b');
+    end
+end
+%}
 
 % Draw the edges 
 for i = 1 : length (edges) 
@@ -27,5 +33,5 @@ grid on;
 axis([-10 10 -10 10]);
 hold on;
 alpha(0.5);
-rectangle('Position', [-5.5, -7.5, 5, 5], 'Facecolor', 'r');
-rectangle('Position', [0.5, -7.5, 5, 5], 'Facecolor', 'r');
+rectangle('Position', [-5.5, -7.5, 5, 5], 'Facecolor', 'r', 'edgecolor', 'r');
+rectangle('Position', [0.5, -7.5, 5, 5], 'Facecolor', 'r', 'edgecolor', 'r');

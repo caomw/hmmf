@@ -46,7 +46,6 @@ http://arxiv.org/abs/1005.0416
 typedef struct kdtree kdtree_t;
 typedef struct kdres kdres_t;
 
-
 typedef struct _node_t node_t;
 struct _node_t {
     state_t *state;                 // The state at this node
@@ -57,6 +56,8 @@ struct _node_t {
     double distance_from_root;      // Distance of this node from the root
     GSList *traj_from_parent;       // A sequence of states that connects this node's parent to this node
     GSList *inputs_from_parent;     // A sequence of inputs when applied starting from the parent state will generate traj_from_parent
+
+    double bowl_radius;
 };
 
 
@@ -111,7 +112,7 @@ int opttree_reinitialize (opttree_t *self);
 
 node_t* opttree_find_nearest_neighbor (opttree_t *self, state_t *state_from);
 
-int propagate_to_root(opttree_t *self, state_t *state, float *dist_from_root);
+int propagate_to_root(opttree_t *self, state_t *state_to_prop, state_t *node_state, double *radius);
 
 // Extends a given state (state_from) towards a given state (state_towards). Sets 
 //   (fully_extend) to 1 if the extension exactly reaches to state_towards and to 0
@@ -119,6 +120,6 @@ int propagate_to_root(opttree_t *self, state_t *state, float *dist_from_root);
 //   (trajectory) and the resulting inputs is returned in (inputs). The intermediate
 //   nodes to be put into the tree is returned in (node_states), while the number of
 //   such nodes is teruned in (num_node_states).
-int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from, state_t *state_towards, int *fully_extends, GSList **trajectory, int *num_node_states, int **node_states, GSList **inputs);
+int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from, state_t *state_towards, int *fully_extends, GSList **trajectory, int *num_node_states, int **node_states, GSList **inputs, double *radius);
 
 #endif 

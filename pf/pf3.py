@@ -4,12 +4,13 @@ from numpy import *
 from pylab import *
 from numpy.random import *
 
-gamma = 1
-d = 2000
-k = int(log(d)/gamma**2) + 10
+n = 100
+gamma = 0.1
+d = 300
+k = int(log(n)/gamma**2)
 print "k: ", k
 
-sq3 = sqrt(3)
+sq3 = sqrt(3/float(k))
 R = zeros( (k, d), float)
 for i in range(k):
     for j in range(d):
@@ -19,23 +20,19 @@ for i in range(k):
         elif (t == 6):
             R[i, j] = -sq3
 
-for c in range(1):
+for c in range(n):
     x  = [0 for i in range(d)]
-    y  = [0 for i in range(d)]
     dist = 0 
     for i in range(d):
         x[i] = random()
-        y[i] = random()
-        dist += (x[i] - y[i])**2
+        dist += x[i]**2
     dist = sqrt(dist)
     
     xn = dot(R, x)
-    yn = dot(R, y)
     distn = 0
     for i in range(k):
-        distn += (xn[i] - yn[i])**2
-    distn = sqrt(float(d)/k)*sqrt(distn)
+        distn += xn[i]**2
+    distn = sqrt(distn)
 
     print "dist: ", dist, " distn: ", distn
-
 

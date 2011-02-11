@@ -100,8 +100,8 @@ optmain_write_tree_to_file (opttree_t *opttree) {
     while (node_ptr) {
         
         node_t *node_curr = node_ptr->data;
-        fprintf (f_nodes_ptr, "%5.5lf, %5.5lf\n", 
-                 node_curr->state->x[0], node_curr->state->x[1]);
+        fprintf (f_nodes_ptr, "%5.5lf, %5.5lf, %5.5f\n", 
+                 node_curr->state->x[0], node_curr->state->x[1], node_curr->bowl_radius);
         
         node_t *node_parent = node_curr->parent;        
         if (node_parent) {

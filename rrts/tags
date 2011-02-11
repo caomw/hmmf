@@ -26,10 +26,13 @@ ball_radius_constant	opttree.h	/^    double ball_radius_constant;  \/\/ ball shr
 ball_radius_last	opttree.h	/^    double ball_radius_last;      \/\/ Radius of the ball in the last RRT* iteration$/;"	m	struct:_opttree_t
 ball_radius_max	opttree.h	/^    double ball_radius_max;       \/\/ maximum radius of the shrinking ball$/;"	m	struct:_opttree_t
 bounding_box_t	opttree.h	/^} bounding_box_t;$/;"	t	typeref:struct:_bounding_box_t
+bowl_radius	opttree.h	/^    double bowl_radius;$/;"	m	struct:_node_t
+calci_stdev	opttree.c	/^float calci_stdev(float *d, int size)$/;"	f
 center	optsystem.h	/^    double center[2];$/;"	m	struct:_region_2d_t
 children	opttree.h	/^    GSList *children;               \/\/ Children of this node$/;"	m	struct:_node_t
 clear_rec	kdtree.c	/^static void clear_rec(struct kdnode *node, void (*destr)(void*))$/;"	f	file:
 clear_results	kdtree.c	/^static void clear_results(struct kdres *rset)$/;"	f	file:
+create_noisy_state	opttree.c	/^void create_noisy_state(state_t *curr)$/;"	f
 data	kdtree.c	/^	void *data;$/;"	m	struct:kdnode	file:
 destr	kdtree.c	/^	void (*destr)(void*);$/;"	m	struct:kdtree	file:
 dim	kdtree.c	/^	int dim;$/;"	m	struct:kdhyperrect	file:
@@ -149,7 +152,7 @@ opttree_t	opttree.h	/^typedef struct _opttree_t opttree_t;$/;"	t	typeref:struct:
 opttree_update_distance_from_root	opttree.c	/^void opttree_update_distance_from_root (opttree_t *self, node_t *node_parent, node_t *node_curr) {$/;"	f
 parent	opttree.h	/^    node_t *parent;                 \/\/ Parent node to this node$/;"	m	struct:_node_t
 pos	kdtree.c	/^	double *pos;$/;"	m	struct:kdnode	file:
-propagate_to_root	opttree.c	/^int propagate_to_root(opttree_t *self, state_t *state)$/;"	f
+propagate_to_root	opttree.c	/^int propagate_to_root(opttree_t *self, state_t *towards, state_t *from, double *curr_radius)$/;"	f
 reaches_target	opttree.h	/^    gboolean reaches_target;        \/\/ True if this node reaches the target$/;"	m	struct:_node_t
 rect	kdtree.c	/^	struct kdhyperrect *rect;$/;"	m	struct:kdtree	typeref:struct:kdtree::kdhyperrect	file:
 region_2d_t	optsystem.h	/^typedef struct _region_2d_t region_2d_t;$/;"	t	typeref:struct:_region_2d_t
