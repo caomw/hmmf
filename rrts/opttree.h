@@ -112,7 +112,9 @@ int opttree_reinitialize (opttree_t *self);
 
 node_t* opttree_find_nearest_neighbor (opttree_t *self, state_t *state_from);
 
-int propagate_to_root(opttree_t *self, state_t *state_to_prop, state_t *node_state, double *radius);
+int propagate_to_parent(opttree_t *self, state_t *state_to_prop, state_t *node_state, double *radius);
+
+int propagate_to_root(opttree_t *self, state_t *state_to_prop);
 
 // Extends a given state (state_from) towards a given state (state_towards). Sets 
 //   (fully_extend) to 1 if the extension exactly reaches to state_towards and to 0

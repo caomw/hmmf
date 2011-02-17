@@ -42,7 +42,8 @@ http://arxiv.org/abs/1005.0416
 #define NUM_STATES 2       // Number of states
 #define NUM_INPUTS 1       // Number of inputs
 
-#define NOISE   (0.6*(rand()/(RAND_MAX + 1.0)) - 0.6/2)
+#define NOISE_LIM   (0.4)
+#define NOISE   (NOISE_LIM*(rand()/(RAND_MAX + 1.0)) - NOISE_LIM/2)
 //#define NOISE   0
 
 // Type definitions 

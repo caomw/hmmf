@@ -342,9 +342,9 @@ float calci_stdev(float *d, int size)
 }
 
 
-void create_noisy_state(state_t *curr, double *radius)
+void create_noisy_state(state_t *curr, double radius)
 {
-    double t = *radius;
+    double t = radius;
     for(int i=0; i<NUM_STATES; i++)
     {
         curr->x[i] += (2*t*random()/(RAND_MAX + 1.0) - t);
@@ -381,7 +381,7 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
         // try 100 particles from same state
         for(int i=0; i<100; i++)
         {
-            if(propagate_to_root(tree, state_towards, state_from, radius))
+            if(propagate_to_root(tree, state_from))
                 count++;
         }
         //printf("count: %d\n", count);
@@ -423,7 +423,7 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
             state_new->x[0] = (state_towards->x[0] - state_from->x[0])/dist + state_from->x[0];
             state_new->x[1] = (state_towards->x[1] - state_from->x[1])/dist + state_from->x[1];
             
-            if(propagate_to_root(tree, state_new, state_from, radius))
+            if(propagate_to_root(tree, state_from))
                 count++;
         }
         optsystem_free_state(self, state_new);
@@ -943,14 +943,10 @@ int opttree_set_root_state (opttree_t *self, state_t *state)
 
 // propagate state till root, return 0 if collides or cannot find a node within
 // a particular bowl
-int propagate_to_root(opttree_t *self, state_t *dummy, state_t *state, double *radius)
+int propagate_to_root(opttree_t *self, state_t *state)
 {
-    *radius = 1.0;
-    state_t *state_copy = optsystem_new_state(self->optsys);
-    for(int i=0; i<NUM_STATES; i++)
-    {
-        state_copy->x[i] = state->x[i];
-    }
+    state_t *state_copy = optsystem_clone_state(self->optsys, state);
+    create_noisy_state(state_copy, NOISE_LIM);
     //printf("start prop - state_copy: %3.5f %3.5f\n", state_copy->x[0], state_copy->x[1]);
     
     int obstacle = 0;
@@ -1004,13 +1000,12 @@ int propagate_to_root(opttree_t *self, state_t *dummy, state_t *state, double *r
     return 1;
 }
 
-/*
-// propagate state till root, return 0 if collides or cannot find a node within
+// propagate state till parent, return 0 if collides or cannot find a node within
 // a particular bowl
-int propagate_to_root(opttree_t *self, state_t *towards, state_t *from, double *curr_radius)
+int propagate_to_parent(opttree_t *self, state_t *towards, state_t *from, double *curr_radius)
 {
     state_t *state_new = optsystem_clone_state(self->optsys, towards);
-    create_noisy_state(state_new, curr_radius);
+    create_noisy_state(state_new, *curr_radius);
     state_t *state_copy = optsystem_clone_state(self->optsys, state_new);
     
     node_t *nearest = opttree_find_nearest_neighbor(self, from);
@@ -1048,4 +1043,4 @@ int propagate_to_root(opttree_t *self, state_t *towards, state_t *from, double *
     //printf("returning 1\n");
     return 1;
 }
-*/
+
