@@ -937,6 +937,7 @@ int opttree_set_root_state (opttree_t *self, state_t *state)
     optsystem_set_initial_state (self->optsys, state); 
     optsystem_get_initial_state (self->optsys, self->root->state);
     self->root->bowl_radius = 1.0;
+    self->root->expcost_to_root = 0.0;
 
     return 1;
 }

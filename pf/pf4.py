@@ -86,9 +86,6 @@ def implicit_filter(y, N):
             xpart, w = resample(xpart, w)
         """
         yhat[k] = sum(xpart*w)
-        #print y[k], yhat[k]
-        #temp = raw_input()
-        
         k = k+1
     return yhat
 
@@ -106,12 +103,10 @@ if __name__=="__main__":
         y[i] = obs(x[i]) + Q*normal(0, 1.0)
         i += 1
    
-    """
     fig1 = figure(1)
     plot(x, 'r-')
     grid()
     fig1.show()
-    """
 
     yhat = implicit_filter(y, 100)    
     
@@ -121,3 +116,4 @@ if __name__=="__main__":
     plot(yhat, 'g-', lw=0.5)
     grid()
     show()
+

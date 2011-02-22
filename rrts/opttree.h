@@ -58,6 +58,7 @@ struct _node_t {
     GSList *inputs_from_parent;     // A sequence of inputs when applied starting from the parent state will generate traj_from_parent
 
     double bowl_radius;
+    double expcost_to_root;
 };
 
 
