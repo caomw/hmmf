@@ -2,7 +2,7 @@ CC = gcc
 CPP = g++
 
 BIN = ./main
-C_SRCS =
+C_SRCS = kdtree.c
 CPP_SRCS = main.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
@@ -16,7 +16,7 @@ DEPS=$(C_DEPS) $(CPP_DEPS)
 INC = -I./
 LIBS =
 
-CFLAGS = -O2 -Wall -DUSE_LIST_NODE_ALLOCATOR -lm
+CFLAGS = -O3 -Wall -DUSE_LIST_NODE_ALLOCATOR -lm
 
 all: $(BIN)
 
@@ -43,7 +43,7 @@ $(BIN): $(DEPS) $(OBJS)
 	@$(CPP) $(CFLAGS) $(INCS) -c $< -o $@
 
 clean:
-	rm -rf $(BIN) $(BIN).exe $(C_OBJS) $(CPP_OBJS) $(DEPS) gmon.out
+	rm -rf $(BIN) $(BIN).exe $(C_OBJS) $(CPP_OBJS) $(DEPS) gmon.out *.ps
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(DEPS)

@@ -67,9 +67,11 @@ class graph{
             vlist.push_back(v);
         }
         ~graph(){
+            /*
             for(vector<vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
                 delete *i;
             vlist.clear();
+            */
         };
  };
 
