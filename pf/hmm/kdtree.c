@@ -120,13 +120,6 @@ struct kdtree *kd_create(int k)
     return tree;
 }
 
-void kd_free(struct kdtree *tree)
-{
-    if(tree) {
-        kd_clear(tree);
-        free(tree);
-    }
-}
 
 static void clear_rec(struct kdnode *node, void (*destr)(void*))
 {
@@ -724,6 +717,19 @@ static void free_resnode(struct res_node *node)
 #endif
 }
 #endif	/* list node allocator or not */
+
+
+void kd_free(struct kdtree *tree)
+{
+#ifdef USE_LIST_NODE_ALLOCATOR
+    if(free_nodes)
+        free(free_nodes);
+#endif
+    if(tree) {
+        kd_clear(tree);
+        free(tree);
+    }
+}
 
 
 /* inserts the item. if dist_sq is >= 0, then do an ordered insert */

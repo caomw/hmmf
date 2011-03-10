@@ -369,15 +369,15 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
 
     //printf("extending from: %3.4f %3.4f\n", state_from->x[0], state_from->x[1]);
     //printf("extending to: %3.4f %3.4f\n", state_towards->x[0], state_towards->x[1]);
-    if (dist < 1.0) 
+    if (dist < 0.01) 
     {
         if (optsystem_segment_on_obstacle (self, state_from, state_towards, discretization_num_steps) ) 
         {
             *fully_extends = 0;
             return 0;
         }
-
-        int count = 0;
+        int count = 100;
+        /*
         // try 100 particles from same state
         for(int i=0; i<100; i++)
         {
@@ -385,6 +385,7 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
                 count++;
         }
         //printf("count: %d\n", count);
+        */
         if(count > 98)      // extend this
         {
             state_t *state_new = optsystem_new_state (self);
@@ -415,8 +416,8 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
     else 
     { 
         *fully_extends = 0;
-        int count = 0;
-        
+        int count = 100;
+        /* 
         state_t *state_new = optsystem_new_state (self);  
         for(int i=0; i<100; i++)
         {
@@ -428,12 +429,12 @@ int optsystem_extend_to (opttree_t *tree, optsystem_t *self, state_t *state_from
         }
         optsystem_free_state(self, state_new);
         //printf("count: %d\n", count);
-        
+        */
         if(count > 98)
         {
             state_t *state_new = optsystem_new_state (self);  
-            state_new->x[0] = (state_towards->x[0] - state_from->x[0])/dist + state_from->x[0];
-            state_new->x[1] = (state_towards->x[1] - state_from->x[1])/dist + state_from->x[1];
+            state_new->x[0] = 0.01*(state_towards->x[0] - state_from->x[0])/dist + state_from->x[0];
+            state_new->x[1] = 0.01*(state_towards->x[1] - state_from->x[1])/dist + state_from->x[1];
             state_new->x[0] += NOISE;
             state_new->x[1] += NOISE;
 

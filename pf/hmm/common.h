@@ -30,15 +30,13 @@ class vertex{
 
     public:
         state s;
+        float t;
 
         vector<edge *> edgein;
         vector<edge *> edgeout;
 
-        vertex() {};
-        vertex(state st){
-            for(int i=0; i<NUM_DIM; i++)
-                s.x[i] = st.x[i];
-        }
+        vertex(state, float);
+        ~vertex(){};
 };
 
 class edge{
@@ -56,6 +54,7 @@ class edge{
         edge reverse(){
             return edge(this->to, this->from, this->prob);
         }
+        ~edge(){};
 };
 
 class graph{
@@ -67,13 +66,30 @@ class graph{
             vlist.push_back(v);
         }
         ~graph(){
-            /*
             for(vector<vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
-                delete *i;
-            vlist.clear();
-            */
+            {
+                vertex *v = *i;
+                for(vector<edge *>::iterator j = v->edgein.begin(); j != v->edgein.end(); j++)
+                {
+                    edge *e = *j;
+                    //cout<<"deleting e "<<e<<endl;
+                    delete e;
+                }
+            }
+            for(vector<vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
+            {
+                vertex *v = *i;
+                //cout<<"deleting v "<<v<<endl;
+                delete v;
+            }
         };
  };
+
+vertex::vertex(state st, float tt){
+    for(int i=0; i<NUM_DIM; i++)
+        s.x[i] = st.x[i];
+    t = tt;
+}
 
 state sample(){
     state s;

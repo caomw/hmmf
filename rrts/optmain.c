@@ -123,7 +123,7 @@ optmain_write_tree_to_file (opttree_t *opttree) {
 int main () {
 
     // Setup the parameters
-    int num_iterations = 2000;
+    int num_iterations = 10000;
 
     // 1. Create opttree structure
     opttree_t *opttree = opttree_create ();
