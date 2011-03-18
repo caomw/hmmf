@@ -60,6 +60,7 @@ class vertex{
             voronoi_area = 0;
             num_child = 0;
             prob = probt;
+            prev = NULL;
         }
         ~vertex(){};
 };

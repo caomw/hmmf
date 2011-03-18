@@ -43,7 +43,7 @@ $(BIN): $(DEPS) $(OBJS)
 	@$(CPP) $(CFLAGS) $(INCS) -c $< -o $@
 
 clean:
-	rm -rf $(BIN) $(BIN).exe $(C_OBJS) $(CPP_OBJS) $(DEPS) gmon.out *.ps
+	rm -rf $(BIN) $(BIN).exe $(C_OBJS) $(CPP_OBJS) $(DEPS) gmon.out
 
 ctags:
 	ctags -R *.c *.cpp *.h

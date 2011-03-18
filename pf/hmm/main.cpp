@@ -109,15 +109,18 @@ void gnuplot_init(){
     //gplt<<"set output \"traj.png\"";
 }
 
-void plot_rrg()
+void plot_rrg(vertex *v)
 {
     vector<float> vt1, vt2;
     vector<float> px, py;
-    for(vector<vertex*>::iterator i = rrg.vlist.begin(); i != rrg.vlist.end(); i++)
+    
+    while(v != NULL)
     {
-        vertex *vtmp = (*i);
-        cout<<vtmp->t<<" "<<vtmp->prob<<endl;
+        px.push_back(v->s.x[0]);
+        py.push_back(v->s.x[1]);
+        v = v->prev;
     }
+
     for(vector<vertex*>::iterator i = rrg.vlist.begin(); i != rrg.vlist.end(); i++)
     {
         vertex *tstart = (*i);
@@ -133,6 +136,7 @@ void plot_rrg()
     }
     //gplt.reset_plot();
     gplt.set_style("points ls 3").plot_xy(vt1, vt2, "graph");
+    //gplt.set_style("linespoints ls 3").plot_xy(px, py, "graph");
 }
 
 void plot_traj(vector<state> x, vector<state> y)
@@ -185,13 +189,14 @@ inline int edge_index_connected_vertex(vertex *start, vertex *tocheck)
     return index;
 }
 
-// locate all vertices within bowlr and update their edges only if they lie between dt of obs
-void update_obs_prob(state yt, double time)
+// locate all vertices within bowlr and write prob of that vertex in parent_weights
+void update_obs_prob(state yt, vector<vertex*> &nodesinbowl, vector<double> &weights)
 {
+    nodesinbowl.clear();
+    weights.clear();
+
     double *pos;
     pos = (double *)malloc(sizeof(state));
-    vector<vertex *> parents;
-    vector<double> parent_weights;
     double sum = 0;
 
     kdres *res;
@@ -201,48 +206,36 @@ void update_obs_prob(state yt, double time)
         minis *m = (minis *)kd_res_item(res, pos);
 
         double noise_tmp = noise_func(yt, m->s, sobs);
-        vector<vertex *>::iterator iter = find(parents.begin(), parents.end(), m->parent);
+        vector<vertex *>::iterator iter = find(nodesinbowl.begin(), nodesinbowl.end(), m->parent);
         
-        if(parents.size() == 0)
+        if(nodesinbowl.size() == 0)
         {
-            parents.push_back(m->parent);
-            parent_weights.push_back(noise_tmp);
+            nodesinbowl.push_back(m->parent);
+            weights.push_back(noise_tmp);
             sum += noise_tmp;
         }
         else
         {
-            if(( iter != parents.end()) || (parents.back() == (m->parent)))
+            if(( iter != nodesinbowl.end()) || (nodesinbowl.back() == (m->parent)))
             {
-                parent_weights[iter - parents.begin()] = noise_tmp;
+                weights[iter - nodesinbowl.begin()] = noise_tmp;
                 sum += noise_tmp;
             }
             else
             {
-                parents.push_back(m->parent);
-                parent_weights.push_back(noise_tmp);
+                nodesinbowl.push_back(m->parent);
+                weights.push_back(noise_tmp);
                 sum += noise_tmp;
             }
         }
         kd_res_next(res);
     }
     // normalize
-    for(int i=0; i< (int)parents.size(); i++)
+    for(int i=0; i< (int)nodesinbowl.size(); i++)
     {
-        parent_weights[i] = parent_weights[i]/sum;
+        weights[i] = weights[i]/sum;
     }
 
-    // update only dt wale edges
-    for(int i=0; i< (int)parents.size(); i++)
-    {
-        for(int j=0; j< (int)parents[i]->edgeout.size(); j++)
-        {
-            vertex *vtmp = parents[i];
-            edge *etmp = parents[i]->edgeout[j];
-
-            if(vtmp->t + etmp->delt <= time)
-                etmp->prob *= parent_weights[i];
-        }
-    }
     free(pos);
     kd_res_free(res);
 }
@@ -311,20 +304,36 @@ double update_edges(vertex *from)
     return hits;
 }
 
-void update_viterbi(vertex *v)
+void update_viterbi(vertex *v, vector<vertex *> nodesinbowl, vector<double> weights, double obs_time)
 {
-    // update viterbi
-    for(int i=0; i < (int)v->edgeout.size(); i++)
+    double obs_prob = 1.0;
+
+    for(int i=0; i< (int)nodesinbowl.size(); i++)
     {
-        edge *etmp = v->edgeout[i];
-        vertex *vtmp = etmp->to;
-        double prob_tmp = (vtmp->prob) * (etmp->prob);
+        if (nodesinbowl[i] == v)
+            obs_prob = weights[i];
+    }
+
+    // update viterbi
+    for(int i=0; i < (int)v->edgein.size(); i++)
+    {
+        edge *etmp = v->edgein[i];
+        vertex *vtmp = etmp->from;
+        double prob_tmp = 0;
+
+        prob_tmp = (vtmp->prob) * (etmp->prob) * obs_prob;
+        /*
+        if( ( (vtmp->t) < obs_time) && (vtmp-> t + etmp->delt >= obs_time))
+            prob_tmp = (vtmp->prob) * (etmp->prob) * obs_prob;
+        else
+            prob_tmp = (vtmp->prob) * (etmp->prob);
+        */
         //cout<<"vtmp->prob: "<<vtmp->prob<<" etmp->prob: "<<etmp->prob<<" prob_obs: "<<prob_obs(vtmp, etmp)<<endl;
         //cout<<prob_obs(vtmp, etmp)<<endl;
         if( prob_tmp > (v->prob))
         {
             v->prob = prob_tmp;
-            v->t = (vtmp->t) + (etmp->delt);
+            //v->t = (vtmp->t) + (etmp->delt);
             v->prev = vtmp;
         }
     }
@@ -434,35 +443,52 @@ int main()
     }
     plot_traj(x, y);
 
+    vector<vertex *> nodesinbowl;
+    vector<double> weights;
     for(int i=0; i<1; i++)
     {
         vertex *v = new vertex(x[i], i, 1.0);
         add_major_sample(v, 1);
-        update_obs_prob(y[i], i*dt);
-        update_viterbi(v);
+        update_obs_prob(y[i], nodesinbowl, weights);
+        update_viterbi(v, nodesinbowl, weights, i*dt);
         cout<<"wrote first sample prob: "<<v->prob<<endl;
     }
     
     int dM = 1;
     for(int i=1; i<N; i++)
     {
+        vector<vertex*> states_added_in_loop;
+        
         // add the obs as the state
         vertex *v = new vertex(y[i], i, 0);
         add_major_sample(v, 1);
-        
+        states_added_in_loop.push_back(v);
+
         // add some more states
         for(int j=0; j<dM; j++)
         {
             vertex *v1 = new vertex(sample(), i+j/(float)dM, 0);
             add_major_sample(v1, 0);
-            update_viterbi(v1);
+            states_added_in_loop.push_back(v1);
         }
 
         // update observation prob
-        update_obs_prob(y[i], i*dt);
-        update_viterbi(v);
+        update_obs_prob(y[i], nodesinbowl, weights);
+        
+        for(int j=0; j< (int)states_added_in_loop.size(); j++)
+            update_viterbi(v, nodesinbowl, weights, i*dt);
     }
-    plot_rrg();
+    
+    vertex *vbest = NULL;
+    for(int i=0; i< (int)rrg.vlist.size(); i++)
+    {
+        if(rrg.vlist[i]->t == (N-1)*dt)
+        {
+            vbest = rrg.vlist[i];
+            cout<<"Found best for curr time"<<endl;
+        }
+    }
+    plot_rrg(vbest);
         
     cout<<"dt: "<<get_msec() - ts<<endl; 
     kd_free(state_tree);
