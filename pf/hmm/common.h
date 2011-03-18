@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+#include <algorithm>
+#include <utility>
 
 #include "halton.h"
 using namespace std;
@@ -68,11 +70,13 @@ class edge{
         vertex *from;
         vertex *to;
         double prob;
+        double delt;
 
         edge(vertex *f, vertex *t, double p){
-            this->from = f;
-            this->to = t;
-            this->prob = p;
+            from = f;
+            to = t;
+            prob = p;
+            delt = dt;
         }
         edge reverse(){
             return edge(this->to, this->from, this->prob);
@@ -156,4 +160,8 @@ double dist(state s1, state s2)
 
     return sqrt(t);
 };
+
+
+// prototypes
+
 #endif

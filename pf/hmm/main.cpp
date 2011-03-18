@@ -1,16 +1,16 @@
-#include "common.h"
-#include "gnuplot.cpp"
-#include "kdtree.h"
-
 #define EXTEND_DIST (0.05)
 #define dt      0.1
 #define M       100
-#define N       50
+#define N       5
 #define sobs    0.01
 #define spro    0.01
 #define BETA    (100)
 #define GAMMA   (XMAX - XMIN)
 #define BOWLR   (GAMMA*sqrt(log(rrg.num_vert)/(float)(rrg.num_vert)))
+
+#include "common.h"
+#include "gnuplot.cpp"
+#include "kdtree.h"
 
 // halton
 int seed[NUM_DIM] = {0, 0};
@@ -20,6 +20,7 @@ int step = 0;
 Gnuplot gplt("lines");
 kdtree *state_tree, *mini_tree;
 graph rrg;
+vector<state> x, y;
 
 void halton_init()
 {
@@ -35,18 +36,61 @@ double func_to_int(double x)
     //return 1.0;
 }
 
-state system(state s)
+void calci_int_samples()
 {
+    //ofstream vertout("vert.dat");
+    double intval = 0;
+
+    for(int i=0; i< rrg.num_vert; i++)
+    {
+        kdres *res;
+        double fval = 0;
+        vertex *v = rrg.vlist[i];
+        res = kd_nearest_range(mini_tree, v->s.x, BOWLR);
+        while( !kd_res_end(res))
+        {
+            double pos;
+            minis *m = (minis *)kd_res_item(res, &pos);
+            if( m->parent == v)
+                fval += func_to_int(m->s.x[0]);
+            
+            kd_res_next(res);
+        }
+        if(v->num_child != 0)
+            fval = fval/((float)v->num_child);
+        
+        //cout<<v->s.x[0]<<" "<<fval<<" "<<v->num_child<<endl;
+        //vertout<<v->s.x[0]<<"\t"<<fval<<endl;
+        intval += fval;
+        kd_res_free(res);
+    }
+    cout<<"intval ["<<XMIN<<", "<<XMAX<<"]: "<<intval/M*(XMAX-XMIN)<<endl;
+    //vertout.close();
+}
+
+state system(state s, int is_clean){
     state t;
-    t.x[0] = s.x[0] + dt*( -0.5*s.x[0] + randn(0, spro));
-    t.x[1] = s.x[1] + dt*( -0.9*s.x[1] + randn(0, spro));
+    if(!is_clean){
+        t.x[0] = s.x[0] + dt*( -0.5*s.x[0] + randn(0, spro));
+        t.x[1] = s.x[1] + dt*( -0.9*s.x[1] + randn(0, spro));
+    }
+    else{
+        t.x[0] = s.x[0] + dt*( -0.5*s.x[0]);
+        t.x[1] = s.x[1] + dt*( -0.9*s.x[1]);
+    }
     return t;
 }
 
-state obs(state s){
+state obs(state s, int is_clean){
     state t;
-    t.x[0] = s.x[0] + randn(0, sobs);
-    t.x[1] = s.x[1] + randn(0, sobs);
+    if(!is_clean){
+        t.x[0] = s.x[0] + randn(0, sobs);
+        t.x[1] = s.x[1] + randn(0, sobs);
+    }
+    else{
+        t.x[0] = s.x[0];
+        t.x[1] = s.x[1];
+    }
     return t;
 }
 
@@ -68,6 +112,12 @@ void gnuplot_init(){
 void plot_rrg()
 {
     vector<float> vt1, vt2;
+    vector<float> px, py;
+    for(vector<vertex*>::iterator i = rrg.vlist.begin(); i != rrg.vlist.end(); i++)
+    {
+        vertex *vtmp = (*i);
+        cout<<vtmp->t<<" "<<vtmp->prob<<endl;
+    }
     for(vector<vertex*>::iterator i = rrg.vlist.begin(); i != rrg.vlist.end(); i++)
     {
         vertex *tstart = (*i);
@@ -100,60 +150,6 @@ void plot_traj(vector<state> x, vector<state> y)
     gplt.set_style("points ls 2").plot_xy(yf1, yf2, "obs");
 }
 
-double get_edge_prob(vertex *v)
-{
-    double *tosearch;
-    tosearch = v->s.x;
-    kdres *res;
-    double hits = 0, tot=0;
-
-    res = kd_nearest_range(mini_tree, tosearch, BOWLR);
-    while( !kd_res_end(res))
-    {
-        double pos;
-        minis *m = (minis *)kd_res_item(res, &pos);
-        if( m->parent == v)
-            hits++;
-
-        tot++;
-        kd_res_next(res);
-    }
-    v->voronoi_area = hits/((float)tot)*BOWLR;
-    return hits;
-}
-
-void calci_int_samples()
-{
-    //ofstream vertout("vert.dat");
-    kdres *res;
-    double intval = 0;
-
-    for(int i=0; i< rrg.num_vert; i++)
-    {
-        double fval = 0;
-        vertex *v = rrg.vlist[i];
-        res = kd_nearest_range(mini_tree, v->s.x, BOWLR);
-        while( !kd_res_end(res))
-        {
-            double pos;
-            minis *m = (minis *)kd_res_item(res, &pos);
-            if( m->parent == v)
-                fval += func_to_int(m->s.x[0]);
-            
-            kd_res_next(res);
-        }
-        if(v->num_child != 0)
-            fval = fval/((float)v->num_child);
-        
-        //cout<<v->s.x[0]<<" "<<fval<<" "<<v->num_child<<endl;
-        //vertout<<v->s.x[0]<<"\t"<<fval<<endl;
-        intval += fval;
-    }
-    cout<<"intval ["<<XMIN<<", "<<XMAX<<"]: "<<intval/M*(XMAX-XMIN)<<endl;
-    kd_res_free(res);
-    //vertout.close();
-}
-
 vertex* nearest_vertex(state s)
 {
     kdres *res;
@@ -166,6 +162,172 @@ vertex* nearest_vertex(state s)
     kd_res_free(res);
 
     return v;
+}
+
+double noise_func(state s, state s1, double sigma)
+{
+    double J = 0;
+    for(int i=0; i<NUM_DIM; i++)
+        J += -1.0*SQ(s.x[i] - s1.x[i])/2.0/sigma;
+    
+    double tmp = 1/pow(2*M_PI, NUM_DIM/2.0)/pow(sigma, NUM_DIM/2.0)*exp(J);
+    return tmp;
+}
+
+inline int edge_index_connected_vertex(vertex *start, vertex *tocheck)
+{
+    int index = -1;
+    for(int i=0; i< (int)start->edgeout.size(); i++)
+    {
+        if( (start->edgeout[i])->to == tocheck)
+            index = i;
+    }
+    return index;
+}
+
+// locate all vertices within bowlr and update their edges only if they lie between dt of obs
+void update_obs_prob(state yt, double time)
+{
+    double *pos;
+    pos = (double *)malloc(sizeof(state));
+    vector<vertex *> parents;
+    vector<double> parent_weights;
+    double sum = 0;
+
+    kdres *res;
+    res = kd_nearest_range(mini_tree, yt.x, BOWLR);
+    while( !kd_res_end(res))
+    {
+        minis *m = (minis *)kd_res_item(res, pos);
+
+        double noise_tmp = noise_func(yt, m->s, sobs);
+        vector<vertex *>::iterator iter = find(parents.begin(), parents.end(), m->parent);
+        
+        if(parents.size() == 0)
+        {
+            parents.push_back(m->parent);
+            parent_weights.push_back(noise_tmp);
+            sum += noise_tmp;
+        }
+        else
+        {
+            if(( iter != parents.end()) || (parents.back() == (m->parent)))
+            {
+                parent_weights[iter - parents.begin()] = noise_tmp;
+                sum += noise_tmp;
+            }
+            else
+            {
+                parents.push_back(m->parent);
+                parent_weights.push_back(noise_tmp);
+                sum += noise_tmp;
+            }
+        }
+        kd_res_next(res);
+    }
+    // normalize
+    for(int i=0; i< (int)parents.size(); i++)
+    {
+        parent_weights[i] = parent_weights[i]/sum;
+    }
+
+    // update only dt wale edges
+    for(int i=0; i< (int)parents.size(); i++)
+    {
+        for(int j=0; j< (int)parents[i]->edgeout.size(); j++)
+        {
+            vertex *vtmp = parents[i];
+            edge *etmp = parents[i]->edgeout[j];
+
+            if(vtmp->t + etmp->delt <= time)
+                etmp->prob *= parent_weights[i];
+        }
+    }
+    free(pos);
+    kd_res_free(res);
+}
+
+double update_edges(vertex *from)
+{
+
+    state snew = system(from->s, 1);
+    
+    double *tosearch;
+    tosearch = snew.x;
+
+    kdres *res;
+    double hits = 0, tot=0;
+    int edge_num = from->edgeout.size();
+    double edgeprob[100] = {0};
+    int edgehits[100] = {0};
+
+    double *pos;
+    pos = (double *)malloc(sizeof(state));
+    
+    res = kd_nearest_range(mini_tree, tosearch, BOWLR);
+    while( !kd_res_end(res))
+    {
+        minis *m = (minis *)kd_res_item(res, pos);
+        
+        // rewire mini-samples
+        m->parent = nearest_vertex(m->s);
+        
+        if(m->parent != from){
+            int index = edge_index_connected_vertex(from, m->parent);
+            if( (index != -1) && (index < edge_num) )
+            {
+                if(index >= edge_num){
+                    cout<<"Aborted: index >= edge_num"<<endl;
+                    exit(1);
+                }
+                edgeprob[index] += noise_func(snew, m->parent->s, spro);
+                edgehits[index]++;
+            }
+        }
+        else
+            hits++;
+        
+        kd_res_next(res);
+        tot++;
+    }
+    
+    double prob_sum = 0;
+    // get average mass for each edge
+    for(int i=0; i< edge_num; i++)
+    {
+        if(edgehits[i] != 0)
+            edgeprob[i] = edgeprob[i]/(float)edgehits[i];
+        else
+            edgeprob[i] = 0;
+        prob_sum += edgeprob[i];
+    }
+    for(int i=0; i< edge_num; i++)
+    {
+        (from->edgeout[i])->prob = edgeprob[i]/prob_sum;
+    }
+
+    kd_res_free(res);
+    from->voronoi_area = hits/((float)tot)*BOWLR;       // rough estimate of voronoi region's area
+    return hits;
+}
+
+void update_viterbi(vertex *v)
+{
+    // update viterbi
+    for(int i=0; i < (int)v->edgeout.size(); i++)
+    {
+        edge *etmp = v->edgeout[i];
+        vertex *vtmp = etmp->to;
+        double prob_tmp = (vtmp->prob) * (etmp->prob);
+        //cout<<"vtmp->prob: "<<vtmp->prob<<" etmp->prob: "<<etmp->prob<<" prob_obs: "<<prob_obs(vtmp, etmp)<<endl;
+        //cout<<prob_obs(vtmp, etmp)<<endl;
+        if( prob_tmp > (v->prob))
+        {
+            v->prob = prob_tmp;
+            v->t = (vtmp->t) + (etmp->delt);
+            v->prev = vtmp;
+        }
+    }
 }
 
 void add_mini_samples()
@@ -188,20 +350,24 @@ void add_mini_samples()
     free(pos);
 }
 
-void add_major_sample(vertex *v)
+void add_major_sample(vertex *v, int is_obs)
 {
     double *pos;
     pos = (double *)malloc(sizeof(state));
 
     if(rrg.num_vert != 0)
     {
-        vertex *vnear = nearest_vertex(v->s);
-        double len = dist(v->s, vnear->s);
-        if( len > EXTEND_DIST)
+        if(!is_obs)
         {
-            // change the state of the vertex to extend state
-            for(int i=0; i<NUM_DIM; i++){
-                v->s.x[i] = vnear->s.x[i] + EXTEND_DIST*(v->s.x[i] - vnear->s.x[i])/len;
+            vertex *vnear = nearest_vertex(v->s);
+            double len = dist(v->s, vnear->s);
+            if( len > EXTEND_DIST)
+            {
+                // change the state of the vertex to extend state
+                for(int i=0; i<NUM_DIM; i++){
+                    v->s.x[i] = vnear->s.x[i] + EXTEND_DIST*(v->s.x[i] - vnear->s.x[i])/len;
+                }   
+
             }
         }
     }
@@ -213,18 +379,18 @@ void add_major_sample(vertex *v)
     kdres *res;
     res = kd_nearest_range(state_tree, toput, BOWLR);
     //cout<<"got "<<kd_res_size(res)<<" states"<<endl;
+    
     while( !kd_res_end(res))
     {
         vertex *v1 = (vertex *)kd_res_item(res, pos); 
         
         if( v != v1)
         {
-            float t1 = get_edge_prob(v1);
-            float t2 = get_edge_prob(v);
-            // make edges
-            edge *e1 = new edge(v, v1, t1);
-            edge *e2 = new edge(v1, v, t2);
-
+            // make edges, no probab, update later
+            edge *e1 = new edge(v, v1, 0);
+            edge *e2 = new edge(v1, v, 0);
+            
+            // write edges
             v->edgeout.push_back(e1);
             v->edgein.push_back(e2);
             v1->edgeout.push_back(e2);
@@ -234,6 +400,17 @@ void add_major_sample(vertex *v)
     }
     kd_res_free(res);
     free(pos);
+
+    update_edges(v);
+    
+    // other end of this edge is x0, find two edges of x0 (with vertices x1, x2) between which "from" lies
+    // update the weights of only those two edges
+    // based on? -- re-calci sys_noise_func for edge x0-from wrt x1, x2 & from
+    for(int i=0; i< (int)v->edgeout.size(); i++)
+    {
+        vertex *vtmp = (v->edgeout[i])->to;
+        update_edges(vtmp);
+    }
 
     add_mini_samples();
 }
@@ -249,39 +426,45 @@ int main()
     
     double ts = get_msec();
     state x0; x0.x[0] = 1.0, x0.x[1] = -1.0;
-    vector<state> x, y;
     x.push_back(x0);
-    y.push_back(obs(x0));
+    y.push_back(obs(x0, 0));
     for(int i=0; i<N; i++){
-        x.push_back(system(x.back()));
-        y.push_back(obs(x.back()));
+        x.push_back(system(x.back(), 0));
+        y.push_back(obs(x.back(), 0));
     }
     plot_traj(x, y);
 
-    // put initial few observations as states
-    for(int i=0; i<10; i++)
+    for(int i=0; i<1; i++)
     {
-        vertex *v = new vertex(y[i], 0, 1);
-        add_major_sample(v);
+        vertex *v = new vertex(x[i], i, 1.0);
+        add_major_sample(v, 1);
+        update_obs_prob(y[i], i*dt);
+        update_viterbi(v);
+        cout<<"wrote first sample prob: "<<v->prob<<endl;
     }
-    // setup pi_0 here
+    
     int dM = 1;
-    for(int i=10; i<N; i++)
+    for(int i=1; i<N; i++)
     {
         // add the obs as the state
-        vertex *v = new vertex(y[i], 0, 1);
-        add_major_sample(v);
+        vertex *v = new vertex(y[i], i, 0);
+        add_major_sample(v, 1);
         
         // add some more states
         for(int j=0; j<dM; j++)
         {
-            vertex *v = new vertex(sample(), 0, 1);
-            add_major_sample(v);
+            vertex *v1 = new vertex(sample(), i+j/(float)dM, 0);
+            add_major_sample(v1, 0);
+            update_viterbi(v1);
         }
+
+        // update observation prob
+        update_obs_prob(y[i], i*dt);
+        update_viterbi(v);
     }
     plot_rrg();
-    
-    
+        
+    cout<<"dt: "<<get_msec() - ts<<endl; 
     kd_free(state_tree);
     kd_free(mini_tree); 
     return 0;

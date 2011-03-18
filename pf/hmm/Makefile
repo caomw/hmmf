@@ -45,6 +45,9 @@ $(BIN): $(DEPS) $(OBJS)
 clean:
 	rm -rf $(BIN) $(BIN).exe $(C_OBJS) $(CPP_OBJS) $(DEPS) gmon.out *.ps
 
+ctags:
+	ctags -R *.c *.cpp *.h
+
 ifneq ($(MAKECMDGOALS),clean)
 -include $(DEPS)
 endif
