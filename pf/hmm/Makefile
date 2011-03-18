@@ -3,7 +3,7 @@ CPP = g++
 
 BIN = ./main
 C_SRCS = kdtree.c
-CPP_SRCS = main.cpp
+CPP_SRCS = main.cpp halton.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)

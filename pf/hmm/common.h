@@ -9,33 +9,49 @@
 #include <fstream>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <time.h>
+
+#include "halton.h"
 using namespace std;
 
-#define XMAX        (5.0)
-#define XMIN        (-5.0)
+#define XMAX        (2.0)
+#define XMIN        (-2.0)
 #define NUM_DIM     (1)
 
-#define randdim     (XMIN + rand()/(RAND_MAX + 1.0)*(XMAX - XMIN))
+#define randu       (XMIN + rand()/(RAND_MAX + 1.0)*(XMAX - XMIN))
 #define randf       (rand()/(RAND_MAX + 1.0))
-
-typedef struct state_t{
-    float x[NUM_DIM];
-}state;
 
 class edge;
 class vertex;
 class graph;
 
+typedef struct state_t{
+    double x[NUM_DIM];
+}state;
+typedef struct mini_sample{
+    state s;
+    vertex *parent;
+}minis;
+
 class vertex{
 
     public:
         state s;
-        float t;
+        double t;
+        vertex *prev;
+        double ravg;
+        int num_child;
 
         vector<edge *> edgein;
         vector<edge *> edgeout;
-
-        vertex(state, float);
+        
+        vertex(state st, double tt){
+            for(int i=0; i<NUM_DIM; i++)
+                s.x[i] = st.x[i];
+            t = tt;
+            ravg = 0;
+            num_child = 0;
+        }
         ~vertex(){};
 };
 
@@ -44,9 +60,9 @@ class edge{
     public:
         vertex *from;
         vertex *to;
-        float prob;
+        double prob;
 
-        edge(vertex *f, vertex *t, float p){
+        edge(vertex *f, vertex *t, double p){
             this->from = f;
             this->to = t;
             this->prob = p;
@@ -85,26 +101,32 @@ class graph{
         };
  };
 
-vertex::vertex(state st, float tt){
-    for(int i=0; i<NUM_DIM; i++)
-        s.x[i] = st.x[i];
-    t = tt;
-}
 
 state sample(){
     state s;
     for(int i=0; i<NUM_DIM; i++)
-        s.x[i] = randdim;
+        s.x[i] = randu;
     return s;
 }
 
-float get_msec(){
+state sample_quasi(){
+    state s;
+    for(int i=0; i<NUM_DIM; i++)
+    {
+        double r;
+        halton(&r);
+        s.x[i] = XMIN + (XMAX-XMIN)*r;
+    }
+    return s;
+}
+
+double get_msec(){
     struct timeval start;
     gettimeofday(&start, NULL);
     return start.tv_sec*1000 + start.tv_usec/1000.0;
 }
 
-float randn(float mean,float var){
+double randn(float mean,float var){
     float x1, x2, w = 1.5, y1;
     while (w >= 1.0){
         x1 = 2.0*randf - 1.0;
