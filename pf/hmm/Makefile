@@ -16,7 +16,7 @@ DEPS=$(C_DEPS) $(CPP_DEPS)
 INC = -I./
 LIBS =
 
-CFLAGS = -g -O0 -Wall -pthread -DUSE_LIST_NODE_ALLOCATOR -lm
+CFLAGS = -g -O2 -Wall -pthread -DUSE_LIST_NODE_ALLOCATOR -lm
 
 all: $(BIN)
 

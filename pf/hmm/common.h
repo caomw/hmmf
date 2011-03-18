@@ -16,10 +16,12 @@ using namespace std;
 
 #define XMAX        (2.0)
 #define XMIN        (-2.0)
-#define NUM_DIM     (1)
+#define NUM_DIM     (2)
 
 #define randu       (XMIN + rand()/(RAND_MAX + 1.0)*(XMAX - XMIN))
 #define randf       (rand()/(RAND_MAX + 1.0))
+
+#define SQ(x)       ((x)*(x))
 
 class edge;
 class vertex;
@@ -37,20 +39,25 @@ class vertex{
 
     public:
         state s;
+        // prob of best path that ends up here incorporating obs
+        double prob;
+        // time till which obs are incorporated
         double t;
+        // parent of the best path
         vertex *prev;
-        double ravg;
+        double voronoi_area;
         int num_child;
-
+        
         vector<edge *> edgein;
         vector<edge *> edgeout;
         
-        vertex(state st, double tt){
+        vertex(state st, double tt, double probt){
             for(int i=0; i<NUM_DIM; i++)
                 s.x[i] = st.x[i];
             t = tt;
-            ravg = 0;
+            voronoi_area = 0;
             num_child = 0;
+            prob = probt;
         }
         ~vertex(){};
 };
@@ -76,8 +83,11 @@ class edge{
 class graph{
     public:
         vector<vertex *> vlist;
+        int num_vert;
 
-        graph() {};
+        graph() {
+            num_vert = 0;
+        };
         void add_vertex(vertex *v){
             vlist.push_back(v);
         }
@@ -101,7 +111,6 @@ class graph{
         };
  };
 
-
 state sample(){
     state s;
     for(int i=0; i<NUM_DIM; i++)
@@ -111,11 +120,11 @@ state sample(){
 
 state sample_quasi(){
     state s;
+    double r[NUM_DIM];
+    halton(r);
     for(int i=0; i<NUM_DIM; i++)
     {
-        double r;
-        halton(&r);
-        s.x[i] = XMIN + (XMAX-XMIN)*r;
+        s.x[i] = XMIN + (XMAX-XMIN)*r[i];
     }
     return s;
 }
@@ -137,5 +146,14 @@ double randn(float mean,float var){
     y1 = x1 * w;
     
     return mean + y1*var;
+};
+
+double dist(state s1, state s2)
+{
+    double t = 0;
+    for(int i=0; i<NUM_DIM; i++)
+        t += SQ(s1.x[i] - s2.x[i]);
+
+    return sqrt(t);
 };
 #endif

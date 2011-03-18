@@ -23,5 +23,6 @@
 -   after every delt_p, find the major point with max probab within bowl of gamma(logn/n)^1/d
     (that path is the best curr. estimate)
 
-** every time a point is sampled, it is given the current t, so there's no need to update
+**  every time a point is sampled, it is given the current t, so there's no need to update
 and samples, just incorporate y into the samples in future...
+
