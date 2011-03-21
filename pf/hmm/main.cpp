@@ -9,7 +9,6 @@
 #define BOWLR   (GAMMA*sqrt(log(rrg.num_vert)/(float)(rrg.num_vert)))
 
 #include "common.h"
-#include "gnuplot.cpp"
 #include "kdtree.h"
 
 // halton
@@ -17,7 +16,6 @@ int seed[NUM_DIM] = {0, 0};
 int base[NUM_DIM] = {2, 3};
 int step = 0;
 
-Gnuplot gplt("lines");
 kdtree *state_tree, *mini_tree;
 graph rrg;
 vector<state> x, y;
@@ -94,6 +92,7 @@ state obs(state s, int is_clean){
     return t;
 }
 
+/*
 void gnuplot_init(){
     gplt.reset_all();
     gplt.set_grid();
@@ -153,6 +152,7 @@ void plot_traj(vector<state> x, vector<state> y)
     gplt.set_style("lines ls 1").plot_xy(xf1, xf2, "sys");
     gplt.set_style("points ls 2").plot_xy(yf1, yf2, "obs");
 }
+*/
 
 vertex* nearest_vertex(state s)
 {
@@ -431,7 +431,6 @@ int main()
     state_tree = kd_create(NUM_DIM);
     mini_tree = kd_create(NUM_DIM);
     //halton_init();
-    gnuplot_init();
     
     double ts = get_msec();
     state x0; x0.x[0] = 1.0, x0.x[1] = -1.0;
@@ -441,7 +440,6 @@ int main()
         x.push_back(system(x.back(), 0));
         y.push_back(obs(x.back(), 0));
     }
-    plot_traj(x, y);
 
     vector<vertex *> nodesinbowl;
     vector<double> weights;
@@ -488,7 +486,6 @@ int main()
             cout<<"Found best for curr time"<<endl;
         }
     }
-    plot_rrg(vbest);
         
     cout<<"dt: "<<get_msec() - ts<<endl; 
     kd_free(state_tree);
