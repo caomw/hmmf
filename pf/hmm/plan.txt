@@ -26,3 +26,6 @@
 **  every time a point is sampled, it is given the current t, so there's no need to update
 and samples, just incorporate y into the samples in future...
 
+
+store every time in node
+

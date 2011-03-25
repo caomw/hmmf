@@ -32,35 +32,38 @@ class graph;
 typedef struct state_t{
     double x[NUM_DIM];
 }state;
-typedef struct mini_sample{
-    state s;
-    vertex *parent;
-}minis;
+
+class minis{
+    public:
+        state s;
+        vertex *parent;
+    minis(){
+        parent = NULL;
+    };
+    ~minis(){};
+};
 
 class vertex{
 
     public:
         state s;
         // prob of best path that ends up here incorporating obs
-        double prob;
+        vector<double> prob;
         // time till which obs are incorporated
-        double t;
+        vector<double> t;
         // parent of the best path
-        vertex *prev;
+        vector<vertex *> prev;
         double voronoi_area;
         int num_child;
         
         vector<edge *> edgein;
         vector<edge *> edgeout;
         
-        vertex(state st, double tt, double probt){
+        vertex(state st){
             for(int i=0; i<NUM_DIM; i++)
                 s.x[i] = st.x[i];
-            t = tt;
             voronoi_area = 0;
             num_child = 0;
-            prob = probt;
-            prev = NULL;
         }
         ~vertex(){};
 };

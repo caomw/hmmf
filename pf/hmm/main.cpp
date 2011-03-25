@@ -1,3 +1,7 @@
+#define _GLIBCXX_FULLY_DYNAMIC_STRING   1
+#undef _GLIBCXX_DEBUG
+#undef _GLIBCXX_DEBUG_PEDANTIC
+
 #define EXTEND_DIST (0.05)
 #define dt      0.1
 #define M       100
@@ -27,44 +31,6 @@ void halton_init()
     halton_seed_set(seed);
     halton_base_set(base);
 };
-
-double func_to_int(double x)
-{
-    return x*x;
-    //return 1.0;
-}
-
-void calci_int_samples()
-{
-    //ofstream vertout("vert.dat");
-    double intval = 0;
-
-    for(int i=0; i< rrg.num_vert; i++)
-    {
-        kdres *res;
-        double fval = 0;
-        vertex *v = rrg.vlist[i];
-        res = kd_nearest_range(mini_tree, v->s.x, BOWLR);
-        while( !kd_res_end(res))
-        {
-            double pos;
-            minis *m = (minis *)kd_res_item(res, &pos);
-            if( m->parent == v)
-                fval += func_to_int(m->s.x[0]);
-            
-            kd_res_next(res);
-        }
-        if(v->num_child != 0)
-            fval = fval/((float)v->num_child);
-        
-        //cout<<v->s.x[0]<<" "<<fval<<" "<<v->num_child<<endl;
-        //vertout<<v->s.x[0]<<"\t"<<fval<<endl;
-        intval += fval;
-        kd_res_free(res);
-    }
-    cout<<"intval ["<<XMIN<<", "<<XMAX<<"]: "<<intval/M*(XMAX-XMIN)<<endl;
-    //vertout.close();
-}
 
 state system(state s, int is_clean){
     state t;
@@ -107,18 +73,11 @@ void gnuplot_init(){
     //gplt<<"set term png";
     //gplt<<"set output \"traj.png\"";
 }
+*/
 
-void plot_rrg(vertex *v)
+void plot_rrg()
 {
-    vector<float> vt1, vt2;
-    vector<float> px, py;
-    
-    while(v != NULL)
-    {
-        px.push_back(v->s.x[0]);
-        py.push_back(v->s.x[1]);
-        v = v->prev;
-    }
+    ofstream rrgout("rrg.dat");
 
     for(vector<vertex*>::iterator i = rrg.vlist.begin(); i != rrg.vlist.end(); i++)
     {
@@ -126,18 +85,15 @@ void plot_rrg(vertex *v)
         for(vector<edge*>::iterator eo = tstart->edgeout.begin(); eo != tstart->edgeout.end(); eo++)
         {
             vertex *tend = (*eo)->to;
+            
             //draw the edge
-            vt1.push_back(tstart->s.x[0]);
-            vt2.push_back(tstart->s.x[1]);
-            vt1.push_back(tend->s.x[0]);
-            vt2.push_back(tend->s.x[1]);
+            rrgout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tend->s.x[0]<<"\t"<<tend->s.x[1]<<endl;
         }
     }
-    //gplt.reset_plot();
-    gplt.set_style("points ls 3").plot_xy(vt1, vt2, "graph");
-    //gplt.set_style("linespoints ls 3").plot_xy(px, py, "graph");
+    rrgout.close();
 }
 
+/*
 void plot_traj(vector<state> x, vector<state> y)
 {
     vector<float> xf1, yf1, xf2, yf2;
@@ -476,16 +432,7 @@ int main()
         for(int j=0; j< (int)states_added_in_loop.size(); j++)
             update_viterbi(v, nodesinbowl, weights, i*dt);
     }
-    
-    vertex *vbest = NULL;
-    for(int i=0; i< (int)rrg.vlist.size(); i++)
-    {
-        if(rrg.vlist[i]->t == (N-1)*dt)
-        {
-            vbest = rrg.vlist[i];
-            cout<<"Found best for curr time"<<endl;
-        }
-    }
+    plot_rrg(); 
         
     cout<<"dt: "<<get_msec() - ts<<endl; 
     kd_free(state_tree);
