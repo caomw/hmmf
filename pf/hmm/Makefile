@@ -31,7 +31,7 @@ $(BIN): $(OBJS)
 	@$(CPP) $(CFLAGS) $(INCS) -c $< -o $@
 
 clean:
-	rm -rf $(BIN) $(BIN).exe $(C_OBJS) $(CPP_OBJS) *.d gmon.out
+	rm -rf $(BIN) $(C_OBJS) $(CPP_OBJS) *.d gmon.out
 
 ctags:
 	ctags -R *.c *.cpp *.h

@@ -16,11 +16,10 @@
 #include "halton.h"
 using namespace std;
 
-#define XMAX        (2.0)
-#define XMIN        (-2.0)
 #define NUM_DIM     (2)
 
-#define randu       (XMIN + rand()/(RAND_MAX + 1.0)*(XMAX - XMIN))
+#define randux       (XMIN + rand()/(RAND_MAX + 1.0)*(XMAX - XMIN))
+#define randuy       (YMIN + rand()/(RAND_MAX + 1.0)*(YMAX - YMIN))
 #define randf       (rand()/(RAND_MAX + 1.0))
 
 #define SQ(x)       ((x)*(x))
@@ -49,6 +48,8 @@ class vertex{
         state s;
         // prob of best path that ends up here incorporating obs
         vector<double> prob;
+        // alphas
+        vector<double> alpha;
         // time till which obs are incorporated
         vector<double> t;
         // parent of the best path
@@ -121,11 +122,12 @@ class graph{
 
 state sample(){
     state s;
-    for(int i=0; i<NUM_DIM; i++)
-        s.x[i] = randu;
+    s.x[0] = randux;
+    s.x[1] = randuy;
     return s;
 }
 
+/*
 state sample_quasi(){
     state s;
     double r[NUM_DIM];
@@ -136,6 +138,7 @@ state sample_quasi(){
     }
     return s;
 }
+*/
 
 double get_msec(){
     struct timeval start;

@@ -2,10 +2,16 @@
  * Pratik - 03/24 3.35 AM, on flight to Boston from Phoenix :)
  */
 
+#define XMAX        (1.0)
+#define XMIN        (0.0)
+
+#define YMAX        (0.0)
+#define YMIN        (-1.0)
+
 #define EXTEND_DIST (0.05)
-#define dt      0.1
-#define M       100
-#define N       5
+#define dt      0.05
+#define M       50
+#define N       10
 #define sobs    0.01
 #define spro    0.01
 #define BETA    (100)
@@ -64,17 +70,27 @@ void print_rrg()
     for(int i=0; i< rrg.num_vert; i++)
     {
         vertex *v = rrg.vlist[i];
-        cout<<"vert: "<<v<<" neigh: "<<v->edgeout.size()<<endl;
+        cout<<"\nvert: "<< v->s.x[0]<<" "<< v->s.x[1]<<" neigh: "<<v->edgeout.size()<<endl;
         for(int j=0; j< (int)v->t.size(); j++)
         {
-            cout<<v->t[j]<<"\t"<<v->prob[j]<<"\t"<<v->prev[j]<<endl;
+            vertex *vprevtmp = v->prev[j];
+            if(vprevtmp != NULL)
+                cout<<v->t[j]<<"\t"<<v->prob[j]<<"\t"<<"["<< vprevtmp->s.x[0]<<" "<< vprevtmp->s.x[1]<<"]"<<"\t"<<v->alpha[j]<<endl;
         }
+        /*
+        cout<<"edges -- "<<endl;
+        for(int j=0; j< (int)v->edgeout.size(); j++)
+        {
+            cout<<"e "<<j<<" "<<v->edgeout[j]->prob<<endl;
+        }
+        */
     }
 }
 
 void plot_rrg()
 {
     ofstream rrgout("rrg.dat");
+    ofstream rrgpout("rrgp.dat");
 
     for(vector<vertex*>::iterator i = rrg.vlist.begin(); i != rrg.vlist.end(); i++)
     {
@@ -86,8 +102,10 @@ void plot_rrg()
             //draw the edge
             rrgout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tend->s.x[0]<<"\t"<<tend->s.x[1]<<endl;
         }
+        rrgpout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<endl;
     }
     rrgout.close();
+    rrgpout.close();
 }
 
 void plot_traj()
@@ -102,6 +120,8 @@ void plot_traj()
     for(int i=0; i< (int)y.size(); i++)
         traj<<y[i].x[0]<<"\t"<<y[i].x[1]<<endl;
     
+    /*
+    // get best trajectory
     vertex *best = NULL;
     double max_prob = 0;
     double mptime = 100;
@@ -118,35 +138,61 @@ void plot_traj()
             mptime_index = v->t.size() - 1;
         }
     }
-    cout<<"Got mpt_i: "<<mptime_index<<" "<<mptime<<endl;
-    if(mptime_index == 100)
+    if( (mptime_index == 100) || (best == NULL))
     {
         cout<<"Error no vertex with latest obs"<<endl;
         exit(0);
     }
+
     traj<<"best_path"<<endl;
-    while(mptime != -1*dt)
+    while(mptime != 0)
     {
         getchar();
         cout<<"mpt: "<< mptime<<" mpti: "<<mptime_index<<endl;
         traj<< best->s.x[0]<<"\t"<< best->s.x[1]<<endl;
+        cout<< best->s.x[0]<<"\t"<< best->s.x[1]<<endl;
         best = best->prev[mptime_index];
-         
-        // get the closest time in prev less than mptime
-        int i;
-        for(i= best->t.size()-1; i >= 0; i--)
+  
+        cout<<"prev: "<<best<<" neigh: "<<best->edgeout.size()<<endl;
+        for(int j=0; j< (int)best->t.size(); j++)
         {
-            if (best->t[i] > mptime)
-                mptime_index = i;
-            else
+            cout<<best->t[j]<<"\t"<<best->prob[j]<<"\t"<<best->prev[j]<<endl;
+        }
+        
+        bool changed_mptime = 0;
+        // get the closest time in prev less than mptime
+        for(int i= best->t.size()-1; i >= 0; i--)
+        {
+            if (best->t[i] < mptime)
             {
-                cout<<"break at i: "<<i<<endl;
+                changed_mptime = 1;
+                mptime_index = i;
+                cout<<"break with mpti: "<<i<<endl;
                 break;
             }
         }
-        mptime_index = i;
+        if(!changed_mptime)
+        {
+            cout<<"couldn't change mptime"<<endl;
+            return;
+        }
         mptime = best->t[mptime_index];
     }
+    */
+    traj<<"alpha"<<endl;
+    for(int i =0; i<rrg.num_vert; i++)
+    {
+        vertex *v = rrg.vlist[i];
+        if(v->t.size() != 0)
+        {
+            if(v->t.back() == (N-1)*dt)
+            {
+                cout<< v->s.x[0]<<"\t"<< v->s.x[1]<<"\t"<< (v->alpha).back()<<endl;
+                traj<< v->s.x[0]<<"\t"<< v->s.x[1]<<"\t"<< (v->alpha).back()<<endl;
+            }
+        }
+    }
+
     traj.close();
 }
 
@@ -314,18 +360,36 @@ void update_viterbi(vector<vertex *> nodesinbowl, vector<double> weights, double
 
         vertex *to_push_prev = NULL;
         double to_push_prob = 0;
+        double to_push_alpha = 0;
 
         for(int i=0; i < (int)v->edgein.size(); i++)
         {
             edge *etmp = v->edgein[i];
             vertex *vtmp = etmp->from;
             double prob_tmp = 0;
+            
+            // find latest time before obs_time in vtmp->prob
+            int latest_index = vtmp->t.size() - 1;
+            for(int j = (int)vtmp->t.size() -1; j >= 0; j--)
+            {
+                if(vtmp->t[j] == (obs_time - etmp->delt) )
+                {
+                    latest_index = j;
+                    //cout<<"found latest index viterbi with t: "<<vtmp->t[j]<<" for obs_time: "<<obs_time<<endl;
+                    break;
+                }
+            }
 
             if(vtmp->prob.size() != 0)
-                prob_tmp = (vtmp->prob).back() * (etmp->prob) * obs_prob;
+            {
+                prob_tmp = vtmp->prob[latest_index] * (etmp->prob) * obs_prob;
+                to_push_alpha += prob_tmp;
+            }
             else
+            {
                 prob_tmp = (etmp->prob) * obs_prob;
-
+                to_push_alpha += prob_tmp;
+            }
             if( prob_tmp > (to_push_prob))
             {
                 to_push_prob = prob_tmp;
@@ -335,6 +399,7 @@ void update_viterbi(vector<vertex *> nodesinbowl, vector<double> weights, double
         v->prob.push_back(to_push_prob);
         v->t.push_back(obs_time);
         v->prev.push_back(to_push_prev);
+        v->alpha.push_back(to_push_alpha);
     }
 }
 
@@ -433,7 +498,7 @@ int main()
     double ts = get_msec();
     state x0; x0.x[0] = 1.0, x0.x[1] = -1.0;
     x.push_back(x0);
-    y.push_back(obs(x0, 0));
+    y.push_back(obs(x0, 1));
     for(int i=0; i<N; i++){
         x.push_back(system(x.back(), 0));
         y.push_back(obs(x.back(), 0));
@@ -450,14 +515,16 @@ int main()
 
         // set up initial estimate
         v->prob.push_back(1);
-        v->t.push_back(-1*dt);
+        v->t.push_back(0*dt);
         v->prev.push_back(NULL);
+        v->alpha.push_back(1);
     }
     //print_rrg();
 
-    int dM = 1;
+    int dM = 50;
     for(int i=1; i<N; i++)
     {
+        cout<<"obs: "<<i<<endl;
         vector<vertex*> nodes_added_in_loop;
         
         // add the obs as the state
@@ -479,7 +546,7 @@ int main()
 
         //print_rrg();
     }
-    //plot_rrg();
+    plot_rrg();
     plot_traj();
         
     cout<<"dt: "<<get_msec() - ts<<" [ms]"<<endl; 
