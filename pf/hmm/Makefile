@@ -13,7 +13,7 @@ INC = -I./
 LIBS =
 kdlib = libkdtree.a
 
-CFLAGS = -fPIC -g -O3 -Wall -pthread
+CFLAGS = -fPIC -g -O0 -Wall -pthread
 LDFLAGS = $(kdlib) -lm
 
 all: $(BIN)
