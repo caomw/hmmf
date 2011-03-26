@@ -18,8 +18,6 @@ using namespace std;
 
 #define NUM_DIM     (2)
 
-#define randux       (XMIN + rand()/(RAND_MAX + 1.0)*(XMAX - XMIN))
-#define randuy       (YMIN + rand()/(RAND_MAX + 1.0)*(YMAX - YMIN))
 #define randf       (rand()/(RAND_MAX + 1.0))
 
 #define SQ(x)       ((x)*(x))
@@ -120,7 +118,22 @@ class graph{
         };
  };
 
-state sample(){
+double dist(state s1, state s2)
+{
+    double t = 0;
+    for(int i=0; i<NUM_DIM; i++)
+        t += SQ(s1.x[i] - s2.x[i]);
+
+    return sqrt(t);
+};
+
+state sample(state around_which, double radius){
+    
+double xmin_tmp = around_which.x[0] - radius;
+double ymin_tmp = around_which.x[1] - radius;
+#define randux       (xmin_tmp + rand()/(RAND_MAX + 1.0)*(2*radius))
+#define randuy       (ymin_tmp + rand()/(RAND_MAX + 1.0)*(2*radius))
+
     state s;
     s.x[0] = randux;
     s.x[1] = randuy;
@@ -157,15 +170,6 @@ double randn(float mean,float var){
     y1 = x1 * w;
     
     return mean + y1*var;
-};
-
-double dist(state s1, state s2)
-{
-    double t = 0;
-    for(int i=0; i<NUM_DIM; i++)
-        t += SQ(s1.x[i] - s2.x[i]);
-
-    return sqrt(t);
 };
 
 

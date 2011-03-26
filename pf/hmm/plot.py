@@ -2,53 +2,51 @@
 
 from pylab import *
 
-rrgp = open("rrgp.dat", 'r')
-traj = open("traj.dat", 'r')
+if __name__ == "__main__":
 
-vx = []
-vy = []
+    rrgp = open("rrgp.dat", 'r')
+    traj = open("traj.dat", 'r')
 
-"""
-rrg = open("rrg.dat", 'r')
-if rrg:
-    lines = rrg.readlines(100000)
-    for l in lines:
-        s = l.split('\t')
-        tx = [float(s[0]),float(s[2])]
-        ty = [float(s[1]), float(s[3])]
-        plot(tx, ty, 'yo', lw=0.5)
-    
+    vx = []
+    vy = []
+
+    """
+    rrg = open("rrg.dat", 'r')
+    if rrg:
+        lines = rrg.readlines(100000)
+        for l in lines:
+            s = l.split('\t')
+            tx = [float(s[0]),float(s[2])]
+            ty = [float(s[1]), float(s[3])]
+            plot(tx, ty, 'yo', lw=0.5)
+
     rrg.close()
-"""
+    """
 
-rrgpx = []
-rrgpy = []
-rrgp = open("rrgp.dat", 'r')
-if rrgp:
-    lines = rrgp.readlines(100000)
-    for l in lines:
-        s = l.split('\t')
-        rrgpx.append(float(s[0]))
-        rrgpy.append(float(s[1]))
-    
+    rrgpx = []
+    rrgpy = []
+    rrgp = open("rrgp.dat", 'r')
+    if rrgp:
+        lines = rrgp.readlines(100000)
+        for l in lines:
+            s = l.split('\t')
+            rrgpx.append(float(s[0]))
+            rrgpy.append(float(s[1]))
+
     rrgp.close()
-        
-plot(rrgpx, rrgpy, 'yo', lw=0.5)
 
-
-totalpha = 0
-if traj:
-    lines = traj.readlines(1000000)
-    which = 0
-    sysx = []
-    sysy = []
-    obsx = []
-    obsy = []
-    bpx = []
-    bpy = []
-    ax = []
-    ay = []
-    aa = []
+    if traj:
+        lines = traj.readlines(1000000)
+        which = 0
+        sysx = []
+        sysy = []
+        obsx = []
+        obsy = []
+        bpx = []
+        bpy = []
+        ax = []
+        ay = []
+        aa = []
 
     for l in lines:
         s= l.split('\t')
@@ -76,17 +74,27 @@ if traj:
                 ax.append( float(s[0]))
                 ay.append( float(s[1]))
                 aa.append( float(s[2]))
-                totalpha = totalpha + float(s[2])
 
     traj.close()
 
-for i in range(len(aa)):
-     aa[i] = aa[i]/totalpha
+    fig = figure()
+    axplot = fig.add_subplot(111, aspect='equal')
 
-plot(sysx, sysy, 'ro-')
-plot(obsx, obsy, 'bo-')
-plot(bpx, bpy, 'go-')
+    avgx, avgy = 0.0, 0.0
+    for i in range(len(aa)):
+        avgx = avgx + ax[i]*aa[i]
+        avgy = avgy + ay[i]*aa[i]
+        circle = Circle( (ax[i], ay[i]), 0.01, fc='blue', alpha = 10*aa[i])
+        axplot.add_patch(circle)
 
-grid()
-show()
+    circle = Circle( (avgx, avgy), 0.01, fc='green', alpha = 0.5)
+    axplot.add_patch(circle)
+
+    plot(rrgpx, rrgpy, 'yo', lw=0.5)
+    plot(sysx, sysy, 'ro-')
+    plot(obsx, obsy, 'bo-')
+    plot(bpx, bpy, 'go-')
+
+    grid()
+    show()
 
