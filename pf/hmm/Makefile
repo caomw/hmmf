@@ -2,7 +2,7 @@ CC = gcc
 CPP = g++
 
 BIN = ./main
-C_SRCS =
+C_SRCS = kdtree.c
 CPP_SRCS = main.cpp halton.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
@@ -11,10 +11,9 @@ OBJS = $(C_OBJS) $(CPP_OBJS)
 
 INC = -I./
 LIBS =
-kdlib = libkdtree.a
 
-CFLAGS = -fPIC -g -O0 -Wall -pthread
-LDFLAGS = $(kdlib) -lm
+CFLAGS = -fPIC -g -O3 -Wall -pthread
+LDFLAGS = -lm
 
 all: $(BIN)
 

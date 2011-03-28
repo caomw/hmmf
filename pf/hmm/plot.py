@@ -78,18 +78,20 @@ if __name__ == "__main__":
     traj.close()
 
     fig = figure()
-    axplot = fig.add_subplot(111, aspect='equal')
+    axplot = fig.add_subplot(111)
 
+    """
     avgx, avgy = 0.0, 0.0
     for i in range(len(aa)):
         avgx = avgx + ax[i]*aa[i]
         avgy = avgy + ay[i]*aa[i]
         circle = Circle( (ax[i], ay[i]), 0.01, fc='blue', alpha = 10*aa[i])
         axplot.add_patch(circle)
-
+    
     circle = Circle( (avgx, avgy), 0.01, fc='green', alpha = 0.5)
     axplot.add_patch(circle)
-
+    """
+    
     plot(rrgpx, rrgpy, 'yo', lw=0.5)
     plot(sysx, sysy, 'ro-')
     plot(obsx, obsy, 'bo-')

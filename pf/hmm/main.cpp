@@ -1,6 +1,3 @@
-/*
- * Pratik - 03/24 3.35 AM, on flight to Boston from Phoenix :)
- */
 
 #define XMAX        (1.0)
 #define XMIN        (0.6)
@@ -10,11 +7,11 @@
 
 #define EXTEND_DIST (0.05)
 #define dt      0.01
-#define dM      20
+#define dM      10
 #define N       10
-#define sobs    0.01
-#define spro    0.01
-#define BETA    (50)
+#define sobs    0.001
+#define spro    0.001
+#define BETA    (10)
 #define GAMMA   (XMAX - XMIN)
 #define BOWLR   (GAMMA*sqrt(log(rrg.num_vert)/(float)(rrg.num_vert)))
 
@@ -180,8 +177,9 @@ void plot_traj()
     }
     */
     traj<<"best_path"<<endl;
-    for(int time= (N-1); time > 0; time--)
+    for(int time= (N-1); time >= 0; time--)
     {
+        double maxpx = 0, maxpy = 0, maxp = 0;
         double avgx=0, avgy =0, totalpha = 0;
         for(int i =0; i<rrg.num_vert; i++)
         {
@@ -190,6 +188,16 @@ void plot_traj()
             {
                 if( fabs(v->t.back() - time*dt) <= 0.001)
                 {
+                    // maximum likelihood estimate
+                    if( (v->alpha).back() > maxp)
+                    {
+                        maxp = (v->alpha).back();
+                        maxpx = v->s.x[0];
+                        maxpy = v->s.x[1];
+                        //cout<<"changed max: "<<maxpx<<" "<<maxpy<<endl;    
+                    }
+                    
+                    // weighted mean
                     avgx += (v->s.x[0]) *(v->alpha).back();
                     avgy += (v->s.x[1]) *(v->alpha).back();
                     totalpha += (v->alpha).back();
@@ -201,13 +209,14 @@ void plot_traj()
                 }
             }
         }
-        if(totalpha == 0)
+        if( (totalpha == 0) || (maxp == 0) )
             cout<<"didn't find a single vert with dt: "<<time*dt<<endl;
+        
         avgx /= totalpha;
         avgy /= totalpha;
         
-        cout<<avgx<<"\t"<<avgy<<endl;
-        traj<<avgx<<"\t"<<avgy<<endl;
+        cout<< maxpx<<"\t"<<maxpy<<endl;
+        traj<< maxpx<<"\t"<<maxpy<<endl;
     }
 
     traj.close();
@@ -253,11 +262,9 @@ void update_obs_prob(state yt, vector<vertex*> &nodesinbowl, vector<double> &wei
 {
     nodesinbowl.clear();
     weights.clear();
+    vector<int> num_children;
 
-    double *pos;
-    pos = (double *)malloc(sizeof(state));
-    *pos = 0.0;
-    double sum = 0;
+    double pos[NUM_DIM] = {0};
 
     kdres *res;
     res = kd_nearest_range(mini_tree, yt.x, BOWLR);
@@ -266,35 +273,43 @@ void update_obs_prob(state yt, vector<vertex*> &nodesinbowl, vector<double> &wei
         minis *m = (minis *)kd_res_item(res, pos);
 
         double noise_tmp = noise_func(yt, m->s, sobs);
-        vector<vertex *>::iterator iter = find(nodesinbowl.begin(), nodesinbowl.end(), m->parent);
         
         if(nodesinbowl.size() == 0)
         {
             nodesinbowl.push_back(m->parent);
             weights.push_back(noise_tmp);
-            sum += noise_tmp;
+            num_children.push_back(1);
         }
         else
         {
+            vector<vertex *>::iterator iter = find(nodesinbowl.begin(), nodesinbowl.end(), m->parent);
             if(( iter != nodesinbowl.end()) || (nodesinbowl.back() == (m->parent)))
             {
-                weights[iter - nodesinbowl.begin()] = noise_tmp;
-                sum += noise_tmp;
+                weights[iter - nodesinbowl.begin()] += noise_tmp;
+                num_children[iter - nodesinbowl.begin()] += 1;
             }
             else
             {
+                num_children.push_back(1);
                 nodesinbowl.push_back(m->parent);
                 weights.push_back(noise_tmp);
-                sum += noise_tmp;
             }
         }
         kd_res_next(res);
     }
     // normalize
+    double weights_sum = 0;
     for(int i=0; i< (int)nodesinbowl.size(); i++)
-        weights[i] = weights[i]/sum;
-
-    free(pos);
+    {
+        vertex *v = nodesinbowl[i];
+        weights[i] = (v->voronoi_area)*weights[i]/num_children[i];
+        weights_sum += weights[i];
+        //cout<<"v: ["<< v->s.x[0] <<", "<< v->s.x[1]<<"] "<<weights[i]<<" num_child: "<<num_children[i]<<endl;        
+    }
+    for(int i=0; i< (int)nodesinbowl.size(); i++)
+    {
+        weights[i] = weights[i]/weights_sum;
+    }
     kd_res_free(res);
 }
 
@@ -314,9 +329,7 @@ double update_edges(vertex *from)
     double edgeprob[100] = {0};
     int edgehits[100] = {0};
 
-    double *pos;
-    pos = (double *)malloc(sizeof(state));
-    *pos = 0.0;
+    double pos[NUM_DIM] = {0};
 
     res = kd_nearest_range(mini_tree, tosearch, BOWLR);
     while( !kd_res_end(res))
@@ -344,7 +357,7 @@ double update_edges(vertex *from)
         kd_res_next(res);
         tot++;
     }
-    
+
     double prob_sum = 0;
     // get average mass for each edge
     for(int i=0; i< edge_num; i++)
@@ -375,7 +388,7 @@ void update_viterbi(vector<vertex *> nodesinbowl, vector<double> weights, double
     {
         vertex *v = nodesinbowl[i];
         double obs_prob = weights[i];
-
+        
         vertex *to_push_prev = NULL;
         double to_push_prob = 0;
         double to_push_alpha = 0;
@@ -423,30 +436,22 @@ void update_viterbi(vector<vertex *> nodesinbowl, vector<double> weights, double
 
 void add_mini_samples(state around_which)
 {
-    double *pos;
-    pos = (double *)malloc(sizeof(state));
-    *pos = 0.0;
-
     for(int j=0; j<BETA; j++)
     {
         minis *m;
         m = new (minis);
-        m->s = sample(around_which, BOWLR);
-        double *toput = m->s.x;
-        kd_insert(mini_tree, toput, m);
+        m->s = sample(around_which, BOWLR/2);
+        kd_insert(mini_tree, m->s.x, m);
         
         vertex *v = nearest_vertex(m->s);
         m->parent = v;
         v->num_child = v->num_child + 1;
     }
-    free(pos);
 }
 
 void add_major_sample(vertex *v, int is_obs)
 {
-    double *pos;
-    pos = (double *)malloc(sizeof(state));
-    *pos = 0.0;
+    double pos[NUM_DIM] = {0};
 
     if(rrg.num_vert != 0)
     {
@@ -492,7 +497,6 @@ void add_major_sample(vertex *v, int is_obs)
         kd_res_next(res);
     }
     kd_res_free(res);
-    free(pos);
 
     update_edges(v);
     
@@ -530,14 +534,11 @@ int main()
         vertex *v = new vertex(x[i]);
         add_major_sample(v, 1);
 
-        update_obs_prob(y[i], nodesinbowl, weights);
-        update_viterbi(nodesinbowl, weights, i*dt);
-
         // set up initial estimate
         v->prob.push_back(1);
         v->t.push_back(0*dt);
         v->prev.push_back(NULL);
-        v->alpha.push_back(1);
+        v->alpha.push_back(1*noise_func(y[i], v->s, sobs));
     }
     //print_rrg();
 
@@ -545,24 +546,21 @@ int main()
     {
         double ts = get_msec();
         
-        // add the obs as the state
-        vertex *v = new vertex(y[i]);
-        add_major_sample(v, 1);
-
         // add some more states
         for(int j=0; j<dM; j++)
         {
-            vertex *v1 = new vertex(sample(y[i], BOWLR));
+            vertex *v1 = new vertex(sample(y[i], 3*spro));
             add_major_sample(v1, 0);
         }
 
         // update observation prob
+        //cout<<"updating obs: ["<< y[i].x[0]<<", "<< y[i].x[1] <<"]"<<endl;
         update_obs_prob(y[i], nodesinbowl, weights);
         update_viterbi(nodesinbowl, weights, i*dt);
-
         ts = get_msec() - ts;
-        cout<<"obs: "<<i<<" dt: "<<ts<<endl;
+
         //print_rrg();
+        cout<<"obs: "<<i<<" dt: "<<ts<<" num_vert: "<<rrg.num_vert<<" minis: "<<rrg.num_vert*BETA<<endl;
         //getchar();
     }
     plot_rrg();
