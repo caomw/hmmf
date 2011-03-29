@@ -13,7 +13,9 @@ INC = -I./
 LIBS =
 
 CFLAGS = -fPIC -g -O3 -Wall -pthread
+# stack size of 1GB
 LDFLAGS = -lm
+#-Wl,-stack_size,0x10000000,-stack_addr,0xf000000
 
 all: $(BIN)
 

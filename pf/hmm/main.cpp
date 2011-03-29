@@ -7,11 +7,11 @@
 
 #define EXTEND_DIST (0.05)
 #define dt      0.01
-#define dM      10
+#define dM      15
 #define N       10
 #define sobs    0.001
 #define spro    0.001
-#define BETA    (10)
+#define BETA    (20)
 #define GAMMA   (XMAX - XMIN)
 #define BOWLR   (GAMMA*sqrt(log(rrg.num_vert)/(float)(rrg.num_vert)))
 
@@ -240,7 +240,7 @@ double noise_func(state s, state s1, double sigma)
 {
     double J = 0;
     for(int i=0; i<NUM_DIM; i++)
-        J += -1.0*SQ(s.x[i] - s1.x[i])/2.0/sigma;
+        J = J -1.0*SQ(s.x[i] - s1.x[i])/2.0/sigma;
     
     double tmp = 1/pow(2*M_PI, NUM_DIM/2.0)/pow(sigma, NUM_DIM/2.0)*exp(J);
     return tmp;
@@ -403,7 +403,7 @@ void update_viterbi(vector<vertex *> nodesinbowl, vector<double> weights, double
             int latest_index = vtmp->t.size() - 1;
             for(int j = (int)vtmp->t.size() -1; j >= 0; j--)
             {
-                if(vtmp->t[j] == (obs_time - etmp->delt) )
+                if( fabs(vtmp->t[j] - (obs_time - etmp->delt) ) <= 0.001)
                 {
                     latest_index = j;
                     //cout<<"found latest index viterbi with t: "<<vtmp->t[j]<<" for obs_time: "<<obs_time<<endl;
@@ -440,7 +440,7 @@ void add_mini_samples(state around_which)
     {
         minis *m;
         m = new (minis);
-        m->s = sample(around_which, BOWLR/2);
+        m->s = sample(around_which, BOWLR);
         kd_insert(mini_tree, m->s.x, m);
         
         vertex *v = nearest_vertex(m->s);
@@ -509,7 +509,6 @@ void add_major_sample(vertex *v, int is_obs)
         update_edges(vtmp);
     }
 
-    add_mini_samples(v->s);
 }
 
 int main()
@@ -531,8 +530,9 @@ int main()
     vector<double> weights;
     for(int i=0; i<1; i++)
     {
-        vertex *v = new vertex(x[i]);
+        vertex *v = new vertex(y[i]);
         add_major_sample(v, 1);
+        add_mini_samples(y[i]);
 
         // set up initial estimate
         v->prob.push_back(1);
@@ -549,11 +549,11 @@ int main()
         // add some more states
         for(int j=0; j<dM; j++)
         {
-            vertex *v1 = new vertex(sample(y[i], 3*spro));
+            vertex *v1 = new vertex(sample(y[i], 3*sobs));
             add_major_sample(v1, 0);
+            add_mini_samples(y[i]);
         }
 
-        // update observation prob
         //cout<<"updating obs: ["<< y[i].x[0]<<", "<< y[i].x[1] <<"]"<<endl;
         update_obs_prob(y[i], nodesinbowl, weights);
         update_viterbi(nodesinbowl, weights, i*dt);
