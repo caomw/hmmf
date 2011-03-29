@@ -16,12 +16,6 @@
 #include "halton.h"
 using namespace std;
 
-#define NUM_DIM     (2)
-
-#define randf       (rand()/(RAND_MAX + 1.0))
-
-#define SQ(x)       ((x)*(x))
-
 class edge;
 class vertex;
 class graph;
@@ -122,7 +116,7 @@ double dist(state s1, state s2)
 {
     double t = 0;
     for(int i=0; i<NUM_DIM; i++)
-        t += SQ(s1.x[i] - s2.x[i]);
+        t += (s1.x[i] - s2.x[i])*(s1.x[i] - s2.x[i]);
 
     return sqrt(t);
 };

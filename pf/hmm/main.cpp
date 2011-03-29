@@ -1,19 +1,23 @@
 
+#define NUM_DIM     (2)
 #define XMAX        (1.0)
 #define XMIN        (0.6)
 
 #define YMAX        (-0.6)
 #define YMIN        (-1.0)
 
+#define randf       (rand()/(RAND_MAX + 1.0))
+
 #define EXTEND_DIST (0.05)
-#define dt      0.01
-#define dM      15
-#define N       10
-#define sobs    0.001
-#define spro    0.001
-#define BETA    (20)
+#define dt      (0.01)
+#define dM      (20)
+#define N       (20)
+#define sobs    (0.001)
+#define spro    (0.001)
+#define BETA    (50)
 #define GAMMA   (XMAX - XMIN)
 #define BOWLR   (GAMMA*sqrt(log(rrg.num_vert)/(float)(rrg.num_vert)))
+#define PI      (3.14156)
 
 #include "common.h"
 #include "kdtree.h"
@@ -215,8 +219,8 @@ void plot_traj()
         avgx /= totalpha;
         avgy /= totalpha;
         
-        cout<< maxpx<<"\t"<<maxpy<<endl;
-        traj<< maxpx<<"\t"<<maxpy<<endl;
+        cout<< avgx<<"\t"<< avgy<<endl;
+        traj<< avgx<<"\t"<< avgy<<endl;
     }
 
     traj.close();
@@ -240,9 +244,9 @@ double noise_func(state s, state s1, double sigma)
 {
     double J = 0;
     for(int i=0; i<NUM_DIM; i++)
-        J = J -1.0*SQ(s.x[i] - s1.x[i])/2.0/sigma;
+        J += (s.x[i] - s1.x[i])*(s.x[i] - s1.x[i])/2.0/sigma;
     
-    double tmp = 1/pow(2*M_PI, NUM_DIM/2.0)/pow(sigma, NUM_DIM/2.0)*exp(J);
+    double tmp = 1/pow(2*PI, NUM_DIM/2.0)/pow(sigma, NUM_DIM/2.0)*exp(-J);
     return tmp;
 }
 
@@ -304,7 +308,7 @@ void update_obs_prob(state yt, vector<vertex*> &nodesinbowl, vector<double> &wei
         vertex *v = nodesinbowl[i];
         weights[i] = (v->voronoi_area)*weights[i]/num_children[i];
         weights_sum += weights[i];
-        //cout<<"v: ["<< v->s.x[0] <<", "<< v->s.x[1]<<"] "<<weights[i]<<" num_child: "<<num_children[i]<<endl;        
+        cout<<"v: ["<< v->s.x[0] <<", "<< v->s.x[1]<<"]\t"<<weights[i]<<"\tnum_child: "<<num_children[i]<<"\t"<< v->voronoi_area<<endl;        
     }
     for(int i=0; i< (int)nodesinbowl.size(); i++)
     {
@@ -382,7 +386,7 @@ double update_edges(vertex *from)
  * v is the new vertex just sampled
  * obs_time is the observation's time for which we are updating
  */
-void update_viterbi(vector<vertex *> nodesinbowl, vector<double> weights, double obs_time)
+void update_viterbi( const vector<vertex *> &nodesinbowl, const vector<double> &weights, double obs_time)
 {
     for(int i=0; i< (int)nodesinbowl.size(); i++)
     {
@@ -477,17 +481,17 @@ void add_major_sample(vertex *v, int is_obs)
     kdres *res;
     res = kd_nearest_range(state_tree, toput, BOWLR);
     //cout<<"got "<<kd_res_size(res)<<" states"<<endl;
-    
+
     while( !kd_res_end(res))
     {
         vertex *v1 = (vertex *)kd_res_item(res, pos); 
-        
+
         if( v != v1)
         {
             // make edges, no probab, update later
             edge *e1 = new edge(v, v1, 0);
             edge *e2 = new edge(v1, v, 0);
-            
+
             // write edges
             v->edgeout.push_back(e1);
             v->edgein.push_back(e2);
@@ -499,7 +503,7 @@ void add_major_sample(vertex *v, int is_obs)
     kd_res_free(res);
 
     update_edges(v);
-    
+
     // other end of this edge is x0, find two edges of x0 (with vertices x1, x2) between which "from" lies
     // update the weights of only those two edges
     // based on? -- re-calci sys_noise_func for edge x0-from wrt x1, x2 & from
@@ -508,7 +512,6 @@ void add_major_sample(vertex *v, int is_obs)
         vertex *vtmp = (v->edgeout[i])->to;
         update_edges(vtmp);
     }
-
 }
 
 int main()
@@ -552,6 +555,7 @@ int main()
             vertex *v1 = new vertex(sample(y[i], 3*sobs));
             add_major_sample(v1, 0);
             add_mini_samples(y[i]);
+            cout<<"major: "<<rrg.num_vert<<endl;
         }
 
         //cout<<"updating obs: ["<< y[i].x[0]<<", "<< y[i].x[1] <<"]"<<endl;
