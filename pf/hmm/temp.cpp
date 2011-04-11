@@ -219,8 +219,9 @@ void update_edges(vertex *from)
         }
         e->prob = normal_val(from->s.x[1], e->delt, e->to->s.x[1])/totprob;
     }
-
+    
     double maxprob = 0;
+    /*
     edge *bestein = NULL;
     for(unsigned int i=0; i< from->edgein.size(); i++)
     {
@@ -234,6 +235,7 @@ void update_edges(vertex *from)
         from->best_in = bestein;
     else
         cout<<"best_in is NULL"<<endl;
+    */
 
     maxprob = 0;
     edge *besteout = NULL;
@@ -406,8 +408,8 @@ void add_major_sample(vertex *v)
 
         if( v != v1)
         {
-            double e1t = v1->s.x[1] - v->s.x[1];
-            double e2t = v->s.x[1] - v1->s.x[1];
+            double e1t = v1->s.x[0] - v->s.x[0];
+            double e2t = v->s.x[0] - v1->s.x[0];
 
             //cout<<"e1t: "<<e1t<<" e2t: "<<e2t<<endl;
             // make edges, no probab, update later
@@ -471,8 +473,10 @@ int main()
     {
         x[j].x[1] = x[j].x[1]/100;
     } 
-
-    for(int i=0; i< 100; i++)
+    
+    vertex *vtmp = new vertex(x0);
+    add_major_sample(vtmp);
+    for(int i=0; i< 200; i++)
     {
         vertex *v = new vertex(sample());
         add_major_sample(v);
@@ -492,6 +496,7 @@ int main()
         curr = e->to;
         time += e->delt;
         simx.push_back(curr->s);
+        cout<<"curr->s: "<<curr->s.x[0]<<" "<<curr->s.x[1]<<endl;
     }
     cout<<"simx size: "<<simx.size()<<endl;
 
