@@ -1,5 +1,4 @@
-
-#define NUM_DIM     (2)
+#define NUM_DIM     (3)
 
 #define XMAX        (1.0)
 #define XMIN        (0.6)
@@ -9,15 +8,15 @@
 
 #define randf       (rand()/(RAND_MAX + 1.0))
 
-#define EXTEND_DIST (0.5)
-#define dt      (0.20)
-#define dM      (10)
-#define N       ((int)1.0/dt)
-#define sobs    (0.01)
-#define spro    (0.01)
-#define BETA    (100)
+#define EXTEND_DIST     (0.5)
+#define dt              (0.125)
+#define dM              (100)
+#define N               ((int)(0.25/dt))
+#define sobs            (0.01)
+#define spro            (0.01)
+#define BETA            (100)
 #define GAMMA           (XMAX - XMIN)
-#define BOWLGAMMA       (GAMMA*sqrt(log(rrg.num_vert)/(float)(rrg.num_vert)))
+#define BOWLGAMMA       (GAMMA*pow(log(rrg.num_vert)/(float)(rrg.num_vert), 1/(NUM_DIM)))
 #define BOWLR           ( (BOWLGAMMA >= 3*spro) ? BOWLGAMMA : 3*spro)
 #define PI              (3.14156)
 
@@ -136,10 +135,21 @@ void plot_traj()
     for(int i=0; i< (int)y.size()-1; i++)
         traj<<y[i].x[0]<<"\t"<<y[i].x[1]<<endl;
     
-    /*
     // best traj using alphas
+    double max_time = 0;    
+    for(int i =0; i<rrg.num_vert; i++)
+    {
+        vertex *v = rrg.vlist[i];
+        if(v->t.size() != 0)
+        {
+            if(v->t.back() > max_time)
+                max_time = v->t.back();
+        }
+    }
+
     traj<<"best_path"<<endl;
-    for(int time= (N-1); time >= 0; time--)
+    double time = max_time;
+    while(time > 0)
     {
         double maxpx = 0, maxpy = 0, maxp = 0;
         double avgx=0, avgy =0, totalpha = 0;
@@ -148,7 +158,7 @@ void plot_traj()
             vertex *v = rrg.vlist[i];
             if(v->t.size() != 0)
             {
-                if( fabs(v->t.back() - time*dt) <= 0.001)
+                if( fabs(v->t.back() - time) < 0.001)
                 {
                     // maximum likelihood estimate
                     if( (v->alpha).back() > maxp)
@@ -164,24 +174,24 @@ void plot_traj()
                     avgy += (v->s.x[1]) *(v->alpha).back();
                     totalpha += (v->alpha).back();
                     //cout<< v->alpha.back()<<endl;
-
-                    v->t.pop_back();
-                    v->prob.pop_back();
-                    v->alpha.pop_back();
                 }
             }
         }
         if( (totalpha == 0) || (maxp == 0) )
-            cout<<"didn't find a single vert with dt: "<<time*dt<<endl;
-        
-        avgx /= totalpha;
-        avgy /= totalpha;
-        
-        cout<< avgx<<"\t"<< avgy<<endl;
-        traj<< avgx<<"\t"<< avgy<<endl;
+            cout<<"didn't find a vert with dt: "<<time*dt<<endl;
+        else
+        {
+            cout<<"time: "<<time<<endl;
+            avgx /= totalpha;
+            avgy /= totalpha;
+            cout<< avgx<<"\t"<< avgy<<endl;
+            traj<< avgx<<"\t"<< avgy<<endl;
+        }
+        time -= 0.01;
     }
-    */ 
+    traj<< x[0].x[0]<<"\t"<< x[0].x[1]<<endl;
  
+    /*
     // get best trajectory using deltas
 
     vertex *best = NULL;
@@ -251,6 +261,7 @@ void plot_traj()
         mptime = best->t[mptime_index];
     }
     traj<< x[0].x[0]<<"\t"<< x[0].x[1]<<endl;
+    */ 
 
     traj.close();
 }
@@ -356,6 +367,7 @@ double update_edges(vertex *from)
 {
     int edge_num = from->edgeout.size();
     //cout<<"update edges: "<<edge_num<<" "<<from->s.x[0]<<" "<<from->s.x[1]<<endl;
+    /*
     double bowlsize = 0;
     for(int i=0; i< edge_num; i++)
     {
@@ -366,6 +378,8 @@ double update_edges(vertex *from)
     }
     bowlsize *= 2;
     //cout<<"bowlsize: "<<bowlsize<<endl;
+    */
+    double bowlsize = BOWLR;
 
     double hits = 0, tot=0;
     vector<double> edgeprob(edge_num, 0.0);
@@ -496,7 +510,7 @@ void update_viterbi( const vector<vertex *> &nodesinbowl, const vector<double> &
         {
             //cout<<"to push prob: "<<to_push_prob<<" "<<obs_prob<<endl;
             v->prob.push_back(to_push_prob * obs_prob);
-            v->t.push_back(obs_time);
+            v->t.push_back(to_push_time);
             v->prev.push_back(to_push_prev);
             v->alpha.push_back(to_push_alpha * obs_prob);
             //cout<<"pushed "<<v->s.x[0]<<" "<<v->s.x[1]<<endl;

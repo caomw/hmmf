@@ -17,10 +17,11 @@ if __name__ == "__main__":
             minix.append( float(s[0]))
             miniy.append( float(s[1]))
 
-        print len(minix)
+        # print len(minix)
         mini.close()
-
-    """
+    
+    """    
+    #t1, x1, t2, x2, prob, delt
     rrg = open("rrg.dat", 'r')
     if rrg:
         lines = rrg.readlines()
@@ -28,7 +29,7 @@ if __name__ == "__main__":
             s = l.split('\t')
             tx = [float(s[0]),float(s[2])]
             ty = [float(s[1]), float(s[3])]
-            plot(tx, ty, 'yo', lw=0.5)
+            plot(tx, ty, 'r-', lw=0.5, alpha=float(s[4]))
 
     rrg.close()
     """
@@ -57,6 +58,8 @@ if __name__ == "__main__":
         ax = []
         ay = []
         aa = []
+        simx = []
+        simy = []
 
     for l in lines:
         s= l.split('\t')
@@ -69,6 +72,8 @@ if __name__ == "__main__":
                 which = 2
             elif s[0] == "alpha\n":
                 which = 3
+            elif s[0] == "sim\n":
+                which = 4
 
         if len(s) > 1:
             if which == 0:
@@ -84,6 +89,9 @@ if __name__ == "__main__":
                 ax.append( float(s[0]))
                 ay.append( float(s[1]))
                 aa.append( float(s[2]))
+            elif which == 4:
+                simx.append(float(s[0]))
+                simy.append(float(s[1]))
 
     traj.close()
 
@@ -107,6 +115,7 @@ if __name__ == "__main__":
     plot(sysx, sysy, 'ro-')
     plot(obsx, obsy, 'bo-')
     plot(bpx, bpy, 'go-')
+    plot(simx, simy, 'mo-')
 
     grid()
     show()

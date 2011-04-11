@@ -1,9 +1,9 @@
 CC = gcc
 CPP = g++
 
-BIN = ./main
+BIN = ./temp
 C_SRCS = kdtree.c
-CPP_SRCS = main.cpp halton.cpp
+CPP_SRCS = temp.cpp halton.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)
@@ -13,7 +13,7 @@ INC = -I./
 LIBS =
 
 CFLAGS = -fPIC -g -pg -O3 -Wall -pthread
-LDFLAGS = -pg
+LDFLAGS =
 
 all: $(BIN)
 	rm -rf *.dat
@@ -21,7 +21,7 @@ all: $(BIN)
 
 $(BIN): $(OBJS)
 	@echo "  [LD]    $@"
-	@$(CPP) $(LDFLAGS) -o $(BIN) $(OBJS) $(LIBS)
+	@$(CPP) $(CFLAGS) -o $(BIN) $(OBJS) $(LIBS)
 
 %.o: %.c
 	@echo "  [CC]    $@"

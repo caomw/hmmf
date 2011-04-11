@@ -46,6 +46,10 @@ class vertex{
         vector<double> t;
         // parent of the best path
         vector<vertex *> prev;
+        
+        edge *best_in;
+        edge *best_out;
+
         double voronoi_area;
         int num_child;
         
@@ -121,6 +125,7 @@ double dist(state s1, state s2)
     return sqrt(t);
 };
 
+/*
 state sample(state around_which, double radius){
     
 double xmin_tmp = around_which.x[0] - radius;
@@ -133,6 +138,20 @@ double ymin_tmp = around_which.x[1] - radius;
     s.x[1] = randuy;
 #undef randux
 #undef randuy
+    return s;
+}
+*/
+
+state sample()
+{
+#define randut      (TMIN + rand()/(RAND_MAX + 1.0)*(TMAX-TMIN))
+#define randux      (XMIN + rand()/(RAND_MAX + 1.0)*(XMAX-XMIN))
+
+    state s;
+    s.x[0] = randut;
+    s.x[1] = randux;
+#undef randut
+#undef randux
     return s;
 }
 
@@ -171,6 +190,9 @@ void randn(float mean,float var, double &y1, double &y2){
 };
 
 
-// prototypes
+inline double sq(double x)
+{
+    return (x)*(x);
+}
 
 #endif
