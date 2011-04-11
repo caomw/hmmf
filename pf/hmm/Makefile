@@ -12,8 +12,8 @@ OBJS = $(C_OBJS) $(CPP_OBJS)
 INC = -I./
 LIBS =
 
-CFLAGS = -fPIC -g -O0 -Wall -pthread
-LDFLAGS =
+CFLAGS = -fPIC -g -pg -O3 -Wall -pthread
+LDFLAGS = -pg
 
 all: $(BIN)
 	rm -rf *.dat

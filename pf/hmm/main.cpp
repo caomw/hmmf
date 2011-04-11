@@ -10,8 +10,8 @@
 #define randf       (rand()/(RAND_MAX + 1.0))
 
 #define EXTEND_DIST (0.5)
-#define dt      (0.10)
-#define dM      (20)
+#define dt      (0.20)
+#define dM      (10)
 #define N       ((int)1.0/dt)
 #define sobs    (0.01)
 #define spro    (0.01)
@@ -91,7 +91,7 @@ void print_rrg()
         {
             for(int j=0; j< (int)v->edgeout.size(); j++)
             {
-                //cout<<"e: "<<j<<"\t"<<v->edgeout[j]->prob<<"\tto: "<<v->edgeout[j]->to->s.x[0]<<" "<< v->edgeout[j]->to->s.x[1]<<endl;
+                cout<<"e: "<<j<<"\t"<<v->edgeout[j]->prob<<"\tto: "<<v->edgeout[j]->to->s.x[0]<<" "<< v->edgeout[j]->to->s.x[1]<<endl;
             }
         }
     }
@@ -355,6 +355,7 @@ void update_obs_prob(state yt, vector<vertex*> &nodesinbowl, vector<double> &wei
 double update_edges(vertex *from)
 {
     int edge_num = from->edgeout.size();
+    //cout<<"update edges: "<<edge_num<<" "<<from->s.x[0]<<" "<<from->s.x[1]<<endl;
     double bowlsize = 0;
     for(int i=0; i< edge_num; i++)
     {
@@ -364,6 +365,7 @@ double update_edges(vertex *from)
             bowlsize = bowltmp;
     }
     bowlsize *= 2;
+    //cout<<"bowlsize: "<<bowlsize<<endl;
 
     double hits = 0, tot=0;
     vector<double> edgeprob(edge_num, 0.0);
@@ -407,7 +409,13 @@ double update_edges(vertex *from)
         tot++;
     }
     kd_res_free(res);
-    
+    /*
+    for(int i=0; i< edge_num; i++)
+    {
+        cout<<"edgeprob: "<<i<<" "<<edgeprob[i]<<endl;
+        cout<<"edgehits: "<<i<<" "<<edgehits[i]<<endl;
+    }
+    */
     double prob_sum = 0;
     // get average mass for each edge
     for(int j=0; j< edge_num; j++)
@@ -415,7 +423,7 @@ double update_edges(vertex *from)
         if(edgehits[j] != 0)
         {
             double hitt = edgehits[j];
-            edgeprob[j] = ((from->edgeout[j])->to->voronoi_area)* (edgeprob[j])/hitt;
+            edgeprob[j] = (from->edgeout[j]->to->voronoi_area)* (edgeprob[j])/hitt;
         }
         else
             edgeprob[j] = 0;
@@ -432,7 +440,6 @@ double update_edges(vertex *from)
         else
             etmp->prob = 0;
     }
-    from->voronoi_area = hits/((float)tot)*BOWLR*BOWLR*PI;       // rough estimate of voronoi region's area
     return hits;
 }
 
@@ -450,6 +457,7 @@ void update_viterbi( const vector<vertex *> &nodesinbowl, const vector<double> &
         vertex *to_push_prev = NULL;
         double to_push_prob = 0;
         double to_push_alpha = 0;
+        double to_push_time = 0;
 
         int latest_index = -1;
         for(int i=0; i < (int)v->edgein.size(); i++)
@@ -462,8 +470,8 @@ void update_viterbi( const vector<vertex *> &nodesinbowl, const vector<double> &
             latest_index = -1;
             for(int j = (int)vtmp->t.size() -1; j >= 0; j--)
             {
-                //cout<<"obs_time: "<<obs_time<<"\tlooking at: "<< vtmp->t[j]<<" "<<etmp->prob<<" "<<etmp->delt<<endl;
-                if( vtmp->t[j] < obs_time )
+                //cout<<"obs_time: "<<obs_time<<"\tlooking at: "<< vtmp->s.x[0]<<" "<<vtmp->s.x[1]<<" "<<vtmp->t[j]<<" "<<etmp->prob<<" "<<etmp->delt<<endl;
+                if( (vtmp->t[j] + etmp->delt) < obs_time )
                 {
                     latest_index = j;
                     //cout<<"found latest index viterbi with t: "<<vtmp->t[j]<<" for obs_time: "<<obs_time<<endl;
@@ -480,15 +488,9 @@ void update_viterbi( const vector<vertex *> &nodesinbowl, const vector<double> &
                 {
                     to_push_prob = prob_tmp;
                     to_push_prev = vtmp;
+                    to_push_time = vtmp->t.back() + etmp->delt;
                 }
             }
-            /*
-            else
-            {
-                cout<<"latest_index = -1"<<endl;
-                exit(0);
-            }
-            */
         }
         if( to_push_prob != 0)
         {
@@ -524,40 +526,43 @@ double time_to_go(vertex *from, vertex* to)
     state sf = from->s;
     state st = to->s;
     
-    double best_delt = 0, best_dist = 100.0;
-    int num_iter = 0;
-    double deltmax = 1.0;
-    double deltmin = dt/10;
-    double delt = (deltmax + deltmin)/2.0;
-    state stmp = system(sf, delt, 1);
-    state stmpmax = system(sf, deltmax, 1);
-    state stmpmin = system(sf, deltmin, 1);
-    double curr_dist = dist(stmp, st);
-    while( (curr_dist > 0.01) && (num_iter <= 20) )
+    double a = 0, prev_a = 0;
+    double del = dt/10;
+    double b = del;
+    bool min_found = 0;
+    while( min_found == 0)
     {
-        if( dist(stmp, stmpmax) < dist(stmp, stmpmin) )
+        if( dist(system(sf, b, 1), st) < dist(system(sf, a, 1), st) )
         {
-            deltmin = delt;
-            stmpmin = system(sf, deltmin, 1);
+            prev_a = a;
+            a = b;
+            b += del;
         }
         else
         {
-            deltmax = delt;
-            stmpmax = system(sf, deltmax, 1);
-        }
-        delt = (deltmax + deltmin)/2.0;
-        num_iter++;
-
-        stmp = system(sf, delt, 1);
-        curr_dist = dist(stmp, st);
-        if( curr_dist < best_dist)
-        {
-            best_dist = curr_dist;
-            best_delt = delt;
+            min_found = 1;
+            a = prev_a;
         }
     }
-    //cout<<"best_dist: "<<best_dist<<endl;
-    return best_delt;
+    // min between a and b now, quadratic fit
+    // polyfit from mathematica
+    double c = (a+b)/2;
+    //cout<<"a: "<<a<<" b: "<<b<<" c: "<<c<<endl;
+    double t1 = dist( system(sf, a, 1), st);
+    double t2 = dist( system(sf, b, 1), st);
+    double t3 = dist( system(sf, c, 1), st);
+    //cout<<"t1: "<<t1<<" t2: "<<t2<<" t3: "<<t3<<endl;
+    double num = t3*(a-b)*(a+b) + t1*(b-c)*(b+c) + t2*(c-a)*(c+a);
+    double den = 2*(t3*(a -b) + t1*(b-c) + t2*(-a+c));
+    double time = num/den;
+    
+    if(time > 0)
+    {
+        //cout<<"min_time: "<<time<<" dist: "<<dist(system(sf, time, 1), st)<<endl;
+        return time;
+    }
+    else
+        return -1;
 }
 
 
@@ -580,12 +585,16 @@ void add_major_sample(vertex *v, int is_obs, state around_which)
             }
         }
     }
+    //cout<<"Adding sample: "<<v->s.x[0]<<" "<<v->s.x[1]<<endl;
     
     double *toput = v->s.x;
     kd_insert(state_tree, toput, v);
     rrg.add_vertex(v);
     rrg.num_vert++;
 
+    // add mini samples
+    add_mini_samples(around_which);
+    
     kdres *res;
     res = kd_nearest_range(state_tree, toput, BOWLR);
     //cout<<"got "<<kd_res_size(res)<<" states"<<endl;
@@ -607,31 +616,51 @@ void add_major_sample(vertex *v, int is_obs, state around_which)
                 edge *e1 = new edge(v, v1, e1t);
                 v->edgeout.push_back(e1);
                 v1->edgein.push_back(e1);
+                //cout<<"wrote e: "<<v->s.x[0]<<" "<<v->s.x[1]<<" to "<<v1->s.x[0]<<" "<<v1->s.x[1]<<endl;
             }
             if( e2t > 0)
             {
                 edge *e2 = new edge(v1, v, e2t);
                 v->edgein.push_back(e2);
                 v1->edgeout.push_back(e2);
+                //cout<<"wrote e: "<<v1->s.x[0]<<" "<<v1->s.x[1]<<" to "<<v->s.x[0]<<" "<<v->s.x[1]<<endl;
             }
         }
         kd_res_next(res);
     }
+
+    // update voronoi area separately
+    int hits=0, tot=0;
+    res = kd_nearest_range(mini_tree, v->s.x, BOWLR);
+    while( !kd_res_end(res))
+    {
+        minis *m = (minis *)kd_res_item(res, pos);
+
+        // rewire mini-samples
+        m->parent = nearest_vertex(m->s);
+
+        if(m->parent == v)
+            hits++;
+        
+        kd_res_next(res);
+        tot++;
+    }
     kd_res_free(res);
- 
-    // add mini samples
-    add_mini_samples(around_which);
+    v->voronoi_area = hits/(double)tot*BOWLR*BOWLR*PI;
+    //cout<<"v-> voronoi_area: "<<v->voronoi_area<<endl;
 
     update_edges(v);
     
     // other end of this edge is x0, find two edges of x0 (with vertices x1, x2) between which "from" lies
     // update the weights of only those two edges
     // based on? -- re-calci sys_noise_func for edge x0-from wrt x1, x2 & from
-    for(int k=0; k< (int)v->edgeout.size(); k++)
+    for(int k=0; k< (int)v->edgein.size(); k++)
     {
-        vertex *vtmp = (v->edgeout[k])->to;
+        //cout<<"updating all in edges"<<endl;
+        vertex *vtmp = (v->edgein[k])->from;
         update_edges(vtmp);
     }
+    //print_rrg();
 }
 
 int main()
