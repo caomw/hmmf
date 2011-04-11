@@ -6,14 +6,24 @@ if __name__ == "__main__":
 
     rrgp = open("rrgp.dat", 'r')
     traj = open("traj.dat", 'r')
+    mini = open("miniout.dat", 'r')
 
-    vx = []
-    vy = []
+    minix = []
+    miniy = []
+    if mini:
+        lines = mini.readlines()
+        for l in lines:
+            s = l.split('\t')
+            minix.append( float(s[0]))
+            miniy.append( float(s[1]))
+
+        print len(minix)
+        mini.close()
 
     """
     rrg = open("rrg.dat", 'r')
     if rrg:
-        lines = rrg.readlines(100000)
+        lines = rrg.readlines()
         for l in lines:
             s = l.split('\t')
             tx = [float(s[0]),float(s[2])]
@@ -27,7 +37,7 @@ if __name__ == "__main__":
     rrgpy = []
     rrgp = open("rrgp.dat", 'r')
     if rrgp:
-        lines = rrgp.readlines(100000)
+        lines = rrgp.readlines()
         for l in lines:
             s = l.split('\t')
             rrgpx.append(float(s[0]))
@@ -36,7 +46,7 @@ if __name__ == "__main__":
     rrgp.close()
 
     if traj:
-        lines = traj.readlines(1000000)
+        lines = traj.readlines()
         which = 0
         sysx = []
         sysy = []
@@ -92,7 +102,8 @@ if __name__ == "__main__":
     axplot.add_patch(circle)
     """
     
-    plot(rrgpx, rrgpy, 'yo', lw=0.5)
+    plot(minix, miniy, 'y+', ms=3.0)
+    plot(rrgpx, rrgpy, 'yo', ms=3.0)
     plot(sysx, sysy, 'ro-')
     plot(obsx, obsy, 'bo-')
     plot(bpx, bpy, 'go-')

@@ -16,6 +16,8 @@ CFLAGS = -fPIC -g -O0 -Wall -pthread
 LDFLAGS =
 
 all: $(BIN)
+	rm -rf *.dat
+	touch rrg.dat rrgp.dat miniout.dat traj.dat
 
 $(BIN): $(OBJS)
 	@echo "  [LD]    $@"

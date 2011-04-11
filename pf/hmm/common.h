@@ -69,11 +69,11 @@ class edge{
         double prob;
         double delt;
 
-        edge(vertex *f, vertex *t, double p){
+        edge(vertex *f, vertex *t, double time){
             from = f;
             to = t;
-            prob = p;
-            delt = dt;
+            prob = 0;
+            delt = time;
         }
         edge reverse(){
             return edge(this->to, this->from, this->prob);
@@ -131,6 +131,8 @@ double ymin_tmp = around_which.x[1] - radius;
     state s;
     s.x[0] = randux;
     s.x[1] = randuy;
+#undef randux
+#undef randuy
     return s;
 }
 
@@ -153,8 +155,8 @@ double get_msec(){
     return start.tv_sec*1000 + start.tv_usec/1000.0;
 }
 
-double randn(float mean,float var){
-    float x1, x2, w = 1.5, y1;
+void randn(float mean,float var, double &y1, double &y2){
+    float x1, x2, w = 1.5;
     while (w >= 1.0){
         x1 = 2.0*randf - 1.0;
         x2 = 2.0*randf - 1.0;
@@ -162,8 +164,10 @@ double randn(float mean,float var){
     }
     w = sqrt( (-2.0*log(w)) / w );
     y1 = x1 * w;
-    
-    return mean + y1*var;
+    y2 = x2 * w;
+
+    y1 =  mean + y1*var;
+    y2 =  mean + y2*var;
 };
 
 
