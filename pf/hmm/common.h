@@ -51,7 +51,7 @@ class vertex{
         edge *best_out;
 
         double voronoi_area;
-        int num_child;
+        unsigned int num_child;
         
         vector<edge *> edgein;
         vector<edge *> edgeout;
@@ -88,7 +88,7 @@ class edge{
 class graph{
     public:
         vector<vertex *> vlist;
-        int num_vert;
+        unsigned int num_vert;
 
         graph() {
             num_vert = 0;
@@ -185,8 +185,8 @@ void randn(float mean,float var, double &y1, double &y2){
     y1 = x1 * w;
     y2 = x2 * w;
 
-    y1 =  mean + y1*var;
-    y2 =  mean + y2*var;
+    y1 =  mean + y1*sqrt(var);
+    y2 =  mean + y2*sqrt(var);
 };
 
 

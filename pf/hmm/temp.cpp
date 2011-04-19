@@ -1,24 +1,25 @@
 // first dim is time, 1-d system
 #define NUM_DIM         (2)
 
-#define TMAX            (1.0)
+#define TMAX            (0.5)
 #define TMIN            (0.0)
 
-#define XMAX            (0.2)
-#define XMIN            (-0.2)
+#define XMAX            (0.1)
+#define XMIN            (0)
 
 #define randf           (rand()/(RAND_MAX + 1.0))
 
-#define EXTEND_DIST     (0.5)
+#define EXTEND_DIST     (0.01)
 #define dt              (0.125)
 #define dM              (100)
 #define N               ((int)(TMAX/dt))
-#define sobs            (0.01)
+#define sobs            (0.001)
 #define spro            (0.01)
 #define BETA            (100)
 #define GAMMA           (1.0)
-#define BOWLGAMMA       (GAMMA*pow(log(rrg.num_vert)/(float)(rrg.num_vert), 1/(NUM_DIM)))
-#define BOWLR           ( (BOWLGAMMA >= 0.01) ? BOWLGAMMA : 0.01)
+#define BOWLGAMMA       (GAMMA*pow(log(rrg.num_vert)/(float)(rrg.num_vert), 1.0/(NUM_DIM)))
+//#define BOWLR           ( (BOWLGAMMA >= 0.01) ? BOWLGAMMA : 0.01)
+#define BOWLR           (0.02)
 #define PI              (3.14156)
 
 #include "common.h"
@@ -31,7 +32,7 @@ int step = 0;
 
 kdtree *state_tree, *mini_tree;
 graph rrg;
-vector<state> x(101);
+vector<state> x(100), y(100);
 vector<state> simx;
 vector<minis *> mini_samples;
 
@@ -46,7 +47,7 @@ void halton_init()
 double normal_val(double mean, double var, double tocalci)
 {
     double temp = exp(-0.5*sq(mean-tocalci)/var);
-    return 1/(2*PI)/sqrt(var)*temp;
+    return 1/sqrt(2*PI*var)*temp;
 }
 
 /*
@@ -55,13 +56,8 @@ double normal_val(double mean, double var, double tocalci)
 state system(state s, double time){
     
     state t;
-    double tmp1=0, tmp2=0;
-    
-    // cov is time
-    randn(0, time, tmp1, tmp2);
-    
-    t.x[0] = s.x[0] + time;     // add time
-    t.x[1] = s.x[1] + tmp1;     // xt+1 = xt + N(0, dt)
+    t.x[0] = s.x[0] + time;                 // add time
+    t.x[1] = exp(-1*time)*s.x[1];           // xt+1 = xt + N(0, spro) (of continuous process)
     return t;
 }
 
@@ -109,11 +105,17 @@ void plot_traj()
     for(int i=0; i< (int)x.size()-1; i++)
         traj<<x[i].x[0]<<"\t"<<x[i].x[1]<<endl;
     
+    traj<<"observation"<<endl;
+    cout<<"observation"<<endl;
+    for(int i=0; i< (int)y.size()-1; i++)
+        traj<<y[i].x[0]<<"\t"<<y[i].x[1]<<endl;
+    
+    /*
     traj<<"sim"<<endl;
     cout<<"sim"<<endl;
     for(unsigned int i=0; i< simx.size(); i++)
         traj<<simx[i].x[0]<<"\t"<<simx[i].x[1]<<endl;
-    
+    */
     traj.close();
 }
 
@@ -203,24 +205,23 @@ void update_obs_prob(state yt, vector<vertex*> &nodesinbowl, vector<double> &wei
 }
 */
 
-void update_edges(vertex *from)
+void update_edges(vertex *from, edge *e)
 {
-    int edge_num = from->edgeout.size();
     //cout<<"update edges: "<<edge_num<<" "<<from->s.x[0]<<" "<<from->s.x[1]<<endl;
-    
-    for(int i=0; i< edge_num; i++)
+
+    state newst = system(from->s, e->delt);
+    double newvar = spro/2*(exp(2*e->delt) - 1);
+    double xtmp = newst.x[1];
+    /*
+    double totprob = 0;
+    for(unsigned int j=0; j < from->edgeout.size(); j++)
     {
-        edge *e = from->edgeout[i];
-        double totprob = 0;
-        for(int j=0; j< edge_num; j++)
-        {
-            edge *etmp = from->edgeout[j];
-            totprob += normal_val(from->s.x[1], e->delt, etmp->to->s.x[1]);
-        }
-        e->prob = normal_val(from->s.x[1], e->delt, e->to->s.x[1])/totprob;
+        edge *etmp = from->edgeout[j];
+        totprob += normal_val(xtmp, newvar, etmp->to->s.x[1]);
     }
+    */
+    e->prob = normal_val(xtmp, newvar, e->to->s.x[1]);
     
-    double maxprob = 0;
     /*
     edge *bestein = NULL;
     for(unsigned int i=0; i< from->edgein.size(); i++)
@@ -237,7 +238,7 @@ void update_edges(vertex *from)
         cout<<"best_in is NULL"<<endl;
     */
 
-    maxprob = 0;
+    double maxprob = 0;
     edge *besteout = NULL;
     for(unsigned int i=0; i< from->edgeout.size(); i++)
     {
@@ -250,8 +251,8 @@ void update_edges(vertex *from)
     
     if(besteout != NULL)
         from->best_out = besteout;
-    else
-        cout<<"best out is NULL"<<endl;
+    //else
+    //    cout<<"best out is NULL"<<endl;
 }
 
 /*
@@ -376,8 +377,6 @@ double time_to_go(vertex *from, vertex* to)
 
 void add_major_sample(vertex *v)
 {
-    double pos[NUM_DIM] = {0};
-
     if(rrg.num_vert != 0)
     {
         vertex *vnear = nearest_vertex(v->s);
@@ -397,7 +396,12 @@ void add_major_sample(vertex *v)
     kd_insert(state_tree, toput, v);
     rrg.add_vertex(v);
     rrg.num_vert++;
+}
 
+void draw_edges(vertex *v)
+{
+    double pos[NUM_DIM] = {0};
+    double *toput = v->s.x;
     kdres *res;
     res = kd_nearest_range(state_tree, toput, BOWLR);
     //cout<<"got "<<kd_res_size(res)<<" states"<<endl;
@@ -405,7 +409,6 @@ void add_major_sample(vertex *v)
     while( !kd_res_end(res))
     {
         vertex *v1 = (vertex *)kd_res_item(res, pos); 
-
         if( v != v1)
         {
             double e1t = v1->s.x[0] - v->s.x[0];
@@ -431,17 +434,38 @@ void add_major_sample(vertex *v)
         }
         kd_res_next(res);
     }
-
+    kd_res_free(res);
+    
     // update edges for this vertex
-    update_edges(v);
-
+    
+    double totprob = 0;
+    for(int k=0; k< (int)v->edgeout.size(); k++)
+    {
+        edge *etmp = v->edgeout[k];
+        update_edges(v, etmp);
+        totprob += etmp->prob;
+    }
+    // normalize edge probs
+    for(int k=0; k< (int)v->edgeout.size(); k++)
+    {
+        v->edgeout[k]->prob = (v->edgeout[k]->prob)/totprob;
+    }
+    /*
     // update edges for all incoming vertices to this
     for(int k=0; k< (int)v->edgein.size(); k++)
     {
         edge *e = v->edgein[k];
         vertex *vtmp = e->from;
-        update_edges(vtmp);
+        update_edges(vtmp, e);
+    
+        double totprob_tmp = 0;
+        for(unsigned int i=0; i < vtmp->edgeout.size(); i++)
+            totprob_tmp += vtmp->edgeout[i]->prob;
+
+        for(unsigned int i=0; i < vtmp->edgeout.size(); i++)
+            vtmp->edgeout[i]->prob = (vtmp->edgeout[i]->prob)/totprob_tmp;
     }
+    */
 }
 
 int main()
@@ -450,57 +474,106 @@ int main()
     srand(time(0));
     state_tree = kd_create(NUM_DIM);
     mini_tree = kd_create(NUM_DIM);
-    
-    state x0; x0.x[0] = 0.0, x0.x[1] = 0.0;
+   
+
+    vector<double> last_eqn(1000, 0);
+    vector<double> last_graph(1000, 0);
+    state x0; x0.x[0] = 0.0, x0.x[1] = 0.1;
     for(int j=0; j<100; j++)
     {
         x[j].x[1] = 0;
     }
-    for(int j=0; j<100; j++)
+    for(int j=0; j<1000; j++)
     {
         vector<state> xt;
         xt.push_back(x0);
         x[0].x[1] = x[0].x[1] + xt.back().x[1];
         x[0].x[0] = xt.back().x[0];
 
-        for(int i=1; i<= 100; i++){
-            xt.push_back(system(xt.back(), 0.01));
+        for(int i=1; i<= TMAX/0.01; i++)
+        {
+            double tmp1=0, tmp2=0;
+            double var = spro/2*(exp(2*0.01) - 1);
+            randn(0, var, tmp1, tmp2);
+            state newstate = system(xt.back(), 0.01);
+            newstate.x[1] += tmp1;
+            xt.push_back(newstate);
             x[i].x[1] = x[i].x[1] + xt.back().x[1];
             x[i].x[0] = xt.back().x[0];
         }
+        last_eqn[j] = xt.back().x[1];
     }
-    for(int j=0; j < 101; j++)
+    for(int j=0; j < 100; j++)
     {
-        x[j].x[1] = x[j].x[1]/100;
+        x[j].x[1] = x[j].x[1]/1000;
+        y[j] = obs(x[j]);
     } 
     
     vertex *vtmp = new vertex(x0);
     add_major_sample(vtmp);
-    for(int i=0; i< 200; i++)
+    for(unsigned int i=0; i< 5000; i++)
     {
         vertex *v = new vertex(sample());
         add_major_sample(v);
-        if(i %100 == 0)
+    }
+
+    for(unsigned int i=0; i<rrg.vlist.size(); i++)
+    {
+        vertex *v = rrg.vlist[i];
+        draw_edges(v);
+        if(i %1000 == 0)
             cout<<"i: "<<i<<endl;
     }
     
-    // simulate from starting point on the graph
-    double time = 0;
-    vertex *curr = rrg.vlist[0];
-    simx.push_back(curr->s);             // start sim at x0
-    
-    while(time < 1)
+    /*
+    for(int i=0; i<1000; i++)
     {
-        // move to node with largest prob
+        // simulate from starting point on the graph
+        double time = 0;
+        vertex *curr = rrg.vlist[0];
+        simx.push_back(curr->s);                                    // start sim at x0
+        //cout<<"sim_start: "<<simx[0].x[0]<<" "<<simx[0].x[1]<<endl;   
         edge *e = curr->best_out;
-        curr = e->to;
-        time += e->delt;
-        simx.push_back(curr->s);
-        cout<<"curr->s: "<<curr->s.x[0]<<" "<<curr->s.x[1]<<endl;
+        while( (e != NULL) && (time < TMAX))
+        {
+            // randomly choose an edge acc. to edgeprobs
+            double temp = randf;
+            double sum = 0;
+            //cout<<"curr: "<<curr->s.x[0]<<" "<<curr->s.x[1]<<" edge_num: "<<curr->edgeout.size()<<endl;
+            for(unsigned int i=0; i< curr->edgeout.size(); i++)
+            {
+                sum += curr->edgeout[i]->prob;
+                if(sum > temp)
+                {
+                    e = curr->edgeout[i];
+                    break;
+                }
+            }
+
+            curr = e->to;
+            time += e->delt;
+            simx.push_back(curr->s);
+            //e = curr->best_out;
+            //cout<<"curr->s: "<<curr->s.x[0]<<" "<<curr->s.x[1]<<endl;
+            //cout<<"time: "<<time<<endl;
+        }
+        last_graph[i] = simx.back().x[1];
     }
     cout<<"simx size: "<<simx.size()<<endl;
+    
+    ofstream compare("compare.txt");
+    for(int i=0; i<1000; i++)
+    {
+        compare<<last_eqn[i]<<endl;
+    }
+    for(int i=0; i<1000; i++)
+    {
+        compare<<last_graph[i]<<endl;
+    }
+    compare.close();
+    */
 
-    plot_rrg();
+    //plot_rrg();
     plot_traj();
     
     kd_free(state_tree);
