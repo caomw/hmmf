@@ -1,23 +1,25 @@
-#define NUM_DIM     (3)
+// first dim is time, 1-d system
+#define NUM_DIM         (2)
 
-#define XMAX        (1.0)
-#define XMIN        (0.6)
+#define TMAX            (0.3)
+#define TMIN            (0.0)
 
-#define YMAX        (-0.6)
-#define YMIN        (-1.0)
+#define XMAX            (0.20)
+#define XMIN            (0.00)
 
-#define randf       (rand()/(RAND_MAX + 1.0))
+#define randf           (rand()/(RAND_MAX + 1.0))
 
-#define EXTEND_DIST     (0.5)
-#define dt              (0.125)
+#define EXTEND_DIST     (0.01)
 #define dM              (100)
-#define N               ((int)(0.25/dt))
-#define sobs            (0.01)
-#define spro            (0.01)
+#define sinit           (1e-3)
+#define sobs            (1e-5)
+#define obs_max_uniform (sqrt(3*sobs))
+#define spro            (1e-3)
 #define BETA            (100)
-#define GAMMA           (XMAX - XMIN)
-#define BOWLGAMMA       (GAMMA*pow(log(rrg.num_vert)/(float)(rrg.num_vert), 1/(NUM_DIM)))
-#define BOWLR           ( (BOWLGAMMA >= 3*spro) ? BOWLGAMMA : 3*spro)
+#define GAMMA           (1.0)
+#define BOWLGAMMA       (GAMMA*pow(log(rrg.num_vert)/(float)(rrg.num_vert), 1.0/(NUM_DIM)))
+#define BOWLR           ( (BOWLGAMMA >= 0.01) ? BOWLGAMMA : 0.01)
+//#define BOWLR           (0.1)
 #define PI              (3.14156)
 
 #include "common.h"
@@ -30,8 +32,8 @@ int step = 0;
 
 kdtree *state_tree, *mini_tree;
 graph rrg;
-vector<state> x, y;
-vector<minis *> mini_samples;
+vector<state> x, y, best_path, xhat(TMAX/0.01 + 1);
+vector<state> simx;
 
 void halton_init()
 {
@@ -41,84 +43,54 @@ void halton_init()
     halton_base_set(base);
 };
 
-// time is assumed to be small, so one step euler integration
-state system(state s, double time, int is_clean){
+double normal_val(double mean, double var, double tocalci)
+{
+    double temp = exp(-0.5*sq(mean-tocalci)/var);
+    return 1/sqrt(2*PI*var)*temp;
+}
+
+state system(state s, double time){
+
     state t;
-    if(!is_clean){
-        double tmp1=0, tmp2=0;
-        randn(0, spro, tmp1, tmp2);
-        t.x[0] = s.x[0] + time*( -0.5*s.x[0] + tmp1);
-        t.x[1] = s.x[1] + time*( -0.9*s.x[1] + tmp2);
-    }
-    else{
-        t.x[0] = s.x[0] + time*( -0.5*s.x[0]);
-        t.x[1] = s.x[1] + time*( -0.9*s.x[1]);
-    }
+    t.x[0] = s.x[0] + time;                 // add time
+    t.x[1] = exp(-1*time)*s.x[1];           // xt+1 = xt + N(0, spro) (of continuous process)
     return t;
 }
 
 state obs(state s, int is_clean){
     state t;
-    if(!is_clean){
-        double tmp1=0, tmp2=0;
-        randn(0, sobs, tmp1, tmp2);
-        t.x[0] = s.x[0] + tmp1;
-        t.x[1] = s.x[1] + tmp2;
-    }
-    else{
-        t.x[0] = s.x[0];
-        t.x[1] = s.x[1];
-    }
-    return t;
-}
+    double tmp1=0, tmp2=0;
+    randn(0, sobs, tmp1, tmp2);
+    //tmp1 = randf*2*obs_max_uniform - obs_max_uniform;
+    if(is_clean)
+        tmp1 = 0;
 
-void print_rrg()
-{
-    cout<<endl<<"---printing rrg---"<<endl;
-    for(int i=0; i< rrg.num_vert; i++)
-    {
-        vertex *v = rrg.vlist[i];
-        cout<<"\n"<<i<<" vert: "<< v->s.x[0]<<" "<< v->s.x[1]<<" neigh: "<<v->edgeout.size()<<" sizet: "<<v->t.size()<<endl;
-        for(int j=0; j< (int)v->t.size(); j++)
-        {
-            vertex *vprevtmp = v->prev[j];
-            if(vprevtmp != NULL)
-                cout<<v->t[j]<<"\t"<<v->prob[j]<<"\t"<<"["<< vprevtmp->s.x[0]<<" "<< vprevtmp->s.x[1]<<"]"<<"\t"<<v->alpha[j]<<endl;
-        }
-        cout<<"edges -- "<<endl;
-        if( v->edgeout.size() != 0)
-        {
-            for(int j=0; j< (int)v->edgeout.size(); j++)
-            {
-                cout<<"e: "<<j<<"\t"<<v->edgeout[j]->prob<<"\tto: "<<v->edgeout[j]->to->s.x[0]<<" "<< v->edgeout[j]->to->s.x[1]<<endl;
-            }
-        }
-    }
+    t.x[0] = s.x[0];                    // time is same
+    t.x[1] = s.x[1] + tmp1;             // add noise to obs
+    return t;
 }
 
 void plot_rrg()
 {
     ofstream rrgout("rrg.dat");
     ofstream rrgpout("rrgp.dat");
-    ofstream miniout("miniout.dat");
+    cout<<"write rrg"<<endl;
 
     for(vector<vertex*>::iterator i = rrg.vlist.begin(); i != rrg.vlist.end(); i++)
     {
         vertex *tstart = (*i);
+        /*
         for(vector<edge*>::iterator eo = tstart->edgeout.begin(); eo != tstart->edgeout.end(); eo++)
         {
             vertex *tend = (*eo)->to;
-            
+            edge *etmp = (*eo);
+
             //draw the edge
-            rrgout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tend->s.x[0]<<"\t"<<tend->s.x[1]<<endl;
+            rrgout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tend->s.x[0]<<"\t"<<tend->s.x[1]<<"\t"<<etmp->prob<<"\t"<<etmp->delt<<endl;
         }
+        */
         rrgpout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<endl;
     }
-    for(int i=0; i< (int)mini_samples.size(); i++)
-    {
-        miniout<< mini_samples[i]->s.x[0]<<"\t"<< mini_samples[i]->s.x[1]<<endl;
-    }
-    miniout.close();
     rrgout.close();
     rrgpout.close();
 }
@@ -128,140 +100,24 @@ void plot_traj()
     ofstream traj("traj.dat");
 
     traj<<"system"<<endl;
+    cout<<"system"<<endl;
     for(int i=0; i< (int)x.size()-1; i++)
         traj<<x[i].x[0]<<"\t"<<x[i].x[1]<<endl;
-    
+
     traj<<"observation"<<endl;
+    cout<<"observation"<<endl;
     for(int i=0; i< (int)y.size()-1; i++)
         traj<<y[i].x[0]<<"\t"<<y[i].x[1]<<endl;
+
+    traj<<"best_path"<<endl;
+    cout<<"best_path"<<endl;
+    for(unsigned int i=0; i< best_path.size(); i++)
+        traj<< best_path[i].x[0]<<"\t"<< best_path[i].x[1]<<endl;
     
-    // best traj using alphas
-    double max_time = 0;    
-    for(int i =0; i<rrg.num_vert; i++)
-    {
-        vertex *v = rrg.vlist[i];
-        if(v->t.size() != 0)
-        {
-            if(v->t.back() > max_time)
-                max_time = v->t.back();
-        }
-    }
-
-    traj<<"best_path"<<endl;
-    double time = max_time;
-    while(time > 0)
-    {
-        double maxpx = 0, maxpy = 0, maxp = 0;
-        double avgx=0, avgy =0, totalpha = 0;
-        for(int i =0; i<rrg.num_vert; i++)
-        {
-            vertex *v = rrg.vlist[i];
-            if(v->t.size() != 0)
-            {
-                if( fabs(v->t.back() - time) < 0.001)
-                {
-                    // maximum likelihood estimate
-                    if( (v->alpha).back() > maxp)
-                    {
-                        maxp = (v->alpha).back();
-                        maxpx = v->s.x[0];
-                        maxpy = v->s.x[1];
-                        //cout<<"changed max: "<<maxpx<<" "<<maxpy<<endl;    
-                    }
-                    
-                    // weighted mean
-                    avgx += (v->s.x[0]) *(v->alpha).back();
-                    avgy += (v->s.x[1]) *(v->alpha).back();
-                    totalpha += (v->alpha).back();
-                    //cout<< v->alpha.back()<<endl;
-                }
-            }
-        }
-        if( (totalpha == 0) || (maxp == 0) )
-            cout<<"didn't find a vert with dt: "<<time*dt<<endl;
-        else
-        {
-            cout<<"time: "<<time<<endl;
-            avgx /= totalpha;
-            avgy /= totalpha;
-            cout<< avgx<<"\t"<< avgy<<endl;
-            traj<< avgx<<"\t"<< avgy<<endl;
-        }
-        time -= 0.01;
-    }
-    traj<< x[0].x[0]<<"\t"<< x[0].x[1]<<endl;
- 
-    /*
-    // get best trajectory using deltas
-
-    vertex *best = NULL;
-    double max_prob = 0;
-    double mptime = 5000;
-    int mptime_index = 5000;
-
-    for(int i=0; i < rrg.num_vert; i++)
-    {
-        vertex *v = rrg.vlist[i];
-        if (v->t.size() != 0)
-        {
-            if(v->t.back() == (N-1)*dt)
-            {
-                if(v->prob.back() > max_prob)
-                {
-                    max_prob = v->prob.back();
-                    best = v;
-                    mptime = v->t.back();
-                    mptime_index = v->t.size() - 1;
-                }
-            }
-        }
-    }
-    if( (mptime_index == 5000) || (best == NULL))
-    {
-        cout<<"Error no vertex with latest obs"<<endl;
-        exit(0);
-    }
-
-    traj<<"best_path"<<endl;
-    while(mptime != 0)
-    {
-        //cout<<"mpt: "<< mptime<<" mpti: "<<mptime_index<<endl;
-        traj<< best->s.x[0]<<"\t"<< best->s.x[1]<<endl;
-        //cout<<"curr_best: "<<best<<"\t"<< best->s.x[0]<<"\t"<< best->s.x[1]<<" neigh: "<< best->edgein.size()<<endl;
-        for(int j=0; j< (int)best->t.size(); j++)
-        {
-            //cout<<best->t[j]<<"\t"<<best->prob[j]<<"\t"<<best->prev[j]<<endl;
-        }
-        //cout<<"dist between curr and new best: "<< dist(best->s, best->prev[mptime_index]->s)<<endl;
-        best = best->prev[mptime_index];
-        //cout<<"new_best: "<<best<<" neigh: "<< best->edgein.size()<<endl;
-  
-        for(int j=0; j< (int)best->t.size(); j++)
-        {
-            //cout<<best->t[j]<<"\t"<<best->prob[j]<<"\t"<<best->prev[j]<<endl;
-        }
-        
-        bool changed_mptime = 0;
-        // get the closest time in prev less than mptime
-        for(int i= best->t.size()-1; i >= 0; i--)
-        {
-            if (best->t[i] < mptime)
-            {
-                changed_mptime = 1;
-                mptime_index = i;
-                //cout<<"break with mpti: "<<i<<endl;
-                break;
-            }
-        }
-        if(!changed_mptime)
-        {
-            //cout<<"couldn't change mptime to "<<mptime - dt<<endl;
-            return;
-        }
-        mptime = best->t[mptime_index];
-    }
-    traj<< x[0].x[0]<<"\t"<< x[0].x[1]<<endl;
-    */ 
+    traj<<"kf_path"<<endl;
+    cout<<"kf_path"<<endl;
+    for(unsigned int i=0; i< xhat.size(); i++)
+        traj<< xhat[i].x[0]<<"\t"<< xhat[i].x[1]<<endl;
 
     traj.close();
 }
@@ -280,335 +136,165 @@ vertex* nearest_vertex(state s)
     return v;
 }
 
-double noise_func(const state s, const state s1, double sigma)
-{
-    double J = 0;
-    for(int i=0; i<NUM_DIM; i++)
-        J += (s.x[i] - s1.x[i])*(s.x[i] - s1.x[i])/2.0/sigma;
-    
-    double tmp = 1/pow(2*PI, NUM_DIM/2.0)/pow(sigma, NUM_DIM/2.0)*exp(-J);
-    return tmp;
-}
+/*
+   inline int edge_index_connected_vertex(vertex *start, vertex *tocheck)
+   {
+   int index = -1;
+   for(int i=0; i< (int)start->edgeout.size(); i++)
+   {
+   if( (start->edgeout[i])->to == tocheck)
+   index = i;
+   }
+   return index;
+   }
+   */
 
-inline int edge_index_connected_vertex(vertex *start, vertex *tocheck)
+// writes the best and normalizes
+void normalize_edges(vertex *from)
 {
-    int index = -1;
-    for(int i=0; i< (int)start->edgeout.size(); i++)
+    double maxprob = 0;
+    edge *besteout = NULL;
+    double totprob = 0;
+    for(unsigned int i=0; i< from->edgeout.size(); i++)
     {
-        if( (start->edgeout[i])->to == tocheck)
-            index = i;
+        if(from->edgeout[i]->prob > maxprob)
+        {
+            maxprob = from->edgeout[i]->prob;
+            besteout = from->edgeout[i];
+        }
+        totprob += from->edgeout[i]->prob;
     }
-    return index;
+    // normalize
+    for(unsigned int i=0; i< from->edgeout.size(); i++)
+    {
+        edge *etmp = from->edgeout[i];
+        etmp->prob = etmp->prob / totprob;
+    }
+
+    if(besteout != NULL)
+        from->best_out = besteout;
+    //else
+    //    cout<<"best out is NULL"<<endl;
+
 }
 
 // locate all vertices within bowlr and write prob of that vertex in weights
-void update_obs_prob(state yt, vector<vertex*> &nodesinbowl, vector<double> &weights)
+void update_obs_prob(state yt)
 {
-    nodesinbowl.clear();
-    weights.clear();
-    vector<int> num_children;
-
     double *obs_state = yt.x;
     double pos[NUM_DIM] = {0};
 
     kdres *res;
-    res = kd_nearest_range(mini_tree, obs_state, BOWLR);
+    res = kd_nearest_range(state_tree, obs_state, BOWLR);
     while( !kd_res_end(res))
     {
-        minis *m = (minis *)kd_res_item(res, pos);
+        vertex *v = (vertex *)kd_res_item(res, pos);
 
-        double noise_tmp = noise_func(yt, m->s, sobs);
+        for(unsigned int i=0; i < v->edgeout.size(); i++)
+        {
+            edge *etmp = v->edgeout[i];
+            double till_obs = obs_state[0] - v->s.x[0];
+
+            // if edge time within observation
+            if( (v->s.x[0] <= obs_state[0]) && (etmp->to->s.x[0] >= obs_state[0]) )
+            {
+                double post_obs = etmp->to->s.x[0] - obs_state[0];
+                //cout<<"till_obs: "<<till_obs<<" post_obs: "<<post_obs<<endl;
+
+                // propagate qdot = 2aq + bwb to till_obs
+                double newvar = spro/2*(exp(2*till_obs) - 1);
+                //cout<<"old_var: "<<newvar<<endl;
+
+                // reduce q by q bt rinv b q due to obs
+                // get new xhat
+                state xhat =  system(v->s, till_obs);
+                double L = newvar/(newvar + sobs);
+                state obs_predict = obs(xhat, 1);
+                xhat.x[1] = xhat.x[1] + L*(obs_state[1] - obs_predict.x[1]);
+                newvar = (1 - L)*newvar;
+                //cout<<"after obs: "<<newvar<<endl;
+
+                // propagate post_obs using xhat and q
+                // final gaussian is centered at final_state with var = newvar
+                newvar = exp(-2*post_obs)*newvar + spro/2*(exp(2*post_obs) -1);
+                state final_state = system(xhat, post_obs);
+                //cout<<"after growing: "<<newvar<<" xhat: "<<final_state.x[1]<<" actual: "<<etmp->to->s.x[1]<<endl;
+
+                // change probab of etmp then
+                etmp->prob = normal_val(xhat.x[1], newvar, etmp->to->s.x[1]);
+
+                // rewire etmp->to
+                vertex *vto = etmp->to;
+                double max_prob = 0;
+                for(unsigned int j=0; j< vto->edgein.size(); j++)
+                {
+                    edge *e_vto = vto->edgein[j];
+                    if( (e_vto->prob)*(e_vto->from->prob) > max_prob)
+                    {
+                        max_prob = (e_vto->prob)*(e_vto->from->prob);
+                        vto->prev = e_vto->from;
+                    }
+                }
+
+            }
+        } 
+
+        // rewire v
+        double max_prob = 0;
+        for(unsigned int j=0; j< v->edgeout.size(); j++)
+        {
+            edge *e_vout = v->edgeout[j];
+            if( (e_vout->prob) > max_prob)
+            {
+                max_prob = (e_vout->prob);
+                v->next = e_vout->to;
+            }
+        }
         
-        if(nodesinbowl.size() == 0)
-        {
-            nodesinbowl.push_back(m->parent);
-            weights.push_back(noise_tmp);
-            num_children.push_back(1);
-        }
-        else
-        {
-            vector<vertex *>::iterator iter = find(nodesinbowl.begin(), nodesinbowl.end(), m->parent);
-            if(( iter != nodesinbowl.end()) || (nodesinbowl.back() == (m->parent)))
-            {
-                weights[iter - nodesinbowl.begin()] += noise_tmp;
-                num_children[iter - nodesinbowl.begin()] += 1;
-            }
-            else
-            {
-                num_children.push_back(1);
-                nodesinbowl.push_back(m->parent);
-                weights.push_back(noise_tmp);
-            }
-        }
         kd_res_next(res);
     }
     kd_res_free(res);
-    
-    // normalize
-    cout<<"nodesinbowl: "<< nodesinbowl.size() <<endl;
-    double weights_sum = 0;
-    for(int i=0; i< (int)nodesinbowl.size(); i++)
-    {
-        vertex *v = nodesinbowl[i];
-        weights[i] = (v->voronoi_area)*weights[i]/num_children[i];
-        weights_sum += weights[i];
-        //cout<<"v: ["<< v->s.x[0] <<", "<< v->s.x[1]<<"]\t"<<weights[i]<<"\tnum_edges: "<< v->edgeout.size() <<"\t"<< noise_func(yt, v->s, sobs)<<endl;        
-    }
-    for(int i=0; i< (int)nodesinbowl.size(); i++)
-    {
-        weights[i] = weights[i]/weights_sum;
-    }
 }
 
-/*
- * update prob of all edges going out from vertex from
- */
-double update_edges(vertex *from)
+double update_edges(vertex *from, edge *e)
 {
-    int edge_num = from->edgeout.size();
     //cout<<"update edges: "<<edge_num<<" "<<from->s.x[0]<<" "<<from->s.x[1]<<endl;
-    /*
-    double bowlsize = 0;
-    for(int i=0; i< edge_num; i++)
-    {
-        edge *etmp = from->edgeout[i];
-        double bowltmp = dist(from->s, etmp->to->s);
-        if(bowltmp > bowlsize)
-            bowlsize = bowltmp;
-    }
-    bowlsize *= 2;
-    //cout<<"bowlsize: "<<bowlsize<<endl;
-    */
-    double bowlsize = BOWLR;
 
-    double hits = 0, tot=0;
-    vector<double> edgeprob(edge_num, 0.0);
-    vector<int> edgehits(edge_num, 0);
-    state stmp;
-    stmp.x[0] = 0; stmp.x[1] = 0.0;
-    vector<state> newstates(edge_num, stmp);
-    for(int i=0 ; i< edge_num; i++)
-    {
-        newstates[i] = system(from->s, from->edgeout[i]->delt, 0);
-    }
-    
-    double pos[NUM_DIM] = {0};
-    kdres *res;
-    res = kd_nearest_range(mini_tree, from->s.x, bowlsize);
-    while( !kd_res_end(res))
-    {
-        minis *m = (minis *)kd_res_item(res, pos);
+    state newst = system(from->s, e->delt);
+    double newvar = spro/2*(exp(2*e->delt) - 1);
+    double xtmp = newst.x[1];
+    e->prob = normal_val(xtmp, newvar, e->to->s.x[1]);
 
-        // rewire mini-samples
-        m->parent = nearest_vertex(m->s);
-
-        if(m->parent != from)
-        {
-            int index = edge_index_connected_vertex(from, m->parent);
-            if( (index != -1) && (index < edge_num) )
-            {
-                if(index >= edge_num){
-                    cout<<"Aborted: index >= edge_num"<<endl;
-                    exit(1);
-                }
-                edgeprob[index] += noise_func(newstates[index], m->parent->s, spro);
-                edgehits[index]++;
-            }
-        }
-        else
-        {
-            hits++;
-        }
-        kd_res_next(res);
-        tot++;
-    }
-    kd_res_free(res);
-    /*
-    for(int i=0; i< edge_num; i++)
-    {
-        cout<<"edgeprob: "<<i<<" "<<edgeprob[i]<<endl;
-        cout<<"edgehits: "<<i<<" "<<edgehits[i]<<endl;
-    }
-    */
-    double prob_sum = 0;
-    // get average mass for each edge
-    for(int j=0; j< edge_num; j++)
-    {
-        if(edgehits[j] != 0)
-        {
-            double hitt = edgehits[j];
-            edgeprob[j] = (from->edgeout[j]->to->voronoi_area)* (edgeprob[j])/hitt;
-        }
-        else
-            edgeprob[j] = 0;
-        
-        prob_sum += edgeprob[j];
-    }
-    
-    // normalize
-    for(int j=0; j< edge_num; j++)
-    {
-        edge *etmp = from->edgeout[j];
-        if (prob_sum != 0)
-            etmp->prob = edgeprob[j]/prob_sum;
-        else
-            etmp->prob = 0;
-    }
-    return hits;
+    return e->prob;
 }
 
-/*
- * v is the new vertex just sampled
- * obs_time is the observation's time for which we are updating
- */
-void update_viterbi( const vector<vertex *> &nodesinbowl, const vector<double> &weights, double obs_time)
+void add_major_sample(vertex *v)
 {
-    for(int i=0; i< (int)nodesinbowl.size(); i++)
-    {
-        vertex *v = nodesinbowl[i];
-        double obs_prob = weights[i];
-        
-        vertex *to_push_prev = NULL;
-        double to_push_prob = 0;
-        double to_push_alpha = 0;
-        double to_push_time = 0;
-
-        int latest_index = -1;
-        for(int i=0; i < (int)v->edgein.size(); i++)
-        {
-            edge *etmp = v->edgein[i];
-            vertex *vtmp = etmp->from;
-            double prob_tmp = 0;
-            
-            // find latest time before obs_time in vtmp->prob
-            latest_index = -1;
-            for(int j = (int)vtmp->t.size() -1; j >= 0; j--)
-            {
-                //cout<<"obs_time: "<<obs_time<<"\tlooking at: "<< vtmp->s.x[0]<<" "<<vtmp->s.x[1]<<" "<<vtmp->t[j]<<" "<<etmp->prob<<" "<<etmp->delt<<endl;
-                if( (vtmp->t[j] + etmp->delt) < obs_time )
-                {
-                    latest_index = j;
-                    //cout<<"found latest index viterbi with t: "<<vtmp->t[j]<<" for obs_time: "<<obs_time<<endl;
-                    break;
-                }
-            }
-            
-            if( (latest_index != -1) && (vtmp->t.size() != 0))
-            {
-                prob_tmp = vtmp->prob[latest_index] * (etmp->prob);
-                to_push_alpha += prob_tmp;
-
-                if( prob_tmp > (to_push_prob))
-                {
-                    to_push_prob = prob_tmp;
-                    to_push_prev = vtmp;
-                    to_push_time = vtmp->t.back() + etmp->delt;
-                }
-            }
-        }
-        if( to_push_prob != 0)
-        {
-            //cout<<"to push prob: "<<to_push_prob<<" "<<obs_prob<<endl;
-            v->prob.push_back(to_push_prob * obs_prob);
-            v->t.push_back(to_push_time);
-            v->prev.push_back(to_push_prev);
-            v->alpha.push_back(to_push_alpha * obs_prob);
-            //cout<<"pushed "<<v->s.x[0]<<" "<<v->s.x[1]<<endl;
-        }
-    }
-}
-
-void add_mini_samples(state around_which)
-{
-    for(int j=0; j<BETA; j++)
-    {
-        minis *m;
-        m = new (minis);
-        m->s = sample(around_which, BOWLR);
-        
-        mini_samples.push_back(m);
-        kd_insert(mini_tree, m->s.x, m);
-        
-        vertex *v = nearest_vertex(m->s);
-        m->parent = v;
-        v->num_child = v->num_child + 1;
-    }
-}
-
-double time_to_go(vertex *from, vertex* to)
-{
-    state sf = from->s;
-    state st = to->s;
-    
-    double a = 0, prev_a = 0;
-    double del = dt/10;
-    double b = del;
-    bool min_found = 0;
-    while( min_found == 0)
-    {
-        if( dist(system(sf, b, 1), st) < dist(system(sf, a, 1), st) )
-        {
-            prev_a = a;
-            a = b;
-            b += del;
-        }
-        else
-        {
-            min_found = 1;
-            a = prev_a;
-        }
-    }
-    // min between a and b now, quadratic fit
-    // polyfit from mathematica
-    double c = (a+b)/2;
-    //cout<<"a: "<<a<<" b: "<<b<<" c: "<<c<<endl;
-    double t1 = dist( system(sf, a, 1), st);
-    double t2 = dist( system(sf, b, 1), st);
-    double t3 = dist( system(sf, c, 1), st);
-    //cout<<"t1: "<<t1<<" t2: "<<t2<<" t3: "<<t3<<endl;
-    double num = t3*(a-b)*(a+b) + t1*(b-c)*(b+c) + t2*(c-a)*(c+a);
-    double den = 2*(t3*(a -b) + t1*(b-c) + t2*(-a+c));
-    double time = num/den;
-    
-    if(time > 0)
-    {
-        //cout<<"min_time: "<<time<<" dist: "<<dist(system(sf, time, 1), st)<<endl;
-        return time;
-    }
-    else
-        return -1;
-}
-
-
-void add_major_sample(vertex *v, int is_obs, state around_which)
-{
-    double pos[NUM_DIM] = {0};
     if(rrg.num_vert != 0)
     {
-        if(!is_obs)
+        vertex *vnear = nearest_vertex(v->s);
+        double len = dist(v->s, vnear->s);
+        if( len > EXTEND_DIST)
         {
-            vertex *vnear = nearest_vertex(v->s);
-            double len = dist(v->s, vnear->s);
-            if( len > EXTEND_DIST)
-            {
-                // change the state of the vertex to extend state
-                for(int i=0; i<NUM_DIM; i++){
-                    v->s.x[i] = vnear->s.x[i] + EXTEND_DIST*(v->s.x[i] - vnear->s.x[i])/len;
-                }   
+            // change the state of the vertex to extend state
+            for(int i=0; i<NUM_DIM; i++){
+                v->s.x[i] = vnear->s.x[i] + EXTEND_DIST*(v->s.x[i] - vnear->s.x[i])/len;
+            }   
 
-            }
         }
     }
     //cout<<"Adding sample: "<<v->s.x[0]<<" "<<v->s.x[1]<<endl;
-    
+
     double *toput = v->s.x;
     kd_insert(state_tree, toput, v);
     rrg.add_vertex(v);
     rrg.num_vert++;
+}
 
-    // add mini samples
-    add_mini_samples(around_which);
-    
+void draw_edges(vertex *v)
+{
+    double pos[NUM_DIM] = {0};
+    double *toput = v->s.x;
     kdres *res;
     res = kd_nearest_range(state_tree, toput, BOWLR);
     //cout<<"got "<<kd_res_size(res)<<" states"<<endl;
@@ -616,12 +302,11 @@ void add_major_sample(vertex *v, int is_obs, state around_which)
     while( !kd_res_end(res))
     {
         vertex *v1 = (vertex *)kd_res_item(res, pos); 
-
         if( v != v1)
         {
-            double e1t = time_to_go(v, v1);
-            double e2t = time_to_go(v1, v);
-            
+            double e1t = v1->s.x[0] - v->s.x[0];
+            double e2t = v->s.x[0] - v1->s.x[0];
+
             //cout<<"e1t: "<<e1t<<" e2t: "<<e2t<<endl;
             // make edges, no probab, update later
             // write edges
@@ -630,51 +315,133 @@ void add_major_sample(vertex *v, int is_obs, state around_which)
                 edge *e1 = new edge(v, v1, e1t);
                 v->edgeout.push_back(e1);
                 v1->edgein.push_back(e1);
-                //cout<<"wrote e: "<<v->s.x[0]<<" "<<v->s.x[1]<<" to "<<v1->s.x[0]<<" "<<v1->s.x[1]<<endl;
+                double e1prob = update_edges(v, e1);
+
+                // outgoing edge from v, write next
+                if( v->next != NULL)
+                {
+                    if( e1prob > (v->best_out->prob))
+                    {
+                        v->next = v1;
+                        v->best_out = e1;
+                    }
+                }
+                else
+                {
+                    if( v1 == rrg.vlist[0])
+                        cout<<"writing out edge to first vert here"<<endl;
+                    v->next = v1;
+                    v->best_out = e1;
+                }
+
+                //cout<<"wrote e: "<<v->s.x[0]<<" "<<v->s.x[1]<<" to "<<v1->s.x[0]<<" "<<v1->s.x[1]<<endl;  
             }
-            if( e2t > 0)
+            else if( e2t > 0)
             {
                 edge *e2 = new edge(v1, v, e2t);
                 v->edgein.push_back(e2);
                 v1->edgeout.push_back(e2);
+                double e2prob = update_edges(v1, e2);
+
+                // incoming edge into v, write prev
+                if( v->prev != NULL)
+                {
+                    if( (v->prev->prob)*(v->best_in->prob) < (v1->prob)*(e2prob))
+                    {
+                        v->prev = v1;
+                        v->best_in = e2;
+                        v->prob = (v1->prob)*(e2prob);
+                    }
+                }
+                else
+                {
+                    v->prev = v1;
+                    v->best_in = e2;
+                    v->prob = (v1->prob)*(e2prob);
+                }
+
                 //cout<<"wrote e: "<<v1->s.x[0]<<" "<<v1->s.x[1]<<" to "<<v->s.x[0]<<" "<<v->s.x[1]<<endl;
             }
+
         }
         kd_res_next(res);
     }
-
-    // update voronoi area separately
-    int hits=0, tot=0;
-    res = kd_nearest_range(mini_tree, v->s.x, BOWLR);
-    while( !kd_res_end(res))
-    {
-        minis *m = (minis *)kd_res_item(res, pos);
-
-        // rewire mini-samples
-        m->parent = nearest_vertex(m->s);
-
-        if(m->parent == v)
-            hits++;
-        
-        kd_res_next(res);
-        tot++;
-    }
     kd_res_free(res);
-    v->voronoi_area = hits/(double)tot*BOWLR*BOWLR*PI;
-    //cout<<"v-> voronoi_area: "<<v->voronoi_area<<endl;
+}
 
-    update_edges(v);
-    
-    // other end of this edge is x0, find two edges of x0 (with vertices x1, x2) between which "from" lies
-    // update the weights of only those two edges
-    // based on? -- re-calci sys_noise_func for edge x0-from wrt x1, x2 & from
-    for(int k=0; k< (int)v->edgein.size(); k++)
+void get_best_path(int from_first)
+{
+    if(from_first)
     {
-        //cout<<"updating all in edges"<<endl;
-        vertex *vtmp = (v->edgein[k])->from;
-        update_edges(vtmp);
+        state start_state = rrg.vlist[0]->s;
+        vertex *vcurr = NULL;
+        // find best node near zero
+        kdres *res;
+        res = kd_nearest_range(state_tree, start_state.x, (XMAX - XMIN)/2);
+        double pos[2];
+        double max_prob = 0;
+
+        while( !kd_res_end(res) )
+        {
+            vertex *vtmp = (vertex *)kd_res_item(res, pos);
+            if( vtmp->s.x[0] < 0.01)
+            {
+                if(vtmp->prob > max_prob)
+                {
+                    max_prob = vtmp->prob;
+                    vcurr = vtmp;
+                }
+            }
+            kd_res_next(res);
+        }
+        kd_res_free(res);
+        cout<<"got first as: "<< vcurr->s.x[0]<<" "<< vcurr->s.x[1]<<endl;
+
+        vcurr = rrg.vlist[0];
+        while( (vcurr->s.x[0] < TMAX) && (vcurr->next != NULL) )
+        {
+            cout<< vcurr->s.x[0]<<" "<< vcurr->s.x[1]<<endl;
+            best_path.push_back(vcurr->s);
+            vcurr = vcurr->next;
+        }
     }
-    //print_rrg();
+    else
+    {
+        vertex *vlast = NULL;
+        // find best node at TMAX
+        state last; last.x[0] = TMAX; last.x[1] = (XMAX + XMIN)/2;
+        kdres *res;
+        res = kd_nearest_range(state_tree, last.x, (XMAX - XMIN)/2);
+        double pos[2];
+        double max_prob = 0;
+
+        while( !kd_res_end(res) )
+        {
+            vertex *vtmp = (vertex *)kd_res_item(res, pos);
+            double tmp = fabs(vtmp->s.x[0] - TMAX); 
+            if( tmp < 0.1)
+            {
+                if(vtmp->prob > max_prob)
+                {
+                    max_prob = vtmp->prob;
+                    vlast = vtmp;
+                }
+            }
+            kd_res_next(res);
+        }
+        kd_res_free(res);
+        cout<<"got last as: "<< vlast->s.x[0]<<" "<< vlast->s.x[1]<<endl;
+
+        vertex *vcurr = vlast;
+        while( (vcurr->s.x[0] != 0) && (vcurr->prev != NULL) )
+        {
+            cout<< vcurr->s.x[0]<<" "<< vcurr->s.x[1]<<endl;
+            best_path.push_back(vcurr->s);
+            vcurr = vcurr->prev;
+
+        }
+
+    }
 }
 
 int main()
@@ -683,62 +450,80 @@ int main()
     srand(time(0));
     state_tree = kd_create(NUM_DIM);
     mini_tree = kd_create(NUM_DIM);
+
+    state x0; x0.x[0] = 0; x0.x[1] = 0.1;
+    double tmp1, tmp2;
+    randn(0, sinit, tmp1, tmp2);
+    state start_state;
+    start_state.x[0] = 0; start_state.x[1] = x0.x[1] + sqrt(sinit)*tmp1;
     
-    state x0; x0.x[0] = 1.0, x0.x[1] = -1.0;
     x.push_back(x0);
-    y.push_back(obs(x0, 1));
-    for(int i=0; i<N; i++){
-        x.push_back(system(x.back(), dt, 0));
-        y.push_back(obs(x.back(), 0));
+    y.push_back(obs(x0, 0));
+    for(int i=1; i<= TMAX/0.01; i++)
+    {
+        // create new state from old
+        double tmp1=0, tmp2=0;
+        double var = spro/2*(exp(2*0.01) - 1);
+        randn(0, var, tmp1, tmp2);
+        state newstate = system(x.back(), 0.01);
+        newstate.x[1] += tmp1;
+
+        // push_back
+        x.push_back(newstate);
+        y.push_back(obs(newstate, 0));
     }
     
-    vector<vertex *> nodesinbowl;
-    vector<double> weights;
-    for(int i=0; i<1; i++)
-    {
-        vertex *v = new vertex(y[i]);
-        add_major_sample(v, 1, y[i]);
-        add_mini_samples(y[i]);
+    /*
+    xhat[0].x[1] = start_state.x[1];
+    xhat[0].x[0] = start_state.x[0];
 
-        // set up initial estimate
-        v->prob.push_back(1);
-        v->t.push_back(0*dt);
-        // note this
-        v->prev.push_back(v);
-        v->alpha.push_back(1*noise_func(y[i], v->s, sobs));
-    }
-    //print_rrg();
-    //getchar();
-
-    for(int i=1; i<N; i++)
+    // create kalman filter output
+    double Q = sinit;
+    for(int i= 0; i<= TMAX/0.01; i++)
     {
-        cout<<"-------------------------------"<<endl;
-        double ts = get_msec();
+        // update xhat
+        xhat[i].x[0] = x[i].x[0];
+        state curr_obs = obs(xhat[i], 1);
+        double S = y[0].x[1] - curr_obs.x[1];
+        double L = Q/(Q + sobs);
+        xhat[i].x[1] += L*S;
         
-        // add some more states
-        for(int j=0; j<dM; j++)
-        {
-            vertex *v1 = new vertex(sample(y[i], BOWLR));
-            add_major_sample(v1, 0, y[i]);
-            //cout<<"major: "<<rrg.num_vert<<endl;
-        }
+        // update covar
+        Q = (1 - L)*Q;
 
-        //cout<<"updating obs: ["<< y[i].x[0]<<", "<< y[i].x[1] <<"]"<<endl;
-        update_obs_prob(y[i], nodesinbowl, weights);
-        update_viterbi(nodesinbowl, weights, i*dt);
-        ts = get_msec() - ts;
-        cout<<"obs: "<<i<<"\t"<<y[i].x[0]<<" "<<y[i].x[1]<<"\tdt: "<<ts<<"\tnum_vert: "<<rrg.num_vert<<"\tbowl: "<<BOWLR<<endl;
-
-        //print_rrg();
-        //getchar();
+        // propagate
+        xhat[i+1].x[1] = exp(-0.01)*xhat[i].x[1];
+        Q = exp(-0.02)*Q + spro/2*(exp(0.02) - 1);
     }
+    */
+
+    double start_time = get_msec();
+
+    vertex *vfirst = new vertex(x0);
+    add_major_sample(vfirst);
+    vfirst->prob = 1.0; vfirst->prev = NULL;
+
+    for(unsigned int j = 0; j < y.size(); j++)
+    {
+        for(int i=0; i< 400; i++)
+        {
+            vertex *v = new vertex(sample());
+            //v->s.x[0] = y[j].x[0];
+            add_major_sample(v);
+
+            draw_edges(v);
+        }
+        update_obs_prob(y[j]);
+        cout<<"i: "<<j<<endl;
+    }
+    
+    get_best_path(1);
+
+    cout<<"exec time: "<< get_msec() - start_time <<endl;
+
     plot_rrg();
     plot_traj();
-    
-    for(int i=0; i< (int)mini_samples.size(); i++)
-    {
-        delete mini_samples[i];
-    }
+
     kd_free(state_tree);
     kd_free(mini_tree); 
     return 0;

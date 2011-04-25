@@ -39,14 +39,14 @@ class vertex{
     public:
         state s;
         // prob of best path that ends up here incorporating obs
-        vector<double> prob;
+        double prob;
         // alphas
         vector<double> alpha;
-        // time till which obs are incorporated
-        vector<double> t;
-        // parent of the best path
-        vector<vertex *> prev;
         
+        // parent of the best path
+        vertex * prev;
+        vertex *next;
+
         edge *best_in;
         edge *best_out;
 
@@ -61,6 +61,9 @@ class vertex{
                 s.x[i] = st.x[i];
             voronoi_area = 0;
             num_child = 0;
+
+            prev = NULL;
+            next = NULL;
         }
         ~vertex(){};
 };

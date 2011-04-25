@@ -4,6 +4,7 @@ from pylab import *
 
 if __name__ == "__main__":
 
+    fig = figure()
     rrgp = open("rrgp.dat", 'r')
     traj = open("traj.dat", 'r')
     mini = open("miniout.dat", 'r')
@@ -19,8 +20,7 @@ if __name__ == "__main__":
 
         # print len(minix)
         mini.close()
-    
-    """    
+    """   
     #t1, x1, t2, x2, prob, delt
     rrg = open("rrg.dat", 'r')
     if rrg:
@@ -29,10 +29,9 @@ if __name__ == "__main__":
             s = l.split('\t')
             tx = [float(s[0]),float(s[2])]
             ty = [float(s[1]), float(s[3])]
-            plot(tx, ty, 'r-', lw=0.5, alpha=float(s[4]))
+            plot(tx, ty, 'k-', lw=0.5, alpha=float(s[4]))
 
     rrg.close()
-    """
 
     rrgpx = []
     rrgpy = []
@@ -45,6 +44,7 @@ if __name__ == "__main__":
             rrgpy.append(float(s[1]))
 
     rrgp.close()
+    """
 
     if traj:
         lines = traj.readlines()
@@ -60,6 +60,8 @@ if __name__ == "__main__":
         aa = []
         simx = []
         simy = []
+        kfx = []
+        kfy = []
 
     for l in lines:
         s= l.split('\t')
@@ -74,6 +76,8 @@ if __name__ == "__main__":
                 which = 3
             elif s[0] == "sim\n":
                 which = 4
+            elif s[0] == "kf_path\n":
+                which = 5
 
         if len(s) > 1:
             if which == 0:
@@ -92,10 +96,12 @@ if __name__ == "__main__":
             elif which == 4:
                 simx.append(float(s[0]))
                 simy.append(float(s[1]))
+            elif which == 5:
+                kfx.append(float(s[0]))
+                kfy.append(float(s[1]))
 
     traj.close()
 
-    fig = figure()
     axplot = fig.add_subplot(111)
 
     """
@@ -111,12 +117,14 @@ if __name__ == "__main__":
     """
     
     plot(minix, miniy, 'y+', ms=3.0)
-    plot(rrgpx, rrgpy, 'yo', ms=3.0)
-    plot(sysx, sysy, 'ro-')
+    #plot(rrgpx, rrgpy, 'yo', ms=3.0)
+    plot(sysx, sysy, 'r-')
     plot(obsx, obsy, 'bo-')
-    plot(bpx, bpy, 'go-')
+    plot(bpx, bpy, 'g-')
     plot(simx, simy, 'mo-')
-
+    plot(kfx, kfy, 'c-')
+    
     grid()
+    fig.savefig("run.png")
     show()
 

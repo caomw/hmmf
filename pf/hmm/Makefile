@@ -1,9 +1,9 @@
 CC = gcc
 CPP = g++
 
-BIN = ./temp
+BIN = ./main
 C_SRCS = kdtree.c
-CPP_SRCS = temp.cpp halton.cpp
+CPP_SRCS = main.cpp halton.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)
