@@ -1,7 +1,7 @@
 // first dim is time, 1-d system
 #define NUM_DIM         (2)
 
-#define TMAX            (0.3)
+#define TMAX            (1)
 #define TMIN            (0.0)
 
 #define XMAX            (0.20)
@@ -12,9 +12,9 @@
 #define EXTEND_DIST     (0.01)
 #define dM              (100)
 #define sinit           (1e-3)
-#define sobs            (1e-5)
+#define sobs            (1e-6)
 #define obs_max_uniform (sqrt(3*sobs))
-#define spro            (1e-3)
+#define spro            (1e-4)
 #define BETA            (100)
 #define GAMMA           (1.0)
 #define BOWLGAMMA       (GAMMA*pow(log(rrg.num_vert)/(float)(rrg.num_vert), 1.0/(NUM_DIM)))
@@ -30,10 +30,11 @@ int seed[NUM_DIM] = {0, 0};
 int base[NUM_DIM] = {2, 3};
 int step = 0;
 
-kdtree *state_tree, *mini_tree;
+kdtree *state_tree;
 graph rrg;
-vector<state> x, y, best_path, xhat(TMAX/0.01 + 1);
+vector<state> x, y, best_path;
 vector<state> simx;
+vector<state> xhat(TMAX/0.01 + 1);
 
 void halton_init()
 {
@@ -444,18 +445,73 @@ void get_best_path(int from_first)
     }
 }
 
+void get_kalman_path()
+{
+    double tmp1, tmp2;
+    randn(0, sinit, tmp1, tmp2);
+    state start_state;
+    start_state.x[0] = 0; start_state.x[1] = 0.1 + sqrt(sinit)*tmp1;
+    
+    xhat[0].x[0] = start_state.x[0];
+    xhat[0].x[1] = start_state.x[1];
+    // create kalman filter output
+    double Q = sinit;
+    for(int i= 0; i<= TMAX/0.01; i++)
+    {
+        // update xhat
+        xhat[i].x[0] = x[i].x[0];
+        state curr_obs = obs(xhat[i], 1);
+        double S = y[i].x[1] - curr_obs.x[1];
+        double L = Q/(Q + sobs);
+        xhat[i].x[1] += L*S;
+
+        // update covar
+        Q = (1 - L)*Q;
+
+        // propagate
+        xhat[i+1].x[1] = exp(-0.01)*(xhat[i].x[1]);
+        Q = exp(-0.02)*Q + spro/2*(exp(0.02) - 1);
+
+    }
+}
+
+void get_hmmf_path()
+{
+    double tmp1, tmp2;
+    randn(0, sinit, tmp1, tmp2);
+    state start_state;
+    start_state.x[0] = 0; start_state.x[1] = 0.1 + sqrt(sinit)*tmp1;
+
+    double start_time = get_msec();
+    vertex *vfirst = new vertex(start_state);
+    add_major_sample(vfirst);
+    vfirst->prob = 1.0; vfirst->prev = NULL;
+
+    for(unsigned int j = 0; j < y.size(); j++)
+    {
+        for(int i=0; i< 100; i++)
+        {
+            vertex *v = new vertex(sample());
+            //v->s.x[0] = y[j].x[0];
+            add_major_sample(v);
+
+            draw_edges(v);
+        }
+        update_obs_prob(y[j]);
+        cout<<"i: "<<j<<endl;
+    }
+
+    get_best_path(1);
+    cout<<"exec time: "<< get_msec() - start_time <<endl;
+}
+
 int main()
 {
     cout.precision(4);
     srand(time(0));
     state_tree = kd_create(NUM_DIM);
-    mini_tree = kd_create(NUM_DIM);
 
     state x0; x0.x[0] = 0; x0.x[1] = 0.1;
-    double tmp1, tmp2;
-    randn(0, sinit, tmp1, tmp2);
-    state start_state;
-    start_state.x[0] = 0; start_state.x[1] = x0.x[1] + sqrt(sinit)*tmp1;
     
     x.push_back(x0);
     y.push_back(obs(x0, 0));
@@ -473,59 +529,16 @@ int main()
         y.push_back(obs(newstate, 0));
     }
     
-    /*
-    xhat[0].x[1] = start_state.x[1];
-    xhat[0].x[0] = start_state.x[0];
+    // get path from hmm filter
+    get_hmmf_path();
 
-    // create kalman filter output
-    double Q = sinit;
-    for(int i= 0; i<= TMAX/0.01; i++)
-    {
-        // update xhat
-        xhat[i].x[0] = x[i].x[0];
-        state curr_obs = obs(xhat[i], 1);
-        double S = y[0].x[1] - curr_obs.x[1];
-        double L = Q/(Q + sobs);
-        xhat[i].x[1] += L*S;
-        
-        // update covar
-        Q = (1 - L)*Q;
-
-        // propagate
-        xhat[i+1].x[1] = exp(-0.01)*xhat[i].x[1];
-        Q = exp(-0.02)*Q + spro/2*(exp(0.02) - 1);
-    }
-    */
-
-    double start_time = get_msec();
-
-    vertex *vfirst = new vertex(x0);
-    add_major_sample(vfirst);
-    vfirst->prob = 1.0; vfirst->prev = NULL;
-
-    for(unsigned int j = 0; j < y.size(); j++)
-    {
-        for(int i=0; i< 400; i++)
-        {
-            vertex *v = new vertex(sample());
-            //v->s.x[0] = y[j].x[0];
-            add_major_sample(v);
-
-            draw_edges(v);
-        }
-        update_obs_prob(y[j]);
-        cout<<"i: "<<j<<endl;
-    }
+    // get kalman filter output
+    get_kalman_path();
     
-    get_best_path(1);
-
-    cout<<"exec time: "<< get_msec() - start_time <<endl;
-
     plot_rrg();
     plot_traj();
 
     kd_free(state_tree);
-    kd_free(mini_tree); 
     return 0;
 }
 

@@ -116,14 +116,16 @@ if __name__ == "__main__":
     axplot.add_patch(circle)
     """
     
-    plot(minix, miniy, 'y+', ms=3.0)
     #plot(rrgpx, rrgpy, 'yo', ms=3.0)
-    plot(sysx, sysy, 'r-')
-    plot(obsx, obsy, 'bo-')
-    plot(bpx, bpy, 'g-')
-    plot(simx, simy, 'mo-')
-    plot(kfx, kfy, 'c-')
+    plot(sysx, sysy, 'r-', label='sys')
+    plot(obsx, obsy, 'bo-', label='sys')
+    plot(bpx, bpy, 'g-', label='sys')
+    plot(kfx, kfy, 'c-', label='sys')
     
+    xlabel('t [s]')
+    ylabel('x (t)')
+    title('Filter output')
+    legend() 
     grid()
     fig.savefig("run.png")
     show()
