@@ -12,7 +12,8 @@
 #define EXTEND_DIST     (0.01)
 #define dM              (100)
 #define sinit           (1e-3)
-#define sobs            (1e-6)
+#define sobs            (1e-4)
+#define sobs_kalman     (sobs)
 #define obs_max_uniform (sqrt(3*sobs))
 #define spro            (1e-4)
 #define BETA            (100)
@@ -44,11 +45,6 @@ void halton_init()
     halton_base_set(base);
 };
 
-double normal_val(double mean, double var, double tocalci)
-{
-    double temp = exp(-0.5*sq(mean-tocalci)/var);
-    return 1/sqrt(2*PI*var)*temp;
-}
 
 state system(state s, double time){
 
@@ -63,6 +59,8 @@ state obs(state s, int is_clean){
     double tmp1=0, tmp2=0;
     randn(0, sobs, tmp1, tmp2);
     //tmp1 = randf*2*obs_max_uniform - obs_max_uniform;
+    //rand_two_n(0.2, sobs, tmp1);
+    
     if(is_clean)
         tmp1 = 0;
 
@@ -401,7 +399,7 @@ void get_best_path(int from_first)
         vcurr = rrg.vlist[0];
         while( (vcurr->s.x[0] < TMAX) && (vcurr->next != NULL) )
         {
-            cout<< vcurr->s.x[0]<<" "<< vcurr->s.x[1]<<endl;
+            //cout<< vcurr->s.x[0]<<" "<< vcurr->s.x[1]<<endl;
             best_path.push_back(vcurr->s);
             vcurr = vcurr->next;
         }
@@ -436,7 +434,7 @@ void get_best_path(int from_first)
         vertex *vcurr = vlast;
         while( (vcurr->s.x[0] != 0) && (vcurr->prev != NULL) )
         {
-            cout<< vcurr->s.x[0]<<" "<< vcurr->s.x[1]<<endl;
+            //cout<< vcurr->s.x[0]<<" "<< vcurr->s.x[1]<<endl;
             best_path.push_back(vcurr->s);
             vcurr = vcurr->prev;
 
@@ -462,7 +460,7 @@ void get_kalman_path()
         xhat[i].x[0] = x[i].x[0];
         state curr_obs = obs(xhat[i], 1);
         double S = y[i].x[1] - curr_obs.x[1];
-        double L = Q/(Q + sobs);
+        double L = Q/(Q + sobs_kalman);
         xhat[i].x[1] += L*S;
 
         // update covar
@@ -489,7 +487,7 @@ void get_hmmf_path()
 
     for(unsigned int j = 0; j < y.size(); j++)
     {
-        for(int i=0; i< 100; i++)
+        for(int i=0; i< dM; i++)
         {
             vertex *v = new vertex(sample());
             //v->s.x[0] = y[j].x[0];
@@ -498,7 +496,8 @@ void get_hmmf_path()
             draw_edges(v);
         }
         update_obs_prob(y[j]);
-        cout<<"i: "<<j<<endl;
+        if( j%10 == 0)
+            cout<<"i: "<<j<<endl;
     }
 
     get_best_path(1);
@@ -535,7 +534,7 @@ int main()
     // get kalman filter output
     get_kalman_path();
     
-    plot_rrg();
+    //plot_rrg();
     plot_traj();
 
     kd_free(state_tree);

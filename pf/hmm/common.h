@@ -192,10 +192,40 @@ void randn(float mean,float var, double &y1, double &y2){
     y2 =  mean + y2*sqrt(var);
 };
 
-
 inline double sq(double x)
 {
     return (x)*(x);
 }
+
+double normal_val(double mean, double var, double tocalci)
+{
+    double temp = exp(-0.5*sq(mean-tocalci)/var);
+    return 1/sqrt(2*PI*var)*temp;
+}
+
+// from wiki -- rejection algorithm
+// samples from f(x) = N(-a, var) + N(a, var)
+double rand_two_n(float a, float var, double &y1)
+{
+    double M = 10;
+    double s = sqrt(var);
+    bool got_one = 0;
+    double x;
+    while (got_one == 0)
+    {
+        // get g(x)
+        x = randf*(2*a + 6*s) - (a + 3*s);
+        double gx = x/(2*a + 6*s);
+
+        double u = randf;
+
+        double fx = normal_val(-a, var, x) + normal_val(a, var, x);
+        if(u < fx/gx/M)
+            got_one = 1;
+    }
+    return x; 
+}
+
+
 
 #endif

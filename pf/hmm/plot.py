@@ -118,9 +118,9 @@ if __name__ == "__main__":
     
     #plot(rrgpx, rrgpy, 'yo', ms=3.0)
     plot(sysx, sysy, 'r-', label='sys')
-    plot(obsx, obsy, 'bo-', label='sys')
-    plot(bpx, bpy, 'g-', label='sys')
-    plot(kfx, kfy, 'c-', label='sys')
+    #plot(obsx, obsy, 'bo-', label='obs')
+    plot(bpx, bpy, 'g-', label='hmm')
+    plot(kfx, kfy, 'c-', label='kf')
     
     xlabel('t [s]')
     ylabel('x (t)')
