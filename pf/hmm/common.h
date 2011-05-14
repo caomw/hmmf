@@ -230,5 +230,9 @@ double rand_two_n(float a, float var)
     return ret;
 }
 
+double rand_uniform(float a, float spread)
+{
+    return randf*(2*spread) -spread + a;
+}
 
 #endif
