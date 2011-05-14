@@ -205,27 +205,30 @@ double normal_val(double mean, double var, double tocalci)
 
 // from wiki -- rejection algorithm
 // samples from f(x) = N(-a, var) + N(a, var)
-double rand_two_n(float a, float var, double &y1)
+double rand_two_n(float a, float var)
 {
-    double M = 10;
+    double M = 1e3;
     double s = sqrt(var);
     bool got_one = 0;
-    double x;
+    double ret = 10;
+    double uniform = 2*a + 10*s;
+
     while (got_one == 0)
     {
         // get g(x)
-        x = randf*(2*a + 6*s) - (a + 3*s);
-        double gx = x/(2*a + 6*s);
+        ret = randf*uniform - uniform/2;
+        double gx = ret/uniform;
 
         double u = randf;
 
-        double fx = normal_val(-a, var, x) + normal_val(a, var, x);
+        double fx = normal_val(-a, var, ret) + normal_val(a, var, ret);
         if(u < fx/gx/M)
+        {
             got_one = 1;
+        }
     }
-    return x; 
+    return ret;
 }
-
 
 
 #endif
