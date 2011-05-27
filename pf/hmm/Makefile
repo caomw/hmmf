@@ -12,12 +12,12 @@ OBJS = $(C_OBJS) $(CPP_OBJS)
 INC = -I./
 LIBS = -L./
 
-CFLAGS = -fPIC -g -pg -O0 -Wall -pthread
+CFLAGS = -g -pg -O3
 LDFLAGS = -lfigtree -lann_figtree_version
 
 all: $(BIN)
 	rm -rf *.dat
-	touch rrg.dat rrgp.dat miniout.dat traj.dat
+	touch rrg.dat rrgp.dat traj.dat
 
 $(BIN): $(OBJS)
 	@echo "  [LD]    $@"
