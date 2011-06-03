@@ -12,8 +12,8 @@
 #include <time.h>
 #include <algorithm>
 #include <utility>
+#include "Logger.h"
 
-#include "halton.h"
 using namespace std;
 
 class edge;
@@ -40,8 +40,6 @@ class vertex{
         state s;
         // prob of best path that ends up here incorporating obs
         double prob;
-        // alphas
-        vector<double> alpha;
         
         // parent of the best path
         vertex * prev;
@@ -50,20 +48,16 @@ class vertex{
         edge *best_in;
         edge *best_out;
 
-        double voronoi_area;
-        unsigned int num_child;
-        
         vector<edge *> edgein;
         vector<edge *> edgeout;
         
         vertex(state st){
             for(int i=0; i<NUM_DIM; i++)
                 s.x[i] = st.x[i];
-            voronoi_area = 0;
-            num_child = 0;
 
             prev = NULL;
             next = NULL;
+            prob = 0;
         }
         ~vertex(){};
 };
@@ -85,7 +79,16 @@ class edge{
         edge reverse(){
             return edge(this->to, this->from, this->prob);
         }
-        ~edge(){};
+        ~edge()
+        {
+            vector<edge *>::iterator edge_iter1;
+            edge_iter1 = find( from->edgeout.begin(), from->edgeout.end(), this);
+            from->edgeout.erase( edge_iter1 );
+
+            vector<edge *>::iterator edge_iter2;
+            edge_iter2 = find( to->edgein.begin(), to->edgein.end(), this);
+            to->edgein.erase( edge_iter2 );
+        };
 };
 
 class graph{
@@ -99,7 +102,42 @@ class graph{
         void add_vertex(vertex *v){
             vlist.push_back(v);
         }
+        void remove_vertex(vertex *v)
+        {
+            // remove from vlist
+            vector<vertex *>::iterator iter;
+            iter = find(vlist.begin(), vlist.end(), v);
+            vlist.erase(iter);
+            
+            // delete all edges from v and its neighbors
+            for(vector<edge *>::iterator i = v->edgein.begin(); i != v->edgein.end(); i++)
+            {
+                edge *e = *i;
+                
+                vector<edge *>::iterator edge_iter;
+                edge_iter = find( e->from->edgeout.begin(), e->from->edgeout.end(), e);
+                e->from->edgeout.erase( edge_iter );
+
+                delete e;
+            }
+            for(vector<edge *>::iterator i = v->edgeout.begin(); i != v->edgeout.end(); i++)
+            {
+                edge *e = *i;
+                
+                vector<edge *>::iterator edge_iter;
+                edge_iter = find( e->to->edgein.begin(), e->to->edgein.end(), e);
+                e->to->edgein.erase( edge_iter );
+
+                delete e;
+            }
+            
+            // finally delete v
+            delete v;
+        }
+
         ~graph(){
+            
+            /*
             for(vector<vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
             {
                 vertex *v = *i;
@@ -116,6 +154,7 @@ class graph{
                 //cout<<"deleting v "<<v<<endl;
                 delete v;
             }
+            */
         };
  };
 
@@ -128,84 +167,66 @@ double dist(state s1, state s2)
     return sqrt(t);
 };
 
-/*
-state sample(state around_which, double radius){
-    
-double xmin_tmp = around_which.x[0] - radius;
-double ymin_tmp = around_which.x[1] - radius;
-#define randux       (xmin_tmp + rand()/(RAND_MAX + 1.0)*(2*radius))
-#define randuy       (ymin_tmp + rand()/(RAND_MAX + 1.0)*(2*radius))
-
-    state s;
-    s.x[0] = randux;
-    s.x[1] = randuy;
-#undef randux
-#undef randuy
-    return s;
-}
-*/
-
-state sample()
-{
-#define randut      (TMIN + rand()/(RAND_MAX + 1.0)*(TMAX-TMIN))
-#define randux      (XMIN + rand()/(RAND_MAX + 1.0)*(XMAX-XMIN))
-
-    state s;
-    s.x[0] = randut;
-    s.x[1] = randux;
-#undef randut
-#undef randux
-    return s;
-}
-
-/*
-state sample_quasi(){
-    state s;
-    double r[NUM_DIM];
-    halton(r);
-    for(int i=0; i<NUM_DIM; i++)
-    {
-        s.x[i] = XMIN + (XMAX-XMIN)*r[i];
-    }
-    return s;
-}
-*/
-
 double get_msec(){
     struct timeval start;
     gettimeofday(&start, NULL);
     return start.tv_sec*1000 + start.tv_usec/1000.0;
 }
 
-void randn(float mean,float var, double &y1, double &y2){
-    float x1, x2, w = 1.5;
+// mean = 0, var = 1
+double randn()
+{
+    static float x1, x2, w = 1.5;
+    static bool which = 0;
+
+    if(which == 1)
+    {
+        which = 0;
+        return x2*w;
+    }
+
     while (w >= 1.0){
         x1 = 2.0*randf - 1.0;
         x2 = 2.0*randf - 1.0;
         w = x1 * x1 + x2 * x2;
     }
     w = sqrt( (-2.0*log(w)) / w );
-    y1 = x1 * w;
-    y2 = x2 * w;
-
-    y1 =  mean + y1*sqrt(var);
-    y2 =  mean + y2*sqrt(var);
+    
+    which = 1;
+    return x1 * w;
 };
+
+void multivar_normal(double *mean, double *var, double *ret, int dim)
+{
+    for(int i=0; i < dim; i++)
+        ret[i] = mean[i] + sqrt(var[i])*randn();
+}
 
 inline double sq(double x)
 {
     return (x)*(x);
 }
 
-double normal_val(double mean, double var, double tocalci)
+double normal_val(double *mean, double *var, double *tocalci, int dim)
 {
-    double temp = exp(-0.5*sq(mean-tocalci)/var);
-    return 1/sqrt(2*PI*var)*temp;
+    double top = 0;
+    double det = 1;
+    for(int i=0; i<dim; i++)
+    {
+        top += sq(mean[i] - tocalci[i])/2/var[i];
+
+        det = det*var[i];
+    }
+    top = exp(-0.5*top);
+    double bottom = 1/pow(2*PI, dim/2.0)/ sqrt( det );
+    
+    return bottom*top;
 }
 
+/*
 // from wiki -- rejection algorithm
 // samples from f(x) = N(-a, var) + N(a, var)
-double rand_two_n(float a, float var)
+double rand_two_n( double a, double var)
 {
     double M = 1e3;
     double s = sqrt(var);
@@ -234,5 +255,6 @@ double rand_uniform(float a, float spread)
 {
     return randf*(2*spread) -spread + a;
 }
+*/
 
 #endif
