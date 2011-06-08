@@ -40,9 +40,9 @@ class vertex{
         state s;
         // prob of best path that ends up here incorporating obs
         double prob;
-        
+         
         // parent of the best path
-        vertex * prev;
+        vertex *prev;
         vertex *next;
 
         edge *best_in;
@@ -57,7 +57,7 @@ class vertex{
 
             prev = NULL;
             next = NULL;
-            prob = 0;
+            prob = -10;
         }
         ~vertex(){};
 };

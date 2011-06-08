@@ -1,14 +1,14 @@
 // first dim is time, 3-d system
-#define NUM_DIM             (4)
+#define NUM_DIM             (3)
 #define PI                  (3.14156)
 
-#define NUM_PARTICLES       (50)
-#define dM                  (1000)
+#define NUM_PARTICLES       (100)
+#define dM                  (50)
 #define GAMMA               (1.0)
-#define BOWLGAMMA           (GAMMA*pow(log(rrg.num_vert)/(float)(rrg.num_vert), 1.0/(NUM_DIM)))
-//#define BOWLR             ( (BOWLGAMMA >= 0.1) ? BOWLGAMMA : 0.1)
-#define BOWLR               (0.1)
-#define EXTEND_DIST         (0.1)
+#define BOWLR               (GAMMA*pow( (max_states[0]/DT)*(log(rrg.num_vert) - log(max_states[0]/DT))/(float)(rrg.num_vert), 1.0/(NUM_DIM-1.0)))
+#define EXTEND_DIST         (1.0)
+#define DT                  (0.01)
+#define TIME_SCALE          (1)
 
 #define randf               (rand()/(RAND_MAX + 1.0))
 
@@ -17,8 +17,8 @@
 #include "figtree.h"
 
 // limits of states
-double max_states[NUM_DIM] = {0.5, 1.0, 1.0, 1.0};
-double min_states[NUM_DIM] = {0.0, 0, 0, 0};
+double max_states[NUM_DIM] = {1.0, 1.0, 1.0};
+double min_states[NUM_DIM] = {0.0, 0, 0};
 
 state sample()
 {
@@ -34,7 +34,7 @@ kdtree *state_tree;
 graph rrg;
 vector<state> x, y, best_path;
 vector<state> simx;
-vector<state> xhat( (max_states[0]/0.01) + 1);
+vector<state> xhat( (max_states[0]/DT) + 1);
 
 double INIT_VAR[3] = {1e-4, 1e-4, 1e-4};
 double OBS_VAR[3] = {1e-4, 1e-4, 1e-4};
@@ -43,7 +43,7 @@ double PRO_VAR[3] = {1e-4, 1e-4, 1e-4};                       // noise of the co
 state system(state s, double time, int is_clean)
 {
     /*
-    double dt = 0.01;
+    double dt = DT;
     double var[2] = { PRO_VAR[0]*dt, PRO_VAR[1]*dt};
     double tmp[2] = {0};
     double mean[2] = {0};
@@ -78,13 +78,12 @@ state system(state s, double time, int is_clean)
     }
     */   
     
-    
     // single integrator
-    state t;  t.x[0] = s.x[0]; t.x[1] = s.x[1]; t.x[2] = s.x[2]; t.x[3] = s.x[3];
-    double var[3] = { PRO_VAR[0]/2*( exp(2*time) - 1), PRO_VAR[1]/2*( exp(2*time) - 1), PRO_VAR[2]/2*( exp(2*time) - 1)};
-    double tmp[3] = {0};
-    double mean[3] = {0};
-    multivar_normal(mean, var, tmp, 3);
+    state t;  t.x[0] = s.x[0]; t.x[1] = s.x[1]; t.x[2] = s.x[2];
+    double var[2] = { PRO_VAR[0]/2*( exp(2*time) - 1), PRO_VAR[1]/2*( exp(2*time) - 1)};
+    double tmp[2] = {0};
+    double mean[2] = {0};
+    multivar_normal(mean, var, tmp, 2);
    
     if ( is_clean)
     {
@@ -94,28 +93,26 @@ state system(state s, double time, int is_clean)
     t.x[0] = t.x[0] + time;
     t.x[1] = exp(-1*time)*t.x[1] + tmp[0];
     t.x[2] = exp(-1*time)*t.x[2] + tmp[1];
-    t.x[3] = exp(-1*time)*t.x[3] + tmp[2];
-    
+     
     return t;
 }
 
 state obs(state s, int is_clean)
 {
     state t;
-    double tmp[3] = {0};
-    double mean[3] = {0};
-    multivar_normal(mean, OBS_VAR, tmp, 3);
+    double tmp[2] = {0};
+    double mean[2] = {0};
+    multivar_normal(mean, OBS_VAR, tmp, 2);
     
     if(is_clean)
     {
         tmp[0] = 0;
         tmp[1] = 0;
-        tmp[2] = 0;
     }
     t.x[0] = s.x[0];                        // time is same
     t.x[1] = s.x[1] + tmp[0];               // add noise to obs
     t.x[2] = s.x[2] + tmp[1];             
-    t.x[3] = s.x[3] + tmp[2];
+    
     return t;
 }
 
@@ -130,7 +127,6 @@ void plot_rrg()
     for(vector<vertex*>::iterator i = rrg.vlist.begin(); i != rrg.vlist.end(); i++)
     {
         vertex *tstart = (*i);
-        /* 
         for(vector<edge*>::iterator eo = tstart->edgeout.begin(); eo != tstart->edgeout.end(); eo++)
         {
             vertex *tend = (*eo)->to;
@@ -139,8 +135,7 @@ void plot_rrg()
             //draw the edge
             rrgout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tend->s.x[0]<<"\t"<<tend->s.x[1]<<"\t"<<etmp->prob<<"\t"<<etmp->delt<<endl;
         }
-        */
-        rrgpout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tstart->s.x[2]<<"\t"<<tstart->s.x[3]<<endl;
+        rrgpout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tstart->s.x[2]<<endl;
     }
     rrgout.close();
     rrgpout.close();
@@ -192,7 +187,8 @@ vertex* nearest_vertex(state s)
 {
     kdres *resn;
     resn = kd_nearest(state_tree, s.x);
-    if(kd_res_end(resn)){
+    if(kd_res_end(resn))
+    {
         lout<<"Error: no nearest"<<endl;
         exit(1);
     }
@@ -258,8 +254,8 @@ double get_edge_prob_particles(state xinit, double till_obs, double post_obs, st
         if ( post_obs >= 0)
         {
             //lout<< "px: "<< parts[i].x[1] << " obs: " << obs.x[1] << endl;
-            double mean[NUM_DIM - 1] = { obs.x[1], obs.x[2], obs.x[3]} ;
-            double tocalci[NUM_DIM - 1] = { parts[i].x[1], parts[i].x[2], parts[i].x[3] };
+            double mean[NUM_DIM - 1] = { obs.x[1], obs.x[2] };
+            double tocalci[NUM_DIM - 1] = { parts[i].x[1], parts[i].x[2] };
 
             weights[i] = normal_val( mean, OBS_VAR, tocalci, NUM_DIM-1 ); 
         }
@@ -303,7 +299,7 @@ double get_edge_prob_particles(state xinit, double till_obs, double post_obs, st
     
     //lout<<" mean: "<< mean <<" var: "<< var <<endl;
     
-    double tocalci[NUM_DIM-1] = { xend.x[1], xend.x[2], xend.x[3] } ;
+    double tocalci[NUM_DIM-1] = { xend.x[1], xend.x[2] } ;
     double target_w = normal_val( mean, var, tocalci, NUM_DIM-1);
    
 
@@ -389,9 +385,13 @@ void draw_edges(vertex *v)
     DepthTag dtag;
     
     double pos[NUM_DIM] = {0};
-    double *toput = v->s.x;
+    double tolook[NUM_DIM] = {0};
+    for(int i=0; i< NUM_DIM; i++)
+        tolook[i] = v->s.x[i];
+    tolook[0] = tolook[0]/TIME_SCALE;
+
     kdres *res;
-    res = kd_nearest_range(state_tree, toput, BOWLR );
+    res = kd_nearest_range(state_tree, tolook, BOWLR );
     //cout<<"got "<<kd_res_size(res)<<" states"<<endl;
     state dummy;
 
@@ -452,6 +452,7 @@ void draw_edges(vertex *v)
 
 void add_sample(vertex *v)
 {
+    /*
     if( rrg.vlist.size() != 0)
     {
         vertex *near = nearest_vertex( v->s );
@@ -463,10 +464,14 @@ void add_sample(vertex *v)
                 v->s.x[i] = near->s.x[i] + (v->s.x[i] - near->s.x[i])*EXTEND_DIST/d;
         }
     }
-    double *toput = v->s.x;
+    */
     draw_edges (v);
     //cout<<"i: "<< rrg.vlist.size()-1 << " edges- in: " << v->edgein.size() << " out: "<< v->edgeout.size() << endl;
 
+    double toput[NUM_DIM] = {0};
+    for(int i=0; i< NUM_DIM; i++)
+        toput[i] = v->s.x[i];
+    toput[0] = toput[0]/TIME_SCALE;
 
     if ( 0 )
     {
@@ -570,9 +575,9 @@ void get_hmmf_path()
 {
     DepthTag dtag;
     
-    double tmp[3] = {0};
-    double mean[3] = {0};
-    multivar_normal( mean, INIT_VAR, tmp, 3);
+    double tmp[2] = {0};
+    double mean[2] = {0};
+    multivar_normal( mean, INIT_VAR, tmp, 2);
     state start_state;
 
     start_state.x[0] = 0;
@@ -599,7 +604,7 @@ void get_hmmf_path()
         //cout<<"getchar: "; getchar();
         
         if( j % 10 == 0)
-            lout<<"i: "<<j<<endl;
+            lout<<"i: "<<j<<" bowl: "<< BOWLR << endl;
     }
     /* 
     for(int i=0; i< rrg.vlist.size(); i++)
@@ -628,10 +633,10 @@ int main()
     
     x.push_back(x0);
     y.push_back(obs(x0, 0));
-    for(int i=1; i<= max_states[0]/0.01; i++)
+    for(int i=1; i<= max_states[0]/DT; i++)
     {
         // create new state from old
-        state newstate = system(x.back(), 0.01, 0);
+        state newstate = system(x.back(), DT, 0);
 
         // push_back
         x.push_back(newstate);

@@ -5,41 +5,36 @@ from pylab import *
 
 if __name__ == "__main__":
 
-    fig = figure()
     rrgp = open("rrgp.dat", 'r')
     traj = open("traj.dat", 'r')
 
-    NUM_DIM = 4
-
-    """    
+    NUM_DIM = 2
+    
+    """
     #t1, x1, t2, x2, prob, delt
     rrg = open("rrg.dat", 'r')
     if rrg:
+        figure(1)
         lines = rrg.readlines()
         for l in lines:
             s = l.split('\t')
             tx = [float(s[0]),float(s[2])]
             ty = [float(s[1]), float(s[3])]
-            plot(tx, ty, 'k-', lw=0.5, alpha=float(s[4]))
+            plot(tx, ty, 'k-', lw= float(s[4])/3.0, alpha=0.5 )
 
     rrg.close()
     """
 
-    rrgpt = []
-    rrgpx = []
-    rrgpy = []
-    rrgpth = []
-    rrgp = open("rrgp.dat", 'r')
-    if rrgp:
-        lines = rrgp.readlines()
+    rrgp = []
+    rrgpf = open("rrgp.dat", 'r')
+    if rrgpf:
+        lines = rrgpf.readlines()
         for l in lines:
             s = l.split('\t')
-            rrgpt.append(float(s[0]))
-            rrgpx.append(float(s[1]))
-            rrgpy.append(float(s[2]))
-            rrgpth.append(float(s[3]))
+            to_put = [ float(s[i]) for i in range(NUM_DIM) ]
+            rrgp.append( to_put )
 
-    rrgp.close()
+    rrgpf.close()
 
     if traj:
         lines = traj.readlines()
@@ -90,31 +85,31 @@ if __name__ == "__main__":
     axplot.add_patch(circle)
     """
     
+    rrgp = array (rrgp)
     sys = array(sys)
     obs = array(obs)
     bp = array(bp)
     kf = array(kf)
 
-    figure(1)
     PLOT_RRG = (int)(argv[1])
     SAVE = (int) (argv[2])
 
     for i in range(NUM_DIM-1):
         
         if i == 0:
-            subplot(311, aspect='auto')
+            #subplot(311, aspect='auto')
             if PLOT_RRG:
-                plot(rrgpt, rrgpx, 'yo', ms=3.0)
+                plot(rrgp[:,0], rrgp[:,1], 'yo', ms=3.0)
             ylabel('x')
         elif i == 1:
-            subplot(312, aspect='auto')
+            #subplot(312, aspect='auto')
             if PLOT_RRG:
-                plot(rrgpt, rrgpy, 'yo', ms=3.0)
+                plot(rrgp[:,0], rrgp[:,2], 'yo', ms=3.0)
             ylabel('y')
         elif i == 2:
-            subplot(313, aspect='auto')
+            #subplot(313, aspect='auto')
             if PLOT_RRG:
-                plot(rrgpt, rrgpth, 'yo', ms=3.0)
+                plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0)
             ylabel('th')
 
         plot( sys[:,0], sys[:,i+1], 'r-', label='sys')
