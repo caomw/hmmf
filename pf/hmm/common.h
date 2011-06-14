@@ -40,7 +40,8 @@ class vertex{
         state s;
         // prob of best path that ends up here incorporating obs
         double prob;
-         
+        bool is_open;
+
         // parent of the best path
         vertex *prev;
         vertex *next;
@@ -57,7 +58,8 @@ class vertex{
 
             prev = NULL;
             next = NULL;
-            prob = -10;
+            prob = MIN_PROB_LOG;
+            is_open = 0;
         }
         ~vertex(){};
 };
@@ -73,7 +75,7 @@ class edge{
         edge(vertex *f, vertex *t, double time){
             from = f;
             to = t;
-            prob = 0;
+            prob = 1;
             delt = time;
         }
         edge reverse(){

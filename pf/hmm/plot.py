@@ -9,21 +9,24 @@ if __name__ == "__main__":
     traj = open("traj.dat", 'r')
 
     NUM_DIM = 2
-    
-    """
-    #t1, x1, t2, x2, prob, delt
-    rrg = open("rrg.dat", 'r')
-    if rrg:
-        figure(1)
-        lines = rrg.readlines()
-        for l in lines:
-            s = l.split('\t')
-            tx = [float(s[0]),float(s[2])]
-            ty = [float(s[1]), float(s[3])]
-            plot(tx, ty, 'k-', lw= float(s[4])/3.0, alpha=0.5 )
+    draw_edges = int(argv[3])
+    if draw_edges:
+        #t1, x1, t2, x2, prob, delt
+        rrg = open("rrg.dat", 'r')
+        if rrg:
+            figure(1)
+            lines = rrg.readlines()
+            for l in lines:
+                s = l.split('\t')
+                tx = [float(s[0]),float(s[2])]
+                ty = [float(s[1]), float(s[3])]
+                if float(s[4]) > 2.0:
+                    tmp_alpha = 1.0
+                else:
+                    tmp_alpha = float(s[4])/2.0
+                plot(tx, ty, 'k-', alpha = tmp_alpha, lw=0.5 )
 
-    rrg.close()
-    """
+        rrg.close()
 
     rrgp = []
     rrgpf = open("rrgp.dat", 'r')
@@ -128,3 +131,9 @@ if __name__ == "__main__":
         savefig("run.png")
     show()
     
+    """
+    close_flag = raw_input("Press q to close")
+    if(close_flag == 'q'):
+        close('all')
+    exit(0)
+    """

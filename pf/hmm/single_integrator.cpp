@@ -4,22 +4,25 @@
 
 #define NUM_PARTICLES       (100)
 #define dM                  (100)
-#define GAMMA               (0.1)
-#define BOWLR               (GAMMA*pow( log( rrg.num_vert)/ rrg.num_vert, 1.0/NUM_DIM) )
+#define GAMMA               (0.5)
+//#define BOWLR               (GAMMA*pow( log( rrg.num_vert)/ rrg.num_vert, 1.0/NUM_DIM) )
+#define BOWLR               (0.02)
 #define DT                  (0.01)
-#define EXTEND_DIST         (0.1)
+#define EXTEND_DIST         (max_states[0])
 #define TIME_SCALE          (1.0)
 #define BOWLR_OBS           (0.5)
 
 #define randf               (rand()/(RAND_MAX + 1.0))
+
+#define MIN_PROB_LOG        (0)
 
 #include "common.h"
 #include "kdtree.h"
 #include "figtree.h"
 
 // limits of states
-double max_states[NUM_DIM] = {0.5, 0.7};
-double min_states[NUM_DIM] = {0.0, 0.3};
+double max_states[NUM_DIM] = {0.2, 0.6};
+double min_states[NUM_DIM] = {0.0, 0.2};
 
 state sample()
 {
@@ -36,6 +39,8 @@ graph rrg;
 vector<state> x, y, best_path;
 vector<state> simx;
 vector<state> xhat( (max_states[0]/DT) + 1);
+vector<vertex *> open_vertices;
+
 
 double INIT_VAR[3] = {1e-4, 1e-4, 1e-4};
 double OBS_VAR[3] = {1e-4, 1e-4, 1e-4};
@@ -160,12 +165,12 @@ vertex* nearest_vertex(state s)
     return v;
 }
 
-inline int edge_index_connected_vertex(vertex *start, vertex *tocheck)
+int edge_index_connected_vertex(vertex *end, vertex *tocheck)
 {
     int index = -1;
-    for(int i=0; i< (int)start->edgeout.size(); i++)
+    for(int i=0; i< (int)end->edgein.size(); i++)
     {
-        if( (start->edgeout[i])->to == tocheck)
+        if( (end->edgein[i])->from == tocheck)
             index = i;
     }
     return index;
@@ -175,17 +180,9 @@ inline int edge_index_connected_vertex(vertex *start, vertex *tocheck)
 void normalize_edges(vertex *from)
 {
     DepthTag dtag;
-    
-    double maxprob = 0;
-    edge *besteout = NULL;
     double totprob = 0;
     for(unsigned int i=0; i< from->edgeout.size(); i++)
     {
-        if(from->edgeout[i]->prob > maxprob)
-        {
-            maxprob = from->edgeout[i]->prob;
-            besteout = from->edgeout[i];
-        }
         totprob += from->edgeout[i]->prob;
     }
     // normalize
@@ -262,7 +259,7 @@ double get_edge_prob_particles(state xinit, double till_obs, double post_obs, st
     //lout<<" mean: "<< mean <<" var: "<< var <<endl;
     
     double tocalci[NUM_DIM-1] = { xend.x[1] } ;
-    double target_w = normal_val( mean, var, tocalci, NUM_DIM-1);
+    double target_w = normal_val( mean, var, tocalci, NUM_DIM-1) * (PI*BOWLR*BOWLR)/log(rrg.num_vert);
    
 
     //if( post_obs < 0)
@@ -273,7 +270,7 @@ double get_edge_prob_particles(state xinit, double till_obs, double post_obs, st
 
 void write_next_prev(vertex *v)
 {
-    double max_prob = 0;
+    double max_prob = MIN_PROB_LOG;
     for(unsigned int i=0; i< v->edgeout.size(); i++)
     {
         edge *etmp = v->edgeout[i];
@@ -284,7 +281,7 @@ void write_next_prev(vertex *v)
         }
     }
 
-    max_prob = 0;
+    max_prob = MIN_PROB_LOG;
     for(unsigned int i=0; i< v->edgein.size(); i++)
     {
         edge *etmp = v->edgein[i];
@@ -299,13 +296,13 @@ void write_next_prev(vertex *v)
 
 void write_viterbi( vertex *v )
 {
-    double max_prob = -100;
+    double max_prob = MIN_PROB_LOG;
     for(unsigned int i=0; i< v->edgein.size(); i++)
     {
         edge *etmp = v->edgein[i];
-        if( ( (etmp->prob) + (etmp->from->prob) ) > max_prob)
+        if( ( (etmp->prob) * (etmp->from->prob) ) > max_prob)
         {
-            max_prob = ( (etmp->prob) + (etmp->from->prob) );
+            max_prob = ( (etmp->prob) * (etmp->from->prob) );
             v->prev = etmp->from;
             v->prob = max_prob;
         }
@@ -316,7 +313,7 @@ void write_viterbi( vertex *v )
 void update_obs_prob(state yt)
 {
     DepthTag dtag;
-    double edge_prob_threshold = -5;
+    double edge_prob_threshold = -1e6;
 
     double *obs_state = yt.x;
     double pos[NUM_DIM] = {0};
@@ -339,7 +336,7 @@ void update_obs_prob(state yt)
                 //lout<<"till_obs: "<<till_obs<<" post_obs: "<<post_obs<<endl;
                 
                 // change by particles
-                etmp->prob = log( get_edge_prob_particles( v->s, till_obs, post_obs, etmp->to->s, yt ) );
+                etmp->prob = (etmp->prob) + ( get_edge_prob_particles( v->s, till_obs, post_obs, etmp->to->s, yt ) );
                 
                 if( etmp->prob < edge_prob_threshold)
                 {
@@ -355,6 +352,7 @@ void update_obs_prob(state yt)
         //write_next_prev(v);
     }
     
+    /*
     kd_res_rewind( res);
     while( !kd_res_end(res))
     {
@@ -362,13 +360,13 @@ void update_obs_prob(state yt)
         write_viterbi(v);
         kd_res_next(res);
     }
-
+    */
     kd_res_free(res);
 }
 
 void draw_edges(vertex *v)
 {
-    double edge_prob_threshold = -5;
+    double edge_prob_threshold = -1e6;
     DepthTag dtag;
     
     double pos[NUM_DIM] = {0};
@@ -399,7 +397,7 @@ void draw_edges(vertex *v)
                 v->edgeout.push_back(e1);
                 v1->edgein.push_back(e1);
                 double prob = get_edge_prob_particles(v->s, e1->delt, -1, v1->s, dummy);
-                e1->prob = log(prob);
+                e1->prob = prob;
                 //cout<< "e->prob: " << prob << endl;       
                 
                 if( prob < edge_prob_threshold)
@@ -415,7 +413,7 @@ void draw_edges(vertex *v)
                 v->edgein.push_back(e2);
                 v1->edgeout.push_back(e2);
                 double prob = get_edge_prob_particles(v1->s, e2->delt, -1, v->s, dummy);
-                e2->prob = log(prob);
+                e2->prob = prob;
                 //cout<< "e->prob: " << prob << endl;               
                 
                 if( prob < edge_prob_threshold)
@@ -451,7 +449,7 @@ void add_sample(vertex *v)
                 v->s.x[i] = near->s.x[i] + (v->s.x[i] - near->s.x[i])*EXTEND_DIST/d;
         }
     }
-
+    
     draw_edges (v);
     //cout<<"i: "<< rrg.vlist.size()-1 << " edges- in: " << v->edgein.size() << " out: "<< v->edgeout.size() << endl;
 
@@ -460,7 +458,9 @@ void add_sample(vertex *v)
         toput[i] = v->s.x[i];
     toput[0] = toput[0]/TIME_SCALE;
    
-    bool add_vertex = 0;
+    
+    bool add_vertex = 1;
+    /*
     if( rrg.num_vert > 2*dM)
     {
         if ( v->edgein.size() != 0)
@@ -470,7 +470,7 @@ void add_sample(vertex *v)
     {
         add_vertex = 1;
     }
-    
+    */
     if ( add_vertex)
     {
         rrg.add_vertex(v);
@@ -485,35 +485,52 @@ void get_best_path()
 {
     double pos[NUM_DIM] = {0};
     kdres *res;
-    res = kd_nearest_range(state_tree, (x.back()).x, max_states[1]/2);
-    double max_prob = -100;
+    res = kd_nearest_range(state_tree, (x.back()).x, BOWLR_OBS);
+    double max_prob = MIN_PROB_LOG;
     vertex *vcurr = NULL;
-    cout<< "did kdtree query with: "<< max_states[1]/2 << " size: " << kd_res_size(res) << endl;
+    cout<< "did kdtree query with: "<< 1.0 << " size: " << kd_res_size(res) << endl;
 
     while( !kd_res_end(res))
     {
         vertex *vtmp = (vertex *)kd_res_item(res, pos);
-        if( fabs(vtmp->s.x[0] - max_states[0]) < 2*DT)
+        if( fabs(vtmp->s.x[0] - max_states[0]) < DT)
         {
             if( vtmp->prob > max_prob)
             {
                 vcurr = vtmp;
                 max_prob = vtmp->prob;
             }
-            cout<< vtmp->prob << endl;
+            //cout<< vtmp->prob << endl;
         }
 
         kd_res_next(res);
     }
     kd_res_free(res);
-
-    cout<<"Found last: "<< vcurr->s.x[0]<<" "<< vcurr->s.x[1] << " " << vcurr->prob<< endl;
-
+    
+    if( vcurr != NULL)
+        cout<<"Found last: "<< vcurr->s.x[0]<<" "<< vcurr->s.x[1] << " " << vcurr->prob<< endl;
+    else
+    {
+        cout<<"Couldn't find vcurr, quitting" << endl;
+        return;
+    }
     best_path.clear();
     while( vcurr != NULL)
     {
         best_path.push_back( vcurr->s );
+        
+        /*
+        cout<<" all edges are" << endl;
+        for(unsigned int i=0; i< vcurr->edgein.size(); i++)
+        {
+            cout<<"edge i: "<< i << " : " << (vcurr->edgein[i]->prob) * (vcurr->edgein[i]->from->prob) << endl;
+        }
+        cout<<"chose: "<< edge_index_connected_vertex(vcurr, vcurr->prev) << endl;
+        cout<<"getchar: "; getchar();
+        */
+
         vcurr = vcurr->prev;
+         
     }
     cout<< "wrote best_path" << endl;
 }
@@ -537,7 +554,7 @@ void print_rrg()
 }
 
 
-void get_hmmf_path()
+void create_rrg()
 {
     DepthTag dtag;
     
@@ -546,54 +563,96 @@ void get_hmmf_path()
     for(int i=1; i<NUM_DIM; i++)
         start_state.x[i] = 0.5;
 
-
     double start_time = get_msec();
-    
     double mean = start_state.x[1];
     
-    // add first vertex and init_var
+    // add vertices at the beginning
     for(int i=0; i< dM; i++)
     {
         vertex *v = new vertex( sample() );
-        v->s.x[0] = y[0].x[0];                  // same time
-
+        v->s.x[0] = y[0].x[0];
         double tocalci = v->s.x[1];
-        v->prob = log( normal_val( &mean, INIT_VAR, &tocalci, NUM_DIM-1) );
+        v->prob = normal_val( &mean, INIT_VAR, &tocalci, NUM_DIM-1);
         //cout<< "vinit->prob: "<< v->s.x[1]<<" " << v->prob << endl;
         v->prev = NULL;
+        
         add_sample(v);
+        open_vertices.push_back( v );
     }
-    update_obs_prob(y[0]);
-
     // start filter here
-    for(unsigned int j = 1; j < y.size(); j++)
+    for(unsigned int j = 0; j < y.size(); j++)
     {
         for(int i=0; i< dM; i++)
         {
             vertex *v = new vertex( sample() );
+            //v->s.x[0] = y[j].x[0];
             add_sample(v);
         }
-        update_obs_prob(y[j]);
-
         //print_rrg();
         //cout<<"getchar: "; getchar();
         
         if( j % 5 == 0)
             lout<<"i: "<<j<<" bowl: "<< BOWLR << endl;
     }
-   
-    lout<<"\nfinished exec, getting best path" << endl;
-    //get_best_path();
+    
+    for(unsigned int j = 0; j < y.size(); j++)
+    {
+        update_obs_prob(y[j]);
+    }
+    
     lout<<"exec time: "<< (get_msec() - start_time)/1000.0 <<" [s]"<< endl;
 }
 
+void normalize_rrg()
+{
+    cout<<"Normalizing" << endl;
+    for(unsigned int i=0; i< rrg.vlist.size(); i++)
+    {
+        vertex *v = rrg.vlist[i];
+        normalize_edges( v );
+    }
+    
+    cout<<"Doing viterbi: "<< rrg.num_vert<<" vertices"<<endl; 
+    
+    // do Dijkstra's
+    unsigned int tot_is_open = open_vertices.size();
+    int iter = 0;
+    cout<<"iter: "<<iter<<" tot_open: "<< tot_is_open<<endl;
+    while( tot_is_open != 0)
+    {
+        vertex *v = open_vertices.front();
+        open_vertices.erase( open_vertices.begin() );
+        write_viterbi( v);
+
+        for(int i=0; i< v->edgeout.size(); i++)
+        {
+            if( v->edgeout[i]->to != open_vertices.back() )
+            {
+                vector<vertex *>::iterator opv_iter;
+                opv_iter = find( open_vertices.begin(), open_vertices.end(), v->edgeout[i]->to);
+                
+                if(opv_iter == open_vertices.end())
+                    open_vertices.push_back( v->edgeout[i]->to );
+            }
+        }
+        tot_is_open = open_vertices.size();
+        iter++;
+        /* 
+        if( iter %100 == 0)
+            cout<<"iter: "<<iter<<" tot_open: "<< tot_is_open<<endl;
+        //cout<<"getchar: "; getchar();
+        */
+    }
+}
+
+
 int main()
 {
-
     g_depth = 0;
     g_logDepth = 1;
 
-    srand(time(0));
+    srand( 0 );
+
     state_tree = kd_create(NUM_DIM);
 
     state x0; x0.x[0] = 0;
@@ -613,8 +672,13 @@ int main()
     }
     
     // get path from hmm filter
-    get_hmmf_path();
+    create_rrg();
 
+    normalize_rrg();
+
+    lout<<"\nfinished exec, getting best path" << endl;
+    get_best_path();
+    
     plot_rrg();
     plot_traj();
 
