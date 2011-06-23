@@ -13,7 +13,7 @@ INC = -I./
 LIBS = -L./
 
 CFLAGS = -g -pg -O0
-LDFLAGS = -lfigtree -lann_figtree_version
+LDFLAGS =
 
 all: $(BIN)
 	rm -rf *.dat
@@ -64,5 +64,5 @@ single_integrator.o: /usr/include/libkern/i386/_OSByteOrder.h
 single_integrator.o: /usr/include/alloca.h /usr/include/machine/types.h
 single_integrator.o: /usr/include/i386/types.h /usr/include/sys/time.h
 single_integrator.o: /usr/include/time.h /usr/include/_structs.h
-single_integrator.o: /usr/include/sys/_select.h Logger.h kdtree.h figtree.h
+single_integrator.o: /usr/include/sys/_select.h Logger.h kdtree.h
 Logger.o: Logger.h

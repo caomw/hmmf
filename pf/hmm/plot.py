@@ -8,8 +8,12 @@ if __name__ == "__main__":
     rrgp = open("rrgp.dat", 'r')
     traj = open("traj.dat", 'r')
 
-    NUM_DIM = 2
-    draw_edges = int(argv[3])
+    if len(argv) > 1:
+        NUM_DIM = int(argv[1])
+    else:
+        NUM_DIM = 2
+
+    draw_edges = 0
     if draw_edges:
         #t1, x1, t2, x2, prob, delt
         rrg = open("rrg.dat", 'r')
@@ -93,24 +97,24 @@ if __name__ == "__main__":
     obs = array(obs)
     bp = array(bp)
     kf = array(kf)
-
-    PLOT_RRG = (int)(argv[1])
-    SAVE = (int) (argv[2])
+    
+    PLOT_RRG = 1
+    SAVE = 0
 
     for i in range(NUM_DIM-1):
         
         if i == 0:
-            #subplot(311, aspect='auto')
+            subplot(311, aspect='auto')
             if PLOT_RRG:
                 plot(rrgp[:,0], rrgp[:,1], 'yo', ms=3.0)
             ylabel('x')
         elif i == 1:
-            #subplot(312, aspect='auto')
+            subplot(312, aspect='auto')
             if PLOT_RRG:
                 plot(rrgp[:,0], rrgp[:,2], 'yo', ms=3.0)
             ylabel('y')
         elif i == 2:
-            #subplot(313, aspect='auto')
+            subplot(313, aspect='auto')
             if PLOT_RRG:
                 plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0)
             ylabel('th')

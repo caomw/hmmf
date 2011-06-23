@@ -58,7 +58,7 @@ class vertex{
 
             prev = NULL;
             next = NULL;
-            prob = MIN_PROB_LOG;
+            prob = MIN_PROB;
             is_open = 0;
         }
         ~vertex(){};
@@ -114,23 +114,23 @@ class graph{
             // delete all edges from v and its neighbors
             for(vector<edge *>::iterator i = v->edgein.begin(); i != v->edgein.end(); i++)
             {
-                edge *e = *i;
-                
+                edge *etmp = *i;
+                /*                
                 vector<edge *>::iterator edge_iter;
-                edge_iter = find( e->from->edgeout.begin(), e->from->edgeout.end(), e);
-                e->from->edgeout.erase( edge_iter );
-
-                delete e;
+                edge_iter = find( etmp->from->edgeout.begin(), etmp->from->edgeout.end(), etmp);
+                etmp->from->edgeout.erase( edge_iter );
+                */
+                delete etmp;
             }
             for(vector<edge *>::iterator i = v->edgeout.begin(); i != v->edgeout.end(); i++)
             {
-                edge *e = *i;
-                
+                edge *etmp = *i;
+                /*
                 vector<edge *>::iterator edge_iter;
-                edge_iter = find( e->to->edgein.begin(), e->to->edgein.end(), e);
-                e->to->edgein.erase( edge_iter );
-
-                delete e;
+                edge_iter = find( etmp->to->edgein.begin(), etmp->to->edgein.end(), etmp);
+                etmp->to->edgein.erase( edge_iter );
+                */
+                delete etmp;
             }
             
             // finally delete v
