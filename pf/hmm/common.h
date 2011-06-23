@@ -111,28 +111,25 @@ class graph{
             iter = find(vlist.begin(), vlist.end(), v);
             vlist.erase(iter);
             
+            vector<edge *> tmp_ein;
+            vector<edge *> tmp_eout;
+
             // delete all edges from v and its neighbors
             for(vector<edge *>::iterator i = v->edgein.begin(); i != v->edgein.end(); i++)
             {
                 edge *etmp = *i;
-                /*                
-                vector<edge *>::iterator edge_iter;
-                edge_iter = find( etmp->from->edgeout.begin(), etmp->from->edgeout.end(), etmp);
-                etmp->from->edgeout.erase( edge_iter );
-                */
-                delete etmp;
+                tmp_ein.push_back(etmp);
             }
             for(vector<edge *>::iterator i = v->edgeout.begin(); i != v->edgeout.end(); i++)
             {
                 edge *etmp = *i;
-                /*
-                vector<edge *>::iterator edge_iter;
-                edge_iter = find( etmp->to->edgein.begin(), etmp->to->edgein.end(), etmp);
-                etmp->to->edgein.erase( edge_iter );
-                */
-                delete etmp;
+                tmp_eout.push_back(etmp);
             }
-            
+            for(unsigned int i=0; i< tmp_ein.size(); i++)
+                delete tmp_ein[i];
+            for(unsigned int i=0; i< tmp_eout.size(); i++)
+                delete tmp_eout[i];
+
             // finally delete v
             delete v;
         }

@@ -99,24 +99,25 @@ if __name__ == "__main__":
     kf = array(kf)
     
     PLOT_RRG = 1
-    SAVE = 0
+    SAVE = 1
+    fig = figure(1)
 
     for i in range(NUM_DIM-1):
         
         if i == 0:
-            subplot(311, aspect='auto')
+            #subplot(311, aspect='auto')
             if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,1], 'yo', ms=3.0)
+                plot(rrgp[:,0], rrgp[:,1], 'yo', ms=3.0, alpha = 0.3)
             ylabel('x')
         elif i == 1:
-            subplot(312, aspect='auto')
+            #subplot(312, aspect='auto')
             if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,2], 'yo', ms=3.0)
+                plot(rrgp[:,0], rrgp[:,2], 'yo', ms=3.0, alpha = 0.3)
             ylabel('y')
         elif i == 2:
-            subplot(313, aspect='auto')
+            #subplot(313, aspect='auto')
             if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0)
+                plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0, alpha = 0.3)
             ylabel('th')
 
         plot( sys[:,0], sys[:,i+1], 'r-', label='sys')
@@ -130,9 +131,26 @@ if __name__ == "__main__":
 
         #legend() 
         grid()
-
+        xlabel('t [s] ')
+        ylabel('x')
+        legend()
+    
+    axplot = fig.add_subplot(111)
+    rect = Rectangle( (.127, 0), .26-.127, .217, fc='blue', alpha = 0.2)
+    axplot.add_patch(rect)
+    rect = Rectangle( (.1, .32), .2 - .1, .5 - .32, fc='blue', alpha = 0.2)
+    axplot.add_patch(rect)
+    
     if SAVE:
-        savefig("run.png")
+        fig.savefig("run.pdf")
+
+    """
+    figure(2)
+    plot(sys[:,1], sys[:,2], 'r-', label='sys')
+    plot(bp[:,1], bp[:,2], 'g-', label='hmm')
+    grid()
+    """
+
     show()
     
     """

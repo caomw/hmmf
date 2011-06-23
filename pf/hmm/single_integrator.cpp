@@ -1,27 +1,74 @@
 // first dim is time
-#define NUM_DIM             (3)
+#define NUM_DIM             (2)
 #define PI                  (3.14156)
 
-#define dM                  (50)
+#define dM                  (200)
 #define NUM_PARTICLES       (100)
 #define GAMMA               ((max_states[1] - min_states[1]))
 #define BOWLR               (GAMMA*pow( log( rrg.num_vert)/ rrg.num_vert, 1.0/NUM_DIM) )
+// #define BOWLR               (0.5)
 #define DT                  (0.01)
 #define EXTEND_DIST         (max_states[0])
 #define TIME_SCALE          (1.0)
-#define BOWLR_OBS           (3*1e-2)
+#define BOWLR_OBS           (3*sqrt(OBS_VAR[0]))
 
 #define randf               (rand()/(RAND_MAX + 1.0))
 
 #define MIN_PROB            (0)
-#define EDGE_PROB_THRESH    (0)
+#define EDGE_PROB_THRESH    (1e-10)
+#define NODE_PROB_THRESH    (1e-10)
 
 #include "common.h"
 #include "kdtree.h"
 
 // limits of states
-double max_states[3] = {0.1, 0.6, 0.6};
-double min_states[3] = {0.0, 0.3, 0.3};
+double max_states[4] = {0.5, 0.6, 0.6, 0.6};
+double min_states[4] = {0.0, -0.1, -0.1, 0.0};
+
+kdtree *state_tree;
+graph rrg;
+vector<state> x, y, best_path;
+vector<state> xkf( (max_states[0]/DT) + 1);
+vector<vertex *> open_vertices;
+
+
+double INIT_VAR[3] = {1e-4, 1e-4, 1e-4};
+double OBS_VAR[3] = {1e-2, 1e-2, 1e-2};
+double PRO_VAR[3] = {1e-2, 1e-2, 1e-2};                       // noise of the continuous process
+
+
+int is_free(state s)
+{
+    bool retflag = 0;
+    
+    // obs 1
+    if( (s.x[0] >= 0.127) && (s.x[0] <= 0.26) )
+    {
+        if( (s.x[1] >= 0) && (s.x[1] <= .217) )
+            retflag = 0;
+        else
+            retflag = 1;
+    }
+    else
+        retflag = 1;
+
+    if (retflag == 0)
+        return 0;
+
+    // obs 2
+    if( (s.x[0] >= 0.1) && (s.x[0] <= 0.2) )
+    {
+        if( (s.x[1] >= .32) && (s.x[1] <= .5) )
+            retflag = 0;
+        else
+            retflag = 1;
+    }
+    else
+        retflag = 1;
+    
+    return retflag;
+}
+
 
 state sample()
 {
@@ -30,20 +77,12 @@ state sample()
     {
         s.x[i] = min_states[i] + randf*( max_states[i] - min_states[i]);
     }
-    return s;
+
+    if( is_free(s) )
+        return s;
+    else
+        s = sample();
 }
-
-kdtree *state_tree;
-graph rrg;
-vector<state> x, y, best_path;
-vector<state> simx;
-vector<state> xhat( (max_states[0]/DT) + 1);
-vector<vertex *> open_vertices;
-
-
-double INIT_VAR[3] = {1e-4, 1e-4, 1e-4};
-double OBS_VAR[3] = {1e-4, 1e-4, 1e-4};
-double PRO_VAR[3] = {1e-4, 1e-4, 1e-4};                       // noise of the continuous process
 
 state system(state s, double time, int is_clean)
 {
@@ -62,7 +101,7 @@ state system(state s, double time, int is_clean)
     {
         tmp[i] = 0;
         mean[i] = 0;
-        var[i] = PRO_VAR[i]/2*( exp(2*time) - 1);
+        var[i] = PRO_VAR[i]/6*( exp(6*time) - 1);
     }
     multivar_normal( mean, var, tmp, NUM_DIM-1);
    
@@ -74,7 +113,7 @@ state system(state s, double time, int is_clean)
 
     t.x[0] = t.x[0] + time;
     for(int i=1; i<NUM_DIM; i++)
-        t.x[i] = exp(-1*time)*t.x[i] + tmp[i-1];
+        t.x[i] = exp(-3*time)*t.x[i] + tmp[i-1];
      
     delete[] var;
     delete[] mean;
@@ -174,6 +213,16 @@ void plot_traj()
         traj<<endl;
     }
     
+    traj<<"kf_path"<<endl;
+    lout<<"kf_path"<<endl;
+    for(int i=0; i< (int)xkf.size()-1; i++)
+    {
+        for(int j=0; j< NUM_DIM; j++)
+        {
+            traj << xkf[i].x[j]<<"\t";
+        }
+        traj<<endl;
+    }
     lout<<"plotting traj done" << endl;
     traj.close();
 }
@@ -204,7 +253,6 @@ int edge_index_connected_vertex(vertex *end, vertex *tocheck)
     return index;
 }
 
-// writes the best and normalizes
 void normalize_edges(vertex *from)
 {
     DepthTag dtag;
@@ -221,47 +269,95 @@ void normalize_edges(vertex *from)
     }
 }
 
-double get_edge_prob_particles(state xinit, double till_obs, double post_obs, state xend, state obs)
+double get_edge_prob_obs(state xinit, double till_obs, state obs)
 {
     DepthTag dtag;
     
     state parts[NUM_PARTICLES];
-    double weights[NUM_PARTICLES] = {0};
 
-    double totw = 0, totw2 = 0;
     //lout<< "xinit: "<< xinit.x[0] << endl;
 
     for(int i=0; i< NUM_PARTICLES; i++)
     {
         parts[i] = (  system(xinit, till_obs, 0) );        // propagated particles directly
-        weights[i] = 1.0/(double)NUM_PARTICLES ; 
+    }
+    
+    double *mean = new double[NUM_DIM-1];
+    double *var = new double[NUM_DIM-1];
+    double *tocalci = new double[NUM_DIM-1];
+    double *tocalci_obs = new double[NUM_DIM-1];
+    for(int j=1; j<NUM_DIM; j++)
+    {
+        tocalci_obs[j-1] = obs.x[j];
+    }
+    
+    for(int i=0; i < NUM_PARTICLES; i++)
+    {
+        //lout<< "px: "<< parts[i].x[1] << " obs: " << obs.x[1] << endl;
+        for(int j=1; j<NUM_DIM; j++)
+        {
+            mean[j-1] += parts[i].x[j];
+        }
+    }
+    
+    for(int i=0; i < NUM_PARTICLES; i++)
+    {
+        for(int j=1; j<NUM_DIM; j++)
+        {
+            var[j-1] += sq(parts[i].x[j] - mean[j-1]);
+        } 
+    } 
+    for(int j=1; j<NUM_DIM; j++)
+    {
+        mean[j-1] = mean[j-1]/NUM_PARTICLES;
+        var[j-1] = var[j-1] / (NUM_PARTICLES-1);
+    }
+    
+    double retval = 0;
+    for(int i=0; i < NUM_PARTICLES; i++)
+    {
+        for(int j=1; j<NUM_DIM; j++)
+        {
+            tocalci[j-1] = parts[i].x[j];
+        } 
+        //retval += normal_val( mean, var, tocalci, NUM_DIM-1) * ( normal_val(tocalci, OBS_VAR, tocalci_obs, NUM_DIM-1) );
+        retval += normal_val(tocalci, OBS_VAR, tocalci_obs, NUM_DIM-1);
+    }
+    double volume_parts = 0;
+    if (NUM_DIM == 2)
+        volume_parts = 3*sqrt(var[0]);
+    else if( NUM_DIM == 3)
+        volume_parts = PI*9*sqrt((var[0])*(var[1]));
+    else if( NUM_DIM == 4)
+        volume_parts = 4*PI/3*27*sqrt((var[0])*(var[1])*(var[2]));
+    
+    retval = volume_parts*retval/(NUM_PARTICLES);
+
+    delete[] mean;
+    delete[] var;
+    delete[] tocalci;
+    delete[] tocalci_obs;
+
+    return retval;
+}
+
+double get_edge_prob_system(state xinit, double till_end, state xend)
+{
+    DepthTag dtag;
+    
+    state parts[NUM_PARTICLES];
+
+    //lout<< "xinit: "<< xinit.x[0] << endl;
+
+    for(int i=0; i< NUM_PARTICLES; i++)
+    {
+        parts[i] = (  system(xinit, till_end, 0) );        // propagated particles directly
     }
     
     double *mean = new double[NUM_DIM-1];
     double *var = new double[NUM_DIM-1];
     double *tocalci = new double[NUM_DIM-1];
     
-    for(int i=0; i < NUM_PARTICLES; i++)
-    {
-        if ( post_obs >= 0)
-        {
-            //lout<< "px: "<< parts[i].x[1] << " obs: " << obs.x[1] << endl;
-            state part_obs = observation( parts[i], 1);
-            double *part_obs_p = part_obs.x;
-
-            for(int j=1; j<NUM_DIM; j++)
-            {
-                mean[j-1] = obs.x[j];
-                //tocalci[j-1] = parts[i].x[j];
-            }
-
-            weights[i] = normal_val( mean, OBS_VAR, part_obs_p, NUM_DIM-1 ); 
-        }
-        //cout<< "w: " << weights[i] << endl;
-
-        totw += weights[i];
-        totw2 += sq(weights[i]);
-    }
     //cout<< "post_obs: "<< post_obs<< " tot: " << totw << " " << totw2 << endl;
 
     for(int i=0; i<NUM_DIM-1; i++)
@@ -273,29 +369,26 @@ double get_edge_prob_particles(state xinit, double till_obs, double post_obs, st
 
     for(int i=0; i< NUM_PARTICLES; i++)
     {
-        if ( post_obs >= 0)
-            parts[i] = system( parts[i], post_obs, 0 );            // get new states
-
         for(int j=1; j< NUM_DIM; j++)
         {
-            mean[j-1] += (parts[i].x[j]) * weights[i];
+            mean[j-1] += (parts[i].x[j]);
         }
     }
     for(int j=1; j< NUM_DIM; j++)
     {
-        mean[j-1] = mean[j-1]/totw;
+        mean[j-1] = mean[j-1]/(NUM_PARTICLES);
         //cout<< "mean: "<< j << " " << mean[j-1] << endl;
     }
     for(int i=0; i< NUM_PARTICLES; i++)
     {
         for(int j=1; j< NUM_DIM; j++)
         {
-            var[j-1] += weights[i]*sq (parts[i].x[j] - mean[j]);
+            var[j-1] += sq (parts[i].x[j] - mean[j-1]);
         }
     }
     for(int j=1; j< NUM_DIM; j++)
     {
-        var[j-1] = totw*var[j-1]/(totw*totw - totw2);
+        var[j-1] = var[j-1]/(NUM_PARTICLES - 1);
         //cout<< "var: "<< j << " " << var[j-1] << endl;
     }
     
@@ -355,6 +448,10 @@ void write_viterbi( vertex *v )
             v->prob = max_prob;
         }
     }
+    /*
+    if( (v->prob < NODE_PROB_THRESH) && (rrg.num_vert > 10*dM) )
+        rrg.remove_vertex(v);
+    */
 }
 
 // locate all vertices within bowlr and write prob of that vertex in weights
@@ -383,22 +480,41 @@ void update_obs_prob(state yt)
                 //lout<<"till_obs: "<<till_obs<<" post_obs: "<<post_obs<<endl;
                 
                 // change by particles
-                etmp->prob = (etmp->prob) * ( get_edge_prob_particles( v->s, till_obs, post_obs, etmp->to->s, yt ) );
+                etmp->prob = (etmp->prob) * ( get_edge_prob_obs( v->s, till_obs, yt ) );
                 
                 if( etmp->prob < EDGE_PROB_THRESH)
                 {
                     //cout<< "obs made edge prob low: deleting" << endl;
                     delete etmp;
                 }
+                
+                //normalize_edges(v);
             }
         } 
-
+        
         kd_res_next(res);
 
         //write_next_prev(v);
     }
     
     kd_res_free(res);
+}
+
+int is_edge_free( edge *etmp)
+{
+    state init = etmp->from->s;
+    state end = etmp->to->s;
+
+    for(int i=0; i< 11; i++)
+    {
+        state stmp;
+        for(int j=0; j< NUM_DIM; j++)
+            stmp.x[j] = init.x[j] + (end.x[j] - init.x[j])/10*i;
+        
+        if( is_free( stmp) == 0)
+            return 0;
+    }
+    return 1;
 }
 
 void draw_edges(vertex *v)
@@ -414,7 +530,6 @@ void draw_edges(vertex *v)
     kdres *res;
     res = kd_nearest_range(state_tree, tolook, BOWLR );
     //cout<<"got "<<kd_res_size(res)<<" states"<<endl;
-    state dummy;
 
     while( !kd_res_end(res))
     {
@@ -432,11 +547,11 @@ void draw_edges(vertex *v)
                 edge *e1 = new edge(v, v1, e1t);
                 v->edgeout.push_back(e1);
                 v1->edgein.push_back(e1);
-                double prob = get_edge_prob_particles(v->s, e1->delt, -1, v1->s, dummy);
+                double prob = get_edge_prob_system(v->s, e1->delt, v1->s);
                 e1->prob = prob;
                 //cout<< "e->prob: " << prob << endl;       
                 
-                if( prob < EDGE_PROB_THRESH)
+                if( ( prob < EDGE_PROB_THRESH) || (is_edge_free(e1) == 0) )
                 {
                     //cout<< "deleting edge" << endl;
                     delete e1;
@@ -448,11 +563,11 @@ void draw_edges(vertex *v)
                 edge *e2 = new edge(v1, v, e2t);
                 v->edgein.push_back(e2);
                 v1->edgeout.push_back(e2);
-                double prob = get_edge_prob_particles(v1->s, e2->delt, -1, v->s, dummy);
+                double prob = get_edge_prob_system(v1->s, e2->delt, v->s);
                 e2->prob = prob;
                 //cout<< "e->prob: " << prob << endl;               
                 
-                if( prob < EDGE_PROB_THRESH)
+                if( ( prob < EDGE_PROB_THRESH) || (is_edge_free(e2) == 0) )
                 {
                     //cout<< "deleting edge" << endl;
                     delete e2;
@@ -474,6 +589,7 @@ void draw_edges(vertex *v)
 
 void add_sample(vertex *v)
 {
+    /*
     if( rrg.vlist.size() != 0)
     {
         vertex *near = nearest_vertex( v->s );
@@ -485,7 +601,7 @@ void add_sample(vertex *v)
                 v->s.x[i] = near->s.x[i] + (v->s.x[i] - near->s.x[i])*EXTEND_DIST/d;
         }
     }
-    
+    */
     draw_edges (v);
     //cout<<"i: "<< rrg.vlist.size()-1 << " edges- in: " << v->edgein.size() << " out: "<< v->edgeout.size() << endl;
 
@@ -521,7 +637,7 @@ void get_best_path()
 {
     double pos[NUM_DIM] = {0};
     kdres *res;
-    res = kd_nearest_range(state_tree, (x.back()).x, max_states[1]/2);
+    res = kd_nearest_range(state_tree, (x.back()).x, 0.5);
     double max_prob = MIN_PROB;
     vertex *vcurr = NULL;
     cout<< "did kdtree query with: "<< 1.0 << " size: " << kd_res_size(res) << endl;
@@ -529,7 +645,7 @@ void get_best_path()
     while( !kd_res_end(res))
     {
         vertex *vtmp = (vertex *)kd_res_item(res, pos);
-        if( fabs(vtmp->s.x[0] - max_states[0]) < DT)
+        if( fabs(vtmp->s.x[0] - max_states[0]) <= DT)
         {
             if( vtmp->prob > max_prob)
             {
@@ -576,7 +692,9 @@ void print_rrg()
     for(unsigned int i=0; i< rrg.vlist.size(); i++)
     {
         vertex *v = rrg.vlist[i];
-        cout<<"node: " << i << endl << "ei: " << endl;
+        cout<<"node: " << i << " state: " << v->s.x[0] << " " << v->s.x[1] << " " << v-> prob << endl;
+    
+        cout << "ei: " << endl;
         for(int j=0; j < v->edgein.size(); j++)
         {
             cout<<"\t "<< j << " " << v->edgein[j]->prob << endl;
@@ -683,7 +801,7 @@ void create_rrg_inc_obs_sampling()
     update_obs_prob(y[0]);
     
     // start filter here
-    for(unsigned int j = 0; j < y.size(); j++)
+    for(unsigned int j = 1; j < y.size(); j++)
     {
         curr_added_vertices.clear();
         for(int i=0; i< dM; i++)
@@ -700,17 +818,30 @@ void create_rrg_inc_obs_sampling()
         {
             vertex *v = last_added_vertices[i];
             normalize_edges (v);
+            //cout<<"j: "<< j << " prob was: "<< v->prob;
             write_viterbi(v);
+            //cout<<" is: " << v->prob << endl;
         }
         //cout<< "size of lists: " << last_added_vertices.size() << " " << curr_added_vertices.size() << endl;
         
         last_added_vertices.clear();
         last_added_vertices = curr_added_vertices;
-
+        
         //print_rrg();
         //cout<<"getchar: "; getchar();
     }
     
+    // one last update
+    for(unsigned int i=0; i< last_added_vertices.size(); i++)
+    {
+        vertex *v = last_added_vertices[i];
+        normalize_edges (v);
+        //cout<<"j: "<< j << " prob was: "<< v->prob;
+        write_viterbi(v);
+        //cout<<" is: " << v->prob << endl;
+    }
+
+    //print_rrg();
     lout<<"exec time: "<< (get_msec() - start_time)/1000.0 <<" [s]"<< endl;
 }
 
@@ -756,7 +887,7 @@ void create_rrg_inc_uniform_sampling()
         {
             vertex *v = new vertex( sample() );
             add_sample(v);
-            
+            //normalize_edges(v);
         }
         update_obs_prob(y[j]);
         
@@ -818,13 +949,46 @@ void normalize_rrg()
         tot_is_open = open_vertices.size();
         iter++;
         
-        if( iter %100 == 0)
+        if( iter % 500 == 0)
             cout<<"iter: "<<iter<<" tot_open: "<< tot_is_open<<endl;
         
         //cout<<"getchar: "; getchar();
     }
 }
 
+void get_kalman_path()
+{
+    state start_state;
+    start_state.x[0] = 0;
+    xkf[0].x[0] = start_state.x[0];
+    for(int i= 1; i< NUM_DIM; i++)
+    {
+        start_state.x[i] = 0.5;
+        xkf[0].x[i] = start_state.x[i];
+    }
+    
+    for(int dim=1; dim< NUM_DIM; dim++)
+    {
+        // create kalman filter output
+        double Q = INIT_VAR[dim];
+        for(int i= 0; i< max_states[0]/DT; i++)
+        {
+            // update xkf
+            xkf[i].x[0] = x[i].x[0];
+            state curr_obs = observation(xkf[i], 1);
+            double S = y[i].x[dim] - curr_obs.x[dim];
+            double L = Q/(Q + OBS_VAR[dim]);
+            xkf[i].x[dim] += L*S;
+
+            // update covar
+            Q = (1 - L)*Q;
+
+            // propagate
+            xkf[i+1].x[dim] = exp(-3*DT)*(xkf[i].x[dim]);
+            Q = exp(-6*DT)*Q + PRO_VAR[dim]/6*(exp(6*DT) - 1);
+        }
+    }
+}
 
 int main()
 {
@@ -864,10 +1028,13 @@ int main()
     lout<<"\nfinished exec, getting best path" << endl;
     get_best_path();
     lout<<"exec time: "<< (get_msec() - start_time)/1000.0 <<" [s]"<< endl;
+    
+    // kalman filter output
+    get_kalman_path();
 
     plot_rrg();
     plot_traj();
-
+    
     kd_free(state_tree);
     
     return 0;
