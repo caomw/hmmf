@@ -124,7 +124,7 @@ if __name__ == "__main__":
         plot( obs[:,0], obs[:,i+1], 'b-', label='obs')
         
         if len(bp) != 0:
-            plot( bp[:,0], bp[:,i+1], 'g-', label='hmm')
+            plot( bp[:,0], bp[:,i+1], 'go-', label='hmm')
         if len(kf) != 0:
             plot( kf[:,0], kf[:,i+1], 'c-', label='kf')
         

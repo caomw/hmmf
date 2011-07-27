@@ -41,6 +41,7 @@ class vertex{
         // prob of best path that ends up here incorporating obs
         double prob;
         bool is_open;
+        bool is_closed;
 
         // parent of the best path
         vertex *prev;
@@ -60,6 +61,7 @@ class vertex{
             next = NULL;
             prob = MIN_PROB;
             is_open = 0;
+            is_closed = 0;
         }
         ~vertex(){};
 };
@@ -157,7 +159,7 @@ class graph{
         };
  };
 
-double dist(state s1, state s2)
+inline double dist(state s1, state s2)
 {
     double t = 0;
     for(int i=0; i<NUM_DIM; i++)
@@ -173,7 +175,7 @@ double get_msec(){
 }
 
 // mean = 0, var = 1
-double randn()
+inline double randn()
 {
     static float x1, x2, w = 1.5;
     static bool which = 0;
@@ -195,7 +197,7 @@ double randn()
     return x1 * w;
 };
 
-void multivar_normal(double *mean, double *var, double *ret, int dim)
+inline void multivar_normal(double *mean, double *var, double *ret, int dim)
 {
     for(int i=0; i < dim; i++)
         ret[i] = mean[i] + sqrt(var[i])*randn();
