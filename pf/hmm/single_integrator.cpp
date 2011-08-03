@@ -23,8 +23,6 @@
 double max_states[4] = {0.5, 1.0, 1.0, 1.0};
 double min_states[4] = {0.0, -0.2, -0.2, 0.0};
 
-kdtree *state_tree;
-kdtree *time_tree;
 graph rrg;
 vector<state> x, y, best_path;
 vector<state> xkf( (max_states[0]/DT) + 1);
@@ -70,20 +68,6 @@ int is_free(state s)
     return retflag;
 }
 
-
-state sample()
-{
-    state s;
-    for(int i=0; i< NUM_DIM; i++)
-    {
-        s.x[i] = min_states[i] + randf*( max_states[i] - min_states[i]);
-    }
-
-    if( is_free(s) )
-        return s;
-    else
-        s = sample();
-}
 
 state system(state s, double time, int is_clean)
 {

@@ -107,17 +107,17 @@ if __name__ == "__main__":
         if i == 0:
             #subplot(311, aspect='auto')
             if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,1], 'yo', ms=3.0, alpha = 0.3)
+                plot(rrgp[:,0], rrgp[:,1], 'yo', ms=3.0, alpha = 0.6)
             ylabel('x')
         elif i == 1:
             #subplot(312, aspect='auto')
             if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,2], 'yo', ms=3.0, alpha = 0.3)
+                plot(rrgp[:,0], rrgp[:,2], 'yo', ms=3.0, alpha = 0.6)
             ylabel('y')
         elif i == 2:
             #subplot(313, aspect='auto')
             if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0, alpha = 0.3)
+                plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0, alpha = 0.6)
             ylabel('th')
 
         plot( sys[:,0], sys[:,i+1], 'r-', label='sys')
