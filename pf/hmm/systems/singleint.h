@@ -2,7 +2,7 @@
 #define __singleint_h__
 
 #include "../common.h"
-#define NUM_DIM     (2)
+#define NUM_DIM     (4)
 
 class State
 {

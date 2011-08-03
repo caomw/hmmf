@@ -2,7 +2,7 @@
 #define __hmmf_h__
 
 #include "common.h"
-#include "systems/dubins.h"
+#include "systems/singleint.h"
 
 class Edge;
 class Vertex;

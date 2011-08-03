@@ -27,8 +27,8 @@ Graph::Graph(System& sys) {
 
     vlist.clear();
     num_vert = 0;
-    num_particles = 50;
-    samples_per_obs = 1*(NUM_DIM);
+    num_particles = 25;
+    samples_per_obs = 5*(NUM_DIM);
     num_observations = 0;
 
     state_tree = kd_create(NUM_DIM);
@@ -581,7 +581,7 @@ void Graph::connect_edges(Vertex *v)
                 Edge *e1 = new Edge(v, v1);
                 write_transition_prob(e1);
                 
-                if(  (e1->transition_prob > 1e-20) && is_edge_free(e1) )
+                if( is_edge_free(e1) )
                 {
                     v->edges_out.push_back(e1);
                     v1->edges_in.push_back(e1);
@@ -595,7 +595,7 @@ void Graph::connect_edges(Vertex *v)
                 Edge *e2 = new Edge(v1, v);
                 write_transition_prob(e2);
 
-                if(  (e2->transition_prob > 1e-20) && is_edge_free(e2) )
+                if(  is_edge_free(e2) )
                 {
                     v->edges_in.push_back(e2);
                     v1->edges_out.push_back(e2);
