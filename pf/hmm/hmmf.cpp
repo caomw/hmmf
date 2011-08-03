@@ -96,8 +96,8 @@ void Graph::remove_edge(Edge *e)
 
 void Graph::plot_graph()
 {
-    ofstream rrgout("rrg.dat");
-    ofstream rrgpout("rrgp.dat");
+    ofstream rrgout("data/rrg.dat");
+    ofstream rrgpout("data/rrgp.dat");
     //cout<<"writing rrg"<<endl;
     //cout<<"rrg size: "<< vlist.size() << endl;
     for(vector<Vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
@@ -123,7 +123,7 @@ void Graph::plot_graph()
 
 void Graph::plot_trajectory()
 {
-    ofstream traj("traj.dat");
+    ofstream traj("data/traj.dat");
 
     traj<<"system"<<endl;
     for(list<State>::iterator i= truth.begin(); i != truth.end(); i++)

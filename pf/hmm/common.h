@@ -18,7 +18,6 @@
 using namespace std;
 
 #define RANDF       (rand()/(RAND_MAX+1.0))
-#define NUM_DIM     (2)
 
 
 double randn();
@@ -48,4 +47,5 @@ double normal_val(double *mean, double *var, double *tocalci, int dim)
     
     return bottom*top;
 }
+
 #endif

@@ -99,23 +99,23 @@ if __name__ == "__main__":
     kf = array(kf)
     
     PLOT_RRG = 1
-    SAVE = 1
+    SAVE = 0
     fig = figure(1)
 
     for i in range(NUM_DIM-1):
         
         if i == 0:
-            #subplot(311, aspect='auto')
+            subplot(311, aspect='auto')
             if PLOT_RRG:
                 plot(rrgp[:,0], rrgp[:,1], 'yo', ms=3.0, alpha = 0.6)
             ylabel('x')
         elif i == 1:
-            #subplot(312, aspect='auto')
+            subplot(312, aspect='auto')
             if PLOT_RRG:
                 plot(rrgp[:,0], rrgp[:,2], 'yo', ms=3.0, alpha = 0.6)
             ylabel('y')
         elif i == 2:
-            #subplot(313, aspect='auto')
+            subplot(313, aspect='auto')
             if PLOT_RRG:
                 plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0, alpha = 0.6)
             ylabel('th')
@@ -129,18 +129,19 @@ if __name__ == "__main__":
             plot( kf[:,0], kf[:,i+1], 'c-', label='kf')
         
 
-        #legend() 
         grid()
         xlabel('t [s] ')
         ylabel('x')
-        legend()
+        #legend()
     
+    """
     axplot = fig.add_subplot(111)
     rect = Rectangle( (.127, 0), .26-.127, .217, fc='blue', alpha = 0.2)
     axplot.add_patch(rect)
     rect = Rectangle( (.1, .32), .2 - .1, .5 - .32, fc='blue', alpha = 0.2)
     axplot.add_patch(rect)
-    
+    """
+
     if SAVE:
         fig.savefig("run.pdf")
 

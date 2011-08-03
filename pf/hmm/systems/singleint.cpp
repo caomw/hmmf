@@ -1,14 +1,5 @@
 #include "singleint.h"
 
-inline double dist(State s1, State s2)
-{
-    double t = 0;
-    for(int i=0; i<NUM_DIM; i++)
-        t += (s1.x[i] - s2.x[i])*(s1.x[i] - s2.x[i]);
-
-    return sqrt(t);
-};
-
 System::System()
 {
     min_states = new double[NUM_DIM];

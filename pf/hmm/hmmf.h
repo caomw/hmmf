@@ -2,7 +2,7 @@
 #define __hmmf_h__
 
 #include "common.h"
-#include "singleint.h"
+#include "systems/singleint.h"
 
 class Edge;
 class Vertex;
@@ -16,7 +16,8 @@ class Vertex
         
         // prob of best path that ends up here incorporating obs
         double prob_best_path;
-        
+        double voronoi_area;
+
         bool is_open_queue;
         bool is_closed_queue;
 
@@ -44,7 +45,7 @@ class Edge{
         double transition_prob;
         double transition_time;
         
-        Edge(Vertex* f, Vertex* t, double pro=1.0);
+        Edge(Vertex* f, Vertex* t, double prob=1.0);
 
         Edge reverse(){
             return Edge(this->to, this->from, this->transition_prob);
@@ -112,6 +113,8 @@ class Graph{
         int write_observation_prob(Edge *e, State& obs);
         void do_viterbi( Vertex *v );
         void update_observation_prob(State& yt);
+        
+        bool path_exists(Vertex *v);
         void get_best_path();
          
         friend class System;

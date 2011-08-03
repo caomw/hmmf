@@ -1,4 +1,3 @@
-#include "singleint.h"
 #include "hmmf.h"
 
 

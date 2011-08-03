@@ -1,7 +1,8 @@
 #ifndef __singleint_h__
 #define __singleint_h__
 
-#include "common.h"
+#include "../common.h"
+#define NUM_DIM     (2)
 
 class State
 {
@@ -65,9 +66,13 @@ class System
         State observation(State& s, bool is_clean);
 };
 
-inline double dist(State s1, State s2);
+inline double dist(State s1, State s2)
+{
+    double t = 0;
+    for(int i=0; i<NUM_DIM; i++)
+        t += (s1.x[i] - s2.x[i])*(s1.x[i] - s2.x[i]);
 
-
-
+    return sqrt(t);
+};
 
 #endif
