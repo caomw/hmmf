@@ -31,7 +31,8 @@ if __name__ == "__main__":
                 plot(tx, ty, 'k-', alpha = tmp_alpha, lw=0.5 )
 
         rrg.close()
-
+    
+    rrgp_is_exists = 0;
     rrgp = []
     rrgpf = open("rrgp.dat", 'r')
     if rrgpf:
@@ -40,7 +41,8 @@ if __name__ == "__main__":
             s = l.split('\t')
             to_put = [ float(s[i]) for i in range(NUM_DIM) ]
             rrgp.append( to_put )
-
+        
+        rrgp_is_exists = 1;
     rrgpf.close()
 
     if traj:

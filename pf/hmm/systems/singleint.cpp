@@ -119,6 +119,7 @@ State System::integrate(State& s, double duration, bool is_clean)
 
     delete[] mean;
     delete[] tmp;
+    delete[] var;
 
     return t;
 }

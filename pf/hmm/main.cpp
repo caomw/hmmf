@@ -12,16 +12,6 @@ int main()
 {
     srand(0);
 
-    /*
-       cout<<"start at: [" << s[0] <<","<< s[1] << "]"<<endl;
-       for(int i=0; i< 10; i++)
-       {
-       State t = sys.integrate(s, 0.1*i, 0);
-       State to = sys.observation(t, 0);
-       cout<< i<<" at: [" << t[0] <<","<< t[1] << "]"<<endl;
-       cout<< i<<" saw: [" << to[0] <<","<< to[1] << "]"<<endl;
-       }
-       */
     System sys;
     Graph graph(sys);
     graph.propagate_system();

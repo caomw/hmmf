@@ -28,7 +28,7 @@ Graph::Graph(System& sys) {
     vlist.clear();
     num_vert = 0;
     num_particles = 50;
-    samples_per_obs = 50;
+    samples_per_obs = 1*(NUM_DIM);
     num_observations = 0;
 
     state_tree = kd_create(NUM_DIM);
@@ -392,6 +392,7 @@ void Graph::do_viterbi( Vertex *v )
 
 void Graph::update_observation_prob(State& yt)
 {
+    /*
     double bowlr = gamma * pow( log(num_vert)/(num_vert), 1/(double)NUM_DIM);
     double *obs_state = yt.x;
     double obs_time_tolook = yt.x[0] - 2*bowlr;
@@ -430,6 +431,37 @@ void Graph::update_observation_prob(State& yt)
     }
 
     kd_res_free(res);
+    */
+
+    double *obs_state = yt.x;
+    for(vector<Vertex*>::iterator i=vlist.begin(); i!= vlist.end(); i++)
+    {
+        bool updated_edges = 0;
+        Vertex *v = *i;
+
+        for(list<Edge*>::iterator i= v->edges_out.begin(); i != v->edges_out.end(); i++)
+        {
+            Edge *etmp = *i;
+            double till_obs = obs_state[0] - v->s.x[0];
+
+            // if edge time within observation
+            if( (v->s.x[0] <= obs_state[0]) && (etmp->to->s.x[0] > obs_state[0]) )
+            {
+                updated_edges = 1;
+
+                //cout<<"till_obs: "<<till_obs<<" post_obs: "<<post_obs<<endl;
+
+                // change by particles
+                write_observation_prob(etmp, yt);
+            }
+        } 
+
+        if(updated_edges)
+            normalize_edges(v);
+
+
+    }
+
 }
 
 bool Graph::is_edge_free( Edge *etmp)
@@ -591,7 +623,7 @@ void Graph::get_best_path()
     system->get_key(truth.back(), to_query);
 
     kdres *res;
-    res = kd_nearest_range(state_tree, to_query, 0.5);
+    res = kd_nearest_range(time_tree, &(to_query[0]), 0.5);
     double max_prob = -DBL_MAX;
     Vertex *vcurr = NULL;
     //cout<< "did kdtree query with: "<< truth.back().x[1] << " size: " << kd_res_size(res) << endl;
@@ -687,7 +719,6 @@ void Graph::put_init_samples()
 {
     for(int i=0; i < 100; i++)
     {
-
         State stmp = system->sample();
         Vertex *v = new Vertex(stmp);
         
