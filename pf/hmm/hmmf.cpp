@@ -1,5 +1,6 @@
 #include "hmmf.h"
 
+
 Vertex::Vertex(State& st)
 {
     s = st;
@@ -44,7 +45,11 @@ Graph::~Graph()
         delete *i;
         num_vert--;
     }
-    
+    for(list<Edge*>::reverse_iterator i = elist.rbegin(); i != elist.rend(); i++)
+    {
+        delete *i;
+    }
+
     vlist.clear();
     truth.clear();
     obs.clear();
@@ -205,20 +210,35 @@ Vertex* Graph::nearest_vertex(State s)
 
 void Graph::normalize_edges(Vertex *from)
 {
-    double totprob = 0;
-    for(list<Edge *>::iterator i = from->edges_out.begin(); i != from->edges_out.end(); i++)
+    int nedges = from->edges_out.size();
+    if( nedges == 0)
+        return;
+    else if ( nedges == 1)
     {
-        totprob += (*i)->transition_prob;
+        Edge *etmp = from->edges_out.front();
+        etmp->transition_prob = 1.0; 
     }
-    //cout<<"totprob: "<< totprob << endl;
-    
-    if(totprob > 1e-50)
+    else
     {
+        double totprob = 0;
         for(list<Edge *>::iterator i = from->edges_out.begin(); i != from->edges_out.end(); i++)
         {
-            Edge *etmp = *i;
-            etmp->transition_prob = etmp->transition_prob / totprob;
-            //cout<<"wrote edge prob: "<< etmp->transition_prob << endl;
+            totprob += (*i)->transition_prob;
+        }
+        
+        if(totprob > 1e-100)
+        {
+            for(list<Edge *>::iterator i = from->edges_out.begin(); i != from->edges_out.end(); i++)
+            {
+                Edge *etmp = *i;
+                etmp->transition_prob = etmp->transition_prob / totprob;
+                //cout<<"wrote edge prob: "<< etmp->transition_prob << endl;
+                if(etmp->transition_prob != etmp->transition_prob)
+                {
+                    cout<<"found a nan: "<< totprob << " nedges: "<< nedges << endl;
+                    getchar();
+                }
+            }
         }
     }
     /*
@@ -363,7 +383,7 @@ int Graph::write_observation_prob(Edge *e, State& obs)
 }
 
 
-void Graph::do_viterbi( Vertex *v )
+void Graph::update_viterbi( Vertex *v )
 {
     double max_prob = -DBL_MAX;
     for(list<Edge*>::iterator i= v->edges_in.begin(); i != v->edges_in.end(); i++)
@@ -458,8 +478,6 @@ void Graph::update_observation_prob(State& yt)
 
         if(updated_edges)
             normalize_edges(v);
-
-
     }
 
 }
@@ -551,12 +569,12 @@ void Graph::add_sample()
     vlist.push_back(v);
     num_vert++;
     insert_into_kdtree(v);
-    
+
     connect_edges(v);
-    do_viterbi(v);
+    update_viterbi(v);
 }
 
-void Graph::connect_edges(Vertex *v)
+int Graph::connect_edges(Vertex *v)
 {
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
@@ -583,6 +601,8 @@ void Graph::connect_edges(Vertex *v)
                 
                 if( is_edge_free(e1) )
                 {
+                    elist.push_back(e1);
+
                     v->edges_out.push_back(e1);
                     v1->edges_in.push_back(e1);
                 }
@@ -597,8 +617,12 @@ void Graph::connect_edges(Vertex *v)
 
                 if(  is_edge_free(e2) )
                 {
+                    elist.push_back(e2);
+                    
                     v->edges_in.push_back(e2);
                     v1->edges_out.push_back(e2);
+
+                    normalize_edges(v1);
                 }
                 else
                     delete e2;
@@ -609,9 +633,9 @@ void Graph::connect_edges(Vertex *v)
     kd_res_free(res);
 
     normalize_edges(v);
-
+    
     //cout<<"getchar: "; getchar();
-
+    return 0;
 }
 
 
@@ -717,6 +741,7 @@ void Graph::propagate_system()
 
 void Graph::put_init_samples()
 {
+    double totprob = 0;
     for(int i=0; i < 100; i++)
     {
         State stmp = system->sample();
@@ -724,10 +749,102 @@ void Graph::put_init_samples()
         
         v->s.x[0] = system->min_states[0];
         v->prob_best_path = normal_val( &(system->init_state.x[1]), system->init_var, &(v->s.x[1]), NUM_DIM-1);      
-        
+        totprob += v->prob_best_path;
+
         vlist.push_back(v);
         num_vert++;
         insert_into_kdtree(v);
     }
+
+    // normalize the init_samples
+    for(vector<Vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
+    {
+        Vertex* v = *i;
+        v->prob_best_path = v->prob_best_path/totprob;
+    }
 }
+
+bool Graph::is_everything_normalized()
+{
+    for(vector<Vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
+    {
+        Vertex* v = *i;
+        if(v->edges_out.size() > 0)
+        {
+            double totprob = 0;
+            for(list<Edge *>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
+            {
+                totprob += (*j)->transition_prob;
+            }
+
+            if( fabs(totprob - 1.0) > 0.1)
+            {
+                cout<<"offending vertex prob: "<< totprob << " nedges: "<< v->edges_out.size() << endl;
+                return false;        
+            }
+        }
+    }
+    return true;
+}
+
+// returns 
+int Graph::simulate_trajectory()
+{
+    list<State> seq;
+
+    State stmp = system->init_state;
+    stmp.x[0] = system->min_states[0];
+    double init_prob = normal_val( &(system->init_state.x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
+    
+    bool can_go_forward = false;
+    
+    Vertex *vcurr = nearest_vertex(stmp);
+    if(vcurr->edges_out.size() > 0)
+        can_go_forward = true;
+
+    seq.push_back(vcurr->s);
+    double traj_prob = vcurr->prob_best_path;
+    
+    while(can_go_forward)
+    {
+        double rand_tmp = RANDF;
+        double runner = 0;
+        Edge *which_edge = NULL;
+        for(list<Edge*>::iterator eo = vcurr->edges_out.begin(); eo != vcurr->edges_out.end(); eo++)
+        {
+            runner += (*eo)->transition_prob;
+            if(runner > rand_tmp)
+            {
+                vcurr = (*eo)->to;
+                which_edge = *eo;
+                break;
+            }
+        }
+        if( (vcurr->edges_out.size() > 0) && (which_edge == NULL))
+        {
+            cout<<"error- rand: "<< rand_tmp<<" runner: "<< runner <<" num_edges: "<< vcurr->edges_out.size() << endl;
+            getchar();
+        }
+
+        if(vcurr->edges_out.size() == 0)
+        {
+            can_go_forward = false;
+            break;
+        }
+
+        seq.push_back(vcurr->s);
+        traj_prob *= which_edge->transition_prob;
+    
+    }
+
+    if( fabs(vcurr->s.x[0] - system->max_states[0]) < system->sim_time_delta)
+    {
+        cout<<"traj_prob: "<<traj_prob << endl; 
+        sanity_trajectories.push_back( seq);
+        sanity_probabilities.push_back(traj_prob);
+        return 0;
+    }
+    return 1;
+}
+
 

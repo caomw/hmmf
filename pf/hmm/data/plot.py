@@ -121,9 +121,11 @@ if __name__ == "__main__":
             if PLOT_RRG:
                 plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0, alpha = 0.6)
             ylabel('th')
-
-        plot( sys[:,0], sys[:,i+1], 'r-', label='sys')
-        plot( obs[:,0], obs[:,i+1], 'b-', label='obs')
+        
+        if len(sys) != 0:
+            plot( sys[:,0], sys[:,i+1], 'r-', label='sys')
+        if len(obs) != 0:
+            plot( obs[:,0], obs[:,i+1], 'b-', label='obs')
         
         if len(bp) != 0:
             plot( bp[:,0], bp[:,i+1], 'go-', label='hmm')

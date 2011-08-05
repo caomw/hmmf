@@ -8,16 +8,14 @@ double get_msec()
     return start.tv_sec*1000 + start.tv_usec/1000.0;
 }
 
-int main()
+int do_decoding()
 {
-    srand(0);
-
     System sys;
     Graph graph(sys);
     graph.propagate_system();
-    
+
     double start = get_msec();
-    
+
     graph.put_init_samples();
 
     int count = 0;
@@ -35,7 +33,7 @@ int main()
         {
             int which = RANDF*num_vert;
             Vertex *v = graph.vlist[which];
-            graph.do_viterbi(v);
+            graph.update_viterbi(v);
         }
 
         count++;
@@ -48,6 +46,43 @@ int main()
 
     graph.plot_trajectory();
     graph.plot_graph();
+
+    return 0;
+}
+
+int graph_sanity_check()
+{
+    System sys;
+    Graph graph(sys);
+    graph.propagate_system();
+
+    double start = get_msec();
+
+    graph.put_init_samples();
+    
+    for(int i=0; i < 1000; i++)
+    {
+        graph.add_sample();
+    }
+    cout<<"finished putting samples"<<endl;
+    assert(graph.is_everything_normalized());
+    //cout<<"graph is correct"<<endl;
+
+    for(int i=0; i< 1000; i++)
+    {
+        graph.simulate_trajectory();
+        cout<<i<<endl;
+    }
+
+    graph.plot_graph();
+    cout<<"time: "<< get_msec() - start << " [ms]" << endl;
+}
+
+int main()
+{
+    srand(0);
+
+    graph_sanity_check();
 
     return 0;
 }

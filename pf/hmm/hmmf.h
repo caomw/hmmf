@@ -73,6 +73,8 @@ class Graph{
         ~Graph();
         
         vector<Vertex *> vlist;
+        list<Edge *> elist;
+        
         unsigned int num_vert;
         int samples_per_obs;
         int num_observations;
@@ -81,6 +83,10 @@ class Graph{
         list<State> best_path;
         list<State> kalman_path;
         
+        // graph sanity check
+        list< list<State> > sanity_trajectories;
+        list<double> sanity_probabilities;
+
         // graph functions
         unsigned int get_num_vert(){return num_vert; };
 
@@ -105,18 +111,21 @@ class Graph{
         void iterate();
         void add_sample();
         bool is_edge_free( Edge *etmp);
-        void connect_edges(Vertex *v);
+        int connect_edges(Vertex *v);
         void propagate_system();
         
         void put_init_samples();
         int write_transition_prob(Edge *e);
         int write_observation_prob(Edge *e, State& obs);
-        void do_viterbi( Vertex *v );
+        void update_viterbi( Vertex *v );
         void update_observation_prob(State& yt);
         
         bool path_exists(Vertex *v);
         void get_best_path();
-         
+        
+        bool is_everything_normalized();
+        int simulate_trajectory();
+        
         friend class System;
 };
 
