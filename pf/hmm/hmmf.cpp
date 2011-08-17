@@ -35,7 +35,7 @@ Graph::Graph(System& sys) {
     state_tree = kd_create(NUM_DIM);
     time_tree = kd_create(1);
     
-    gamma = 2.0;
+    gamma = 2.5;
 };
 
 Graph::~Graph()
@@ -63,20 +63,22 @@ Graph::~Graph()
 void Graph::remove_vertex(Vertex *v)
 {
     // remove from vlist
-    //vlist.remove(v); 
-    //num_vert--;
+    vector<Vertex*>::iterator which = find(vlist.begin(), vlist.end(), v);
+    if( which != vlist.end())
+    {
+        vlist.erase(which); 
+        num_vert--;
+    }
     //cout<<"-------------------\nremoving edges: "<< v->edges_out.size() << " " << v->edges_in.size() << endl;
     
-    /*
-    cout<<"**removing incoming" << endl;
+    //cout<<"**removing incoming" << endl;
     // delete all edges from v and its neighbors
     for(list<Edge *>::reverse_iterator i = v->edges_in.rbegin(); i != v->edges_in.rend(); i++)
         remove_edge(*i);
     
-    cout<<"**removing outgoing" << endl;
+    //cout<<"**removing outgoing" << endl;
     for(list<Edge *>::reverse_iterator i = v->edges_out.rbegin(); i != v->edges_out.rend(); i++)
         remove_edge(*i);
-    */
 
     // finally delete v
     delete v;
@@ -85,16 +87,20 @@ void Graph::remove_vertex(Vertex *v)
 
 void Graph::remove_edge(Edge *e)
 {
-    cout<<"--- inside remove_edge" << endl;
+    elist.remove(e);
+
+    //cout<<"--- inside remove_edge" << endl;
     // remove from, from + to lists and then call destructor
     e->from->edges_out.remove(e);
+    /*
     cout<<"removed from, do to" << endl;
     if( e->to )
         cout<<"e->to exists " << e->to->edges_in.size() << endl;
     else
         cout<<" e->to does not exist: panic" << endl;
+    */
     e->to->edges_in.remove(e);
-    cout<<"removed to, delete" << endl;
+    //cout<<"removed to, delete" << endl;
 
     delete e;
 }
@@ -226,7 +232,7 @@ void Graph::normalize_edges(Vertex *from)
             totprob += (*i)->transition_prob;
         }
         
-        if(totprob > 1e-100)
+        if(totprob > 1.0/DBL_MAX)
         {
             for(list<Edge *>::iterator i = from->edges_out.begin(); i != from->edges_out.end(); i++)
             {
@@ -239,6 +245,10 @@ void Graph::normalize_edges(Vertex *from)
                     getchar();
                 }
             }
+        }
+        else
+        {
+            cout<<"totprob is: "<< totprob << " [DITCH]" << endl;
         }
     }
     /*
@@ -717,11 +727,14 @@ void Graph::print_rrg()
         }
         
         counte = 0;
+        double totprob = 0;
         cout<<"eo: " << endl;
         for(list<Edge *>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
         {
             cout<<"\t "<< counte++ << " " << (*j)->transition_prob << endl;
+            totprob += (*j)->transition_prob;
         }
+        cout<<"totprob: "<< totprob << endl;
     }
 }
 
@@ -742,7 +755,7 @@ void Graph::propagate_system()
 void Graph::put_init_samples()
 {
     double totprob = 0;
-    for(int i=0; i < 100; i++)
+    for(int i=0; i < 50; i++)
     {
         State stmp = system->sample();
         Vertex *v = new Vertex(stmp);
@@ -820,31 +833,78 @@ int Graph::simulate_trajectory()
                 break;
             }
         }
+        /*
         if( (vcurr->edges_out.size() > 0) && (which_edge == NULL))
         {
             cout<<"error- rand: "<< rand_tmp<<" runner: "<< runner <<" num_edges: "<< vcurr->edges_out.size() << endl;
             getchar();
         }
-
+        */
         if(vcurr->edges_out.size() == 0)
         {
             can_go_forward = false;
             break;
         }
-
-        seq.push_back(vcurr->s);
-        traj_prob *= which_edge->transition_prob;
-    
+        
+        if(which_edge != NULL)
+        {
+            seq.push_back(vcurr->s);
+            traj_prob *= which_edge->transition_prob;
+        }
     }
 
-    if( fabs(vcurr->s.x[0] - system->max_states[0]) < system->sim_time_delta)
+    //if( fabs(vcurr->s.x[0] - system->max_states[0]) < system->sim_time_delta)
+    if(1)
     {
-        cout<<"traj_prob: "<<traj_prob << endl; 
-        sanity_trajectories.push_back( seq);
-        sanity_probabilities.push_back(traj_prob);
+        //cout<<"traj_prob: "<<traj_prob << endl; 
+        monte_carlo_trajectories.push_back( seq);
+        monte_carlo_probabilities.push_back(traj_prob);
         return 0;
     }
     return 1;
 }
 
+
+int Graph::prune_graph()
+{
+    int npruned = 0;
+    for(vector<Vertex*>::reverse_iterator i = vlist.rbegin(); i!= vlist.rend(); i++)
+    {
+        Vertex* v = *i;
+        if( (v->edges_in.size() == 0) && ( fabs(v->s.x[0] - system->min_states[0]) > system->sim_time_delta) )
+        {
+            remove_vertex(v);
+            npruned++;
+        }
+    }
+    return npruned;
+}
+
+void Graph::plot_monte_carlo_trajectories()
+{
+    ofstream mout("data/monte_carlo.dat");
+    int count = 0;
+
+    list<double>::iterator prob_iter = monte_carlo_probabilities.begin();
+    for(list< list<State> >::iterator i= monte_carlo_trajectories.begin(); i != monte_carlo_trajectories.end(); \
+            i++)
+    {
+        list<State> curr_traj = (*i);
+        mout<<count<<"\t"<<(*prob_iter)<<"\t"<<endl;
+        for(list<State>::iterator j = curr_traj.begin(); j != curr_traj.end(); j++)
+        {
+            State& curr_state = *j;
+            for(int k=0; k< NUM_DIM; k++)
+            {
+                mout<< curr_state.x[k]<<"\t";
+            }
+            mout<<endl;
+        }
+
+        prob_iter++;
+        count++;
+    }
+
+    mout.close();
+}   
 

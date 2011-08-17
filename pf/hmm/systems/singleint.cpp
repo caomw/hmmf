@@ -3,7 +3,7 @@
 System::System()
 {
     min_states = new double[NUM_DIM];
-    min_states[0] = 0; min_states[1] = 0; min_states[2] = 0; min_states[3] = 0;
+    min_states[0] = 0; min_states[1] = -1; min_states[2] = -1; min_states[3] = -1;
     
     max_states = new double[NUM_DIM];
     max_states[0] = 0.5; max_states[1] = 1; max_states[2] = 1; max_states[3] = 1;
@@ -12,15 +12,15 @@ System::System()
     obs_noise[0] = 1e-1; obs_noise[1] = 1e-1; obs_noise[2] = 1e-1;
     
     process_noise = new double[NUM_DIM-1];
-    process_noise[0] = 1e-1; process_noise[1] = 1e-1; process_noise[2] = 1e-1;
+    process_noise[0] = 1e-2; process_noise[1] = 1e-2; process_noise[2] = 1e-2;
     
     init_var = new double[NUM_DIM-1];
     init_var[0] = 1e-1; init_var[1] = 1e-1; init_var[2] = 1e-1;
     
     init_state.x[0] = 0;
-    init_state.x[1] = 1;
-    init_state.x[2] = 1;
-    init_state.x[3] = 1;
+    init_state.x[1] = 0.5;
+    init_state.x[2] = 0.5;
+    init_state.x[3] = 0.5;
 
     sim_time_delta = 0.01;
 }

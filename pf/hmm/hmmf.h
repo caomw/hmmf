@@ -84,8 +84,8 @@ class Graph{
         list<State> kalman_path;
         
         // graph sanity check
-        list< list<State> > sanity_trajectories;
-        list<double> sanity_probabilities;
+        list< list<State> > monte_carlo_trajectories;
+        list<double> monte_carlo_probabilities;
 
         // graph functions
         unsigned int get_num_vert(){return num_vert; };
@@ -104,7 +104,7 @@ class Graph{
         void print_rrg();
         void plot_graph();
         void plot_trajectory();
-        
+        void plot_monte_carlo_trajectories(); 
 
         // algorithm functions
         
@@ -123,6 +123,7 @@ class Graph{
         bool path_exists(Vertex *v);
         void get_best_path();
         
+        int prune_graph();
         bool is_everything_normalized();
         int simulate_trajectory();
         

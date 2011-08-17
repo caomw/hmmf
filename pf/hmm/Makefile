@@ -21,7 +21,7 @@ LDFLAGS = -g -pg
 
 all: $(BIN)
 	rm -rf data/*.dat
-	touch data/rrg.dat data/rrgp.dat data/traj.dat
+	touch data/monte_carlo.dat data/rrg.dat data/rrgp.dat data/traj.dat
 
 $(BIN): $(OBJS)
 	@echo "  [LD]    $@"

@@ -3,22 +3,30 @@
 from sys import *
 from pylab import *
 
-if __name__ == "__main__":
+PLOT_RRG = 1
+SAVE = 0
 
-    rrgp = open("rrgp.dat", 'r')
-    traj = open("traj.dat", 'r')
+if len(argv) > 1:
+    NUM_DIM = int(argv[1])
+else:
+    NUM_DIM = 2
 
-    if len(argv) > 1:
-        NUM_DIM = int(argv[1])
-    else:
-        NUM_DIM = 2
 
+fig = figure(1)
+
+def draw_obstacles():
+    axplot = fig.add_subplot(111)
+    rect = Rectangle( (.127, 0), .26-.127, .217, fc='blue', alpha = 0.2)
+    axplot.add_patch(rect)
+    rect = Rectangle( (.1, .32), .2 - .1, .5 - .32, fc='blue', alpha = 0.2)
+    axplot.add_patch(rect)
+
+def draw_edges():
     draw_edges = 0
     if draw_edges:
         #t1, x1, t2, x2, prob, delt
         rrg = open("rrg.dat", 'r')
         if rrg:
-            figure(1)
             lines = rrg.readlines()
             for l in lines:
                 s = l.split('\t')
@@ -31,8 +39,9 @@ if __name__ == "__main__":
                 plot(tx, ty, 'k-', alpha = tmp_alpha, lw=0.5 )
 
         rrg.close()
-    
-    rrgp_is_exists = 0;
+
+def plot_graph():
+
     rrgp = []
     rrgpf = open("rrgp.dat", 'r')
     if rrgpf:
@@ -44,6 +53,18 @@ if __name__ == "__main__":
         
         rrgp_is_exists = 1;
     rrgpf.close()
+    
+    rrgp = array (rrgp)
+
+    for i in range(NUM_DIM-1):
+        
+        subplot(NUM_DIM-1,1,i+1, aspect='auto')
+        plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=3.0, alpha = 0.4)
+        grid()
+
+def plot_truth():
+    
+    traj = open("traj.dat", 'r')
 
     if traj:
         lines = traj.readlines()
@@ -79,51 +100,18 @@ if __name__ == "__main__":
 
     traj.close()
 
-
-
-    """
-    axplot = fig.add_subplot(111)
-    avgx, avgy = 0.0, 0.0
-    for i in range(len(aa)):
-        avgx = avgx + ax[i]*aa[i]
-        avgy = avgy + ay[i]*aa[i]
-        circle = Circle( (ax[i], ay[i]), 0.01, fc='blue', alpha = 10*aa[i])
-        axplot.add_patch(circle)
-
-    circle = Circle( (avgx, avgy), 0.01, fc='green', alpha = 0.5)
-    axplot.add_patch(circle)
-    """
-    
-    rrgp = array (rrgp)
     sys = array(sys)
     obs = array(obs)
     bp = array(bp)
     kf = array(kf)
     
-    PLOT_RRG = 1
-    SAVE = 0
-    fig = figure(1)
-
     for i in range(NUM_DIM-1):
         
-        if i == 0:
-            subplot(311, aspect='auto')
-            if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,1], 'yo', ms=3.0, alpha = 0.6)
-            ylabel('x')
-        elif i == 1:
-            subplot(312, aspect='auto')
-            if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,2], 'yo', ms=3.0, alpha = 0.6)
-            ylabel('y')
-        elif i == 2:
-            subplot(313, aspect='auto')
-            if PLOT_RRG:
-                plot(rrgp[:,0], rrgp[:,3], 'yo', ms=3.0, alpha = 0.6)
-            ylabel('th')
-        
+        subplot(NUM_DIM-1,1,i+1, aspect='auto')
+        grid()
+
         if len(sys) != 0:
-            plot( sys[:,0], sys[:,i+1], 'r-', label='sys')
+            plot( sys[:,0], sys[:,i+1], 'r-', label='sys', lw=2.0)
         if len(obs) != 0:
             plot( obs[:,0], obs[:,i+1], 'b-', label='obs')
         
@@ -133,35 +121,52 @@ if __name__ == "__main__":
             plot( kf[:,0], kf[:,i+1], 'c-', label='kf')
         
 
-        grid()
-        xlabel('t [s] ')
-        ylabel('x')
-        #legend()
-    
-    """
-    axplot = fig.add_subplot(111)
-    rect = Rectangle( (.127, 0), .26-.127, .217, fc='blue', alpha = 0.2)
-    axplot.add_patch(rect)
-    rect = Rectangle( (.1, .32), .2 - .1, .5 - .32, fc='blue', alpha = 0.2)
-    axplot.add_patch(rect)
-    """
+def plot_sim_trajs():
 
+    mc = open("monte_carlo.dat", 'r')
+    
+    probs = []
+    curr_traj = []
+
+    if mc:
+        lines = mc.readlines()
+        last_prob = 1
+        curr_prob = 1
+        for l in lines:
+            s = l.split('\t')
+
+            if(len(s) ==3):
+                last_prob = curr_prob
+                curr_prob = 1*float(s[1])
+                to_plot = array(curr_traj)
+                
+                #print curr_prob
+                if( len(to_plot) > 0):
+                    
+                    for i in range(NUM_DIM-1):
+                        subplot(NUM_DIM-1,1,i+1, aspect='auto')
+                        plot(to_plot[:,0], to_plot[:,i+1], 'mo-', alpha=last_prob)
+                        grid()
+
+                curr_traj = []
+            elif(len(s) == 5):
+                to_put = [float(s[i]) for i in range(NUM_DIM)]
+                curr_traj.append( to_put )
+
+        mc.close()
+
+if __name__ == "__main__":
+
+    plot_graph()
+    plot_truth()
+    plot_sim_trajs()
+
+    xlabel('t [s] ')
+    ylabel('x')
+    #legend()
+    
     if SAVE:
         fig.savefig("run.pdf")
 
-    """
-    figure(2)
-    plot(sys[:,1], sys[:,2], 'r-', label='sys')
-    plot(bp[:,1], bp[:,2], 'g-', label='hmm')
-    grid()
-    """
-
     show()
-    
-    """
-    close_flag = raw_input("Press q to close")
-    if(close_flag == 'q'):
-        close('all')
-    exit(0)
-    """
 

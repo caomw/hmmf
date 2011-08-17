@@ -55,26 +55,32 @@ int graph_sanity_check()
     System sys;
     Graph graph(sys);
     graph.propagate_system();
+    graph.plot_trajectory();
 
     double start = get_msec();
 
     graph.put_init_samples();
     
-    for(int i=0; i < 1000; i++)
+    for(int i=0; i < 50; i++)
     {
         graph.add_sample();
     }
+    graph.plot_graph();
+    cout<<"added samples: "<< graph.num_vert << endl;
+
+    //cout<<"pruned: "<< graph.prune_graph() << endl;
+    //graph.print_rrg();
     cout<<"finished putting samples"<<endl;
     assert(graph.is_everything_normalized());
     //cout<<"graph is correct"<<endl;
-
-    for(int i=0; i< 1000; i++)
+    
+    for(int i=0; i< 100; i++)
     {
         graph.simulate_trajectory();
-        cout<<i<<endl;
+        //cout<<i<<endl;
     }
-
-    graph.plot_graph();
+    graph.plot_monte_carlo_trajectories();
+    
     cout<<"time: "<< get_msec() - start << " [ms]" << endl;
 }
 
