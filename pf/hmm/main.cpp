@@ -1,12 +1,6 @@
 #include "hmmf.h"
 
 
-double get_msec()
-{
-    struct timeval start;
-    gettimeofday(&start, NULL);
-    return start.tv_sec*1000 + start.tv_usec/1000.0;
-}
 
 int do_decoding()
 {
@@ -14,18 +8,21 @@ int do_decoding()
     Graph graph(sys);
     graph.propagate_system();
 
+    graph.get_kalman_path();
+    
     double start = get_msec();
 
     graph.put_init_samples();
 
-    int count = 0;
-    for(list<State>::iterator i= graph.obs.begin(); i != graph.obs.end(); i++)
+    tic();
+    clock_t start_time = clock();
+    bool time_finished = false;
+    
+    //while(time_finished == false)
+    //{
+    for(int i=0; i < 1000; i++)
     {
-        State& curr_obs = *i;
-        for(int j=0; j< graph.samples_per_obs; j++)
-            graph.add_sample();
-
-        graph.update_observation_prob(curr_obs);
+        graph.add_sample();
 
         int max_async_updates = min((double)graph.get_num_vert(), 10*log( graph.get_num_vert()));
         int num_vert = graph.get_num_vert();
@@ -35,12 +32,21 @@ int do_decoding()
             Vertex *v = graph.vlist[which];
             graph.update_viterbi(v);
         }
+            
+        //graph.update_goal_viterbi();
 
-        count++;
-
-        if(count % 10 == 0)
-            cout<<count<<endl;
+        if( graph.num_vert % 100 == 0)
+        {
+            cout<< graph.num_vert <<endl;
+            toc();
+            tic();
+        }
+        
+        clock_t end_time = clock();
+        if( (end_time - start_time)/CLOCKS_PER_SEC > 500.0)
+            time_finished = true;
     }
+    
     graph.get_best_path();
     cout<<"time: "<< get_msec() - start << " [ms]" << endl;
 
@@ -55,16 +61,25 @@ int graph_sanity_check()
     System sys;
     Graph graph(sys);
     graph.propagate_system();
+    graph.get_kalman_path();
     graph.plot_trajectory();
-
+    
     double start = get_msec();
 
     graph.put_init_samples();
     
-    for(int i=0; i < 50; i++)
+    tic();
+    for(int i=0; i < 5000; i++)
     {
         graph.add_sample();
+        if(i % 100 == 0)
+        {
+            cout<<i<<endl;
+            toc();
+            tic();
+        }
     }
+
     graph.plot_graph();
     cout<<"added samples: "<< graph.num_vert << endl;
 
@@ -88,7 +103,8 @@ int main()
 {
     srand(0);
 
-    graph_sanity_check();
+    //graph_sanity_check();
+    do_decoding();
 
     return 0;
 }

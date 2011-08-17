@@ -51,4 +51,8 @@ double normal_val(double *mean, double *var, double *tocalci, int dim)
     return to_ret;
 }
 
+void tic();
+void toc();
+double get_msec();
+
 #endif

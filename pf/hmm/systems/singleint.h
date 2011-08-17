@@ -1,8 +1,8 @@
 #ifndef __singleint_h__
 #define __singleint_h__
 
-#include "../common.h"
-#define NUM_DIM     (4)
+#include "../utils/common.h"
+#define NUM_DIM     (2)
 
 class State
 {
@@ -11,6 +11,8 @@ class State
 
         State()
         {
+            for(int i=0; i<NUM_DIM; i++)
+                x[i] = 0;
         }
         State(double *val)
         {
@@ -64,6 +66,8 @@ class System
         State sample();
         State integrate(State& s, double duration, bool is_clean);
         State observation(State& s, bool is_clean);
+
+        void get_kalman_path(list<State>& obs, list<State>& kalman_path);
 };
 
 inline double dist(State s1, State s2)

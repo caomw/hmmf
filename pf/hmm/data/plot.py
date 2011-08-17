@@ -3,8 +3,7 @@
 from sys import *
 from pylab import *
 
-PLOT_RRG = 1
-SAVE = 0
+SAVE = 1
 
 if len(argv) > 1:
     NUM_DIM = int(argv[1])
@@ -59,10 +58,10 @@ def plot_graph():
     for i in range(NUM_DIM-1):
         
         subplot(NUM_DIM-1,1,i+1, aspect='auto')
-        plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=3.0, alpha = 0.4)
+        plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=3.0, alpha = 0.6)
         grid()
 
-def plot_truth():
+def plot_trajs():
     
     traj = open("traj.dat", 'r')
 
@@ -137,15 +136,15 @@ def plot_sim_trajs():
 
             if(len(s) ==3):
                 last_prob = curr_prob
-                curr_prob = 1*float(s[1])
+                curr_prob = 5*float(s[1])
                 to_plot = array(curr_traj)
                 
-                #print curr_prob
+                print curr_prob
                 if( len(to_plot) > 0):
                     
                     for i in range(NUM_DIM-1):
                         subplot(NUM_DIM-1,1,i+1, aspect='auto')
-                        plot(to_plot[:,0], to_plot[:,i+1], 'mo-', alpha=last_prob)
+                        plot(to_plot[:,0], to_plot[:,i+1], 'm-', alpha=last_prob)
                         grid()
 
                 curr_traj = []
@@ -157,9 +156,10 @@ def plot_sim_trajs():
 
 if __name__ == "__main__":
 
-    plot_graph()
-    plot_truth()
+    #plot_graph()
+    plot_trajs()
     plot_sim_trajs()
+    
 
     xlabel('t [s] ')
     ylabel('x')

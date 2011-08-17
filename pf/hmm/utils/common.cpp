@@ -28,3 +28,28 @@ void multivar_normal(double *mean, double *var, double *ret, int dim)
     for(int i=0; i < dim; i++)
         ret[i] = mean[i] + sqrt(var[i])*randn();
 }
+
+double curr_time;
+void tic()
+{
+    struct timeval start;
+    gettimeofday(&start, NULL);
+    curr_time = start.tv_sec*1000 + start.tv_usec/1000.0;
+}
+
+void toc()
+{
+    struct timeval start;
+    gettimeofday(&start, NULL);
+    double delta_t = start.tv_sec*1000 + start.tv_usec/1000.0 - curr_time;
+    
+    cout<< delta_t/1000.0 << " [sec]" << endl;
+}
+
+double get_msec()
+{
+    struct timeval start;
+    gettimeofday(&start, NULL);
+    return start.tv_sec*1000 + start.tv_usec/1000.0;
+}
+

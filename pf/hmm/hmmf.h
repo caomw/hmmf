@@ -1,7 +1,7 @@
 #ifndef __hmmf_h__
 #define __hmmf_h__
 
-#include "common.h"
+#include "utils/common.h"
 #include "systems/singleint.h"
 
 class Edge;
@@ -15,7 +15,7 @@ class Vertex
         State s;
         
         // prob of best path that ends up here incorporating obs
-        double prob_best_path;
+        double cost_best_path;
         double voronoi_area;
 
         bool is_open_queue;
@@ -62,7 +62,11 @@ class Graph{
     private:
         System* system;
         int num_particles; 
-
+        int obs_interval;
+        double curr_best_cost;
+        Vertex* curr_best_vertex;
+        
+        double goal_width;          // (max_states[0] - goal_width) is the goal region
         double gamma;
         struct kdtree *state_tree;
         struct kdtree *time_tree; 
@@ -76,8 +80,6 @@ class Graph{
         list<Edge *> elist;
         
         unsigned int num_vert;
-        int samples_per_obs;
-        int num_observations;
         list<State> truth;
         list<State> obs;
         list<State> best_path;
@@ -116,12 +118,15 @@ class Graph{
         
         void put_init_samples();
         int write_transition_prob(Edge *e);
+        int write_transition_prob_with_obs(Edge *e);
         int write_observation_prob(Edge *e, State& obs);
         void update_viterbi( Vertex *v );
+        void update_goal_viterbi();
         void update_observation_prob(State& yt);
         
         bool path_exists(Vertex *v);
         void get_best_path();
+        void get_kalman_path();
         
         int prune_graph();
         bool is_everything_normalized();

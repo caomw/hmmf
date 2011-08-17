@@ -1,7 +1,7 @@
 #ifndef __dubins_h__
 #define __dubins_h__
 
-#include "../common.h"
+#include "../utils/common.h"
 
 #define NUM_DIM     (4)
 
@@ -65,6 +65,8 @@ class System
         State sample();
         State integrate(State& s, double duration, bool is_clean);
         State observation(State& s, bool is_clean);
+        
+        void get_kalman_path(list<State>& obs, list<State>& kalman_path){};
 };
 
 inline double dist(State& s1, State& s2)

@@ -9,13 +9,13 @@ System::System()
     max_states[0] = 1; max_states[1] = 1; max_states[2] = 1; max_states[3] = M_PI_2;
 
     obs_noise = new double[NUM_DIM-1];
-    obs_noise[0] = 1e-4; obs_noise[1] = 1e-4; obs_noise[2] = 1e-4;
+    obs_noise[0] = 1e-2; obs_noise[1] = 1e-2; obs_noise[2] = 1e-2;
     
     process_noise = new double[NUM_DIM-1];
-    process_noise[0] = 1e-4; process_noise[1] = 1e-4; process_noise[2] = 1e-4;
+    process_noise[0] = 1e-2; process_noise[1] = 1e-2; process_noise[2] = 1e-2;
     
     init_var = new double[NUM_DIM-1];
-    init_var[0] = 1e-4; init_var[1] = 1e-4; init_var[2] = 1e-4;
+    init_var[0] = 1e-2; init_var[1] = 1e-2; init_var[2] = 1e-2;
     
     init_state.x[0] = 0;
     init_state.x[1] = 0;
