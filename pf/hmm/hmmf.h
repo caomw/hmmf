@@ -115,6 +115,7 @@ class Graph{
         void add_sample();
         bool is_edge_free( Edge *etmp);
         int connect_edges(Vertex *v);
+
         void propagate_system();
         
         void put_init_samples();

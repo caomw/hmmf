@@ -29,13 +29,13 @@ Graph::Graph(System& sys) {
     vlist.clear();
     num_vert = 0;
     num_particles = 50;
-    obs_interval = 1;
+    obs_interval = 5;
 
     state_tree = kd_create(NUM_DIM);
     time_tree = kd_create(1);
 
-    goal_width = system->sim_time_delta;
-    gamma = 3.0;
+    goal_width = 10*system->sim_time_delta;
+    gamma = 2.2;
 
     curr_best_cost = DBL_MAX;
     curr_best_vertex = NULL;
@@ -777,11 +777,11 @@ void Graph::add_sample()
         }
     }
     
+    connect_edges(v);
+    
     vlist.push_back(v);
     num_vert++;
     insert_into_kdtree(v);
-
-    connect_edges(v);
 }
 
 int Graph::connect_edges(Vertex *v)
@@ -790,11 +790,12 @@ int Graph::connect_edges(Vertex *v)
     system->get_key(v->s, key);
 
     double bowlr = gamma * pow( log(num_vert)/(num_vert), 1/(double)NUM_DIM);
-    
+
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
     //cout<<"got "<<kd_res_size(res)<<" states in bowlr= "<< bowlr << endl;
 
+    bool added_outgoing = false;
     double pos[NUM_DIM] = {0};
     while( !kd_res_end(res))
     {
@@ -813,6 +814,7 @@ int Graph::connect_edges(Vertex *v)
 
                 if( is_edge_free(e1))
                 {
+                    added_outgoing = true;
                     elist.push_back(e1);
 
                     v->edges_out.push_back(e1);
@@ -832,7 +834,7 @@ int Graph::connect_edges(Vertex *v)
                 if(  is_edge_free(e2) )
                 {
                     elist.push_back(e2);
-                    
+
                     v->edges_in.push_back(e2);
                     v1->edges_out.push_back(e2);
 
@@ -848,9 +850,12 @@ int Graph::connect_edges(Vertex *v)
     kd_res_free(res);
 
     normalize_edges(v);
-    propagate_viterbi(v);
+
+    if(added_outgoing)
+        propagate_viterbi(v);
 
     //cout<<"getchar: "; getchar();
+
     return 0;
 }
 
@@ -864,7 +869,7 @@ void Graph::get_best_path()
 
     kdres *res;
     res = kd_nearest_range(time_tree, &(to_query[0]), goal_width);
-    
+
     double max_prob = -1;
     Vertex *vcurr = NULL;
     cout<< "did kdtree query with: "<< truth.back().x[0] << " size: " << kd_res_size(res) << endl;
@@ -872,8 +877,8 @@ void Graph::get_best_path()
     while( !kd_res_end(res))
     {
         Vertex *vtmp = (Vertex *)kd_res_item(res, pos);
-        cout<< vtmp->prob_best_path<<" ";
-        
+        //cout<< vtmp->prob_best_path<<" ";
+
         if( vtmp->prob_best_path > max_prob)
         {
             vcurr = vtmp;
@@ -908,7 +913,7 @@ void Graph::get_best_path()
         //cout<<" all edges are" << endl;
         for(unsigned int i=0; i< vcurr->edgein.size(); i++)
         {
-            cout<<"edge i: "<< i << " : " << (vcurr->edgein[i]->prob) * (vcurr->edgein[i]->from->prob) << endl;
+        cout<<"edge i: "<< i << " : " << (vcurr->edgein[i]->prob) * (vcurr->edgein[i]->from->prob) << endl;
         }
         //cout<<"chose: "<< edge_index_connected_vertex(vcurr, vcurr->prev) << endl;
         //cout<<"getchar: "; getchar();
@@ -942,7 +947,7 @@ void Graph::print_rrg()
         {
             cout<<"\t "<< counte++ << " " << (*j)->transition_prob << endl;
         }
-        
+
         counte = 0;
         double totprob = 0;
         cout<<"eo: " << endl;
@@ -966,7 +971,7 @@ void Graph::propagate_system()
     {
         State snext = system->integrate( truth.back(), system->sim_time_delta, false);
         truth.push_back( snext);
-        
+
         count--;
         if(count == 0)
         {
@@ -984,7 +989,7 @@ void Graph::put_init_samples()
     {
         State stmp = system->sample();
         Vertex *v = new Vertex(stmp);
-        
+
 
         v->s.x[0] = system->min_states[0];
         multivar_normal( &(system->init_state.x[1]), system->init_var, &(v->s.x[1]), NUM_DIM-1);
@@ -1004,7 +1009,7 @@ void Graph::put_init_samples()
         double tmp = v->prob_best_path/totprob;
         v->prob_best_path = tmp;
     }
-    
+
     /*
     // just add one vertex at the mean
     State stmp = system->init_state;
@@ -1048,9 +1053,9 @@ int Graph::simulate_trajectory()
     State stmp = system->init_state;
     stmp.x[0] = system->min_states[0];
     double init_prob = normal_val( &(system->init_state.x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
-    
+
     bool can_go_forward = false;
-    
+
     Vertex *vcurr = nearest_vertex(stmp);
     if(vcurr->edges_out.size() > 0)
         can_go_forward = true;
@@ -1058,7 +1063,7 @@ int Graph::simulate_trajectory()
     seq.push_back(vcurr->s);
     // keep in multiplicative form for simulation
     double traj_prob = vcurr->prob_best_path;
-    
+
     while(can_go_forward)
     {
         double rand_tmp = RANDF;
@@ -1075,18 +1080,18 @@ int Graph::simulate_trajectory()
             }
         }
         /*
-        if( (vcurr->edges_out.size() > 0) && (which_edge == NULL))
-        {
-            cout<<"error- rand: "<< rand_tmp<<" runner: "<< runner <<" num_edges: "<< vcurr->edges_out.size() << endl;
-            getchar();
-        }
-        */
+           if( (vcurr->edges_out.size() > 0) && (which_edge == NULL))
+           {
+           cout<<"error- rand: "<< rand_tmp<<" runner: "<< runner <<" num_edges: "<< vcurr->edges_out.size() << endl;
+           getchar();
+           }
+           */
         if(vcurr->edges_out.size() == 0)
         {
             can_go_forward = false;
             break;
         }
-        
+
         if(which_edge != NULL)
         {
             seq.push_back(vcurr->s);
@@ -1125,7 +1130,7 @@ void Graph::plot_monte_carlo_trajectories()
 {
     ofstream mout("data/monte_carlo.dat");
     int count = 0;
-    
+
     double totprob = 0;
     for(list<double>::iterator i = monte_carlo_probabilities.begin(); i!= monte_carlo_probabilities.end(); \
             i++)
@@ -1151,7 +1156,7 @@ void Graph::plot_monte_carlo_trajectories()
             {
                 mout<< 0 <<"\t";
             }
-            
+
             mout<<endl;
         }
 

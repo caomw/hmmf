@@ -156,7 +156,7 @@ def plot_sim_trajs():
 
 if __name__ == "__main__":
 
-    plot_graph()
+    #plot_graph()
     plot_trajs()
     plot_sim_trajs()
     

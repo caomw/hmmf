@@ -14,13 +14,13 @@ System::System()
         max_states[i] = 1.0;
         init_state.x[i] = 0.5;
     }
-    max_states[0] = 0.5;
+    max_states[0] = 1.0;
     
     for(int i=0; i< NUM_DIM-1; i++)
     {
-        process_noise[i] = 1e-2;
-        obs_noise[i] = 1e-2;
-        init_var[i] = 1e-4;
+        process_noise[i] = 1e-3;
+        obs_noise[i] = 1e-3;
+        init_var[i] = 1e-3;
     }
     init_state.x[0] = 0;
 
