@@ -18,47 +18,28 @@ int do_decoding()
     clock_t start_time = clock();
     bool time_finished = false;
     
-    //while(time_finished == false)
-    //{
-    for(int i=0; i < 1000; i++)
+    for(int i=0; i < 500; i++)
     {
         graph.add_sample();
-        
+       
+        /*
         int num_vert = graph.get_num_vert();
-        int max_async_updates = 1000*log(num_vert);
+        int max_async_updates = min((double)num_vert, 100*log(num_vert));
         for(int j=0; j< max_async_updates; j++)
         {
             int which = RANDF*num_vert;
             Vertex *v = graph.vlist[which];
-            graph.update_viterbi(v);
+            graph.propagate_viterbi(v);
         }
+        */
 
-        if( graph.num_vert % 100 == 0)
+        if( graph.num_vert % 10 == 0)
         {
-            cout<< graph.num_vert <<endl;
+            cout<< graph.num_vert <<" ";
             toc();
         }
-        
-        /*
-        clock_t end_time = clock();
-        if( (end_time - start_time)/CLOCKS_PER_SEC > 500.0)
-            time_finished = true;
-        */
-    }
 
-    /*
-    for(int i=0; i< 1000; i++)
-    {
-        int max_async_updates = min((double)graph.get_num_vert(), 10*log( graph.get_num_vert()));
-        int num_vert = graph.get_num_vert();
-        for(int j=0; j< max_async_updates; j++)
-        {
-            int which = RANDF*num_vert;
-            Vertex *v = graph.vlist[which];
-            graph.update_viterbi(v);
-        }
     }
-    */
 
     graph.get_best_path();
     cout<<"time: "<< get_msec() - start << " [ms]" << endl;
@@ -87,8 +68,9 @@ int graph_sanity_check()
         graph.add_sample();
         if(i % 100 == 0)
         {
-            cout<<i<<endl;
+            cout<< i <<" ";
             toc();
+            cout<<"\r";
         }
     }
 

@@ -7,7 +7,7 @@ Vertex::Vertex(State& st)
 
     prev = NULL;
     next = NULL;
-    prob_best_path = 1/DBL_MAX;
+    prob_best_path = -1;
     is_open_queue = 0;
     is_closed_queue = 0;
 
@@ -34,7 +34,7 @@ Graph::Graph(System& sys) {
     state_tree = kd_create(NUM_DIM);
     time_tree = kd_create(1);
 
-    goal_width = 5*system->sim_time_delta;
+    goal_width = system->sim_time_delta;
     gamma = 3.0;
 
     curr_best_cost = DBL_MAX;
@@ -590,6 +590,43 @@ int Graph::write_observation_prob(Edge *e, State& obs)
     return 0;
 }
 
+void Graph::propagate_viterbi(Vertex* v)
+{
+    int max_size = -1;
+    list<Vertex*> myq;
+    int myq_size = 0;
+    
+    myq.push_back(v);
+    myq_size++;
+
+    for(list<Edge*>::iterator i = v->edges_out.begin(); i != v->edges_out.end(); i++)
+    {
+        myq.push_back((*i)->to);
+        myq_size++;
+    }
+
+    while(myq_size)
+    {
+        Vertex* vtmp = myq.front();
+        update_viterbi(vtmp);
+        
+        myq.pop_front();
+        myq_size--;
+
+        for(list<Edge*>::iterator i = vtmp->edges_out.begin(); i != vtmp->edges_out.end(); i++)
+        {
+            Edge* etmp = *i;
+            if( (vtmp->prob_best_path)*(etmp->transition_prob) > (etmp->to->prob_best_path) )
+            {
+                myq.push_back(etmp->to);
+                myq_size++;
+            }
+        }
+        if( myq_size > max_size)
+            max_size = myq_size;
+    }
+    //cout<<"max_size: "<< max_size << endl;
+}
 
 void Graph::update_viterbi( Vertex *v )
 {
@@ -774,7 +811,7 @@ int Graph::connect_edges(Vertex *v)
                 write_transition_prob_with_obs(e1);
                 //cout<<"e1 prob: " << e1->transition_prob << endl;
 
-                if( is_edge_free(e1) && (e1->transition_prob > 1e-50))
+                if( is_edge_free(e1))
                 {
                     elist.push_back(e1);
 
@@ -792,7 +829,7 @@ int Graph::connect_edges(Vertex *v)
                 write_transition_prob_with_obs(e2);
                 //cout<<"e2 prob: " << e2->transition_prob << endl;
 
-                if(  is_edge_free(e2)  && (e2->transition_prob > 1e-50) )
+                if(  is_edge_free(e2) )
                 {
                     elist.push_back(e2);
                     
@@ -800,6 +837,7 @@ int Graph::connect_edges(Vertex *v)
                     v1->edges_out.push_back(e2);
 
                     normalize_edges(v1);
+                    propagate_viterbi(v1);
                 }
                 else
                     delete e2;
@@ -810,16 +848,7 @@ int Graph::connect_edges(Vertex *v)
     kd_res_free(res);
 
     normalize_edges(v);
-    update_viterbi(v);
-    
-    /* 
-    // update viterbi for all outgoing edges of v
-    for(list<Edge*>::iterator i = v->edges_out.begin(); i != v->edges_out.end(); i++)
-    {
-        Edge* etmp = *i;
-        update_viterbi(etmp->to);
-    }
-    */
+    propagate_viterbi(v);
 
     //cout<<"getchar: "; getchar();
     return 0;

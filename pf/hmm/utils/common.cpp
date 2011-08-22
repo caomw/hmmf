@@ -43,7 +43,7 @@ void toc()
     gettimeofday(&start, NULL);
     double delta_t = start.tv_sec*1000 + start.tv_usec/1000.0 - curr_time;
     
-    cout<< delta_t/1000.0 << " [sec]" << endl;
+    cout<< delta_t/1000.0 << " [s]\n";
 }
 
 double get_msec()

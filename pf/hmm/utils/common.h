@@ -7,6 +7,7 @@
 #include <cfloat>
 #include <list>
 #include <vector>
+#include <queue>
 #include <fstream>
 #include <cstdlib>
 #include <sys/time.h>

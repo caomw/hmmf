@@ -123,6 +123,8 @@ class Graph{
         int write_observation_prob(Edge *e, State& obs);
         void update_viterbi( Vertex *v );
         void update_goal_viterbi();
+        void propagate_viterbi(Vertex* v);
+        
         void update_observation_prob(State& yt);
         
         bool path_exists(Vertex *v);
