@@ -15,7 +15,7 @@ class Vertex
         State s;
         
         // prob of best path that ends up here incorporating obs
-        double cost_best_path;
+        double prob_best_path;
         double voronoi_area;
 
         bool is_open_queue;
@@ -63,10 +63,11 @@ class Graph{
         System* system;
         int num_particles; 
         int obs_interval;
+        
         double curr_best_cost;
         Vertex* curr_best_vertex;
-        
-        double goal_width;          // (max_states[0] - goal_width) is the goal region
+       
+        double goal_width;
         double gamma;
         struct kdtree *state_tree;
         struct kdtree *time_tree; 

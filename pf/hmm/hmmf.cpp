@@ -7,7 +7,7 @@ Vertex::Vertex(State& st)
 
     prev = NULL;
     next = NULL;
-    cost_best_path = DBL_MAX;
+    prob_best_path = 1/DBL_MAX;
     is_open_queue = 0;
     is_closed_queue = 0;
 
@@ -33,9 +33,9 @@ Graph::Graph(System& sys) {
 
     state_tree = kd_create(NUM_DIM);
     time_tree = kd_create(1);
-    
-    gamma = 2.2;
-    goal_width = 10*system->sim_time_delta;
+
+    goal_width = 5*system->sim_time_delta;
+    gamma = 3.0;
 
     curr_best_cost = DBL_MAX;
     curr_best_vertex = NULL;
@@ -128,7 +128,7 @@ void Graph::plot_graph()
         for(int i=0; i<NUM_DIM; i++)
             rrgpout<< tstart->s.x[i]<<"\t";
 
-        rrgpout<< tstart->cost_best_path << "\t";
+        rrgpout<< tstart->prob_best_path << "\t";
         rrgpout<<endl;
     }
     rrgout.close();
@@ -593,54 +593,16 @@ int Graph::write_observation_prob(Edge *e, State& obs)
 
 void Graph::update_viterbi( Vertex *v )
 {
-    /*
-    double max_prob = -DBL_MAX;
-    for(list<Edge*>::iterator i= v->edges_in.begin(); i != v->edges_in.end(); i++)
-    {
-        Edge *etmp = *i;;
-        if( ( (etmp->transition_prob) * (etmp->from->cost_best_path) ) > max_prob)
-        {
-            max_prob = ( (etmp->transition_prob) * (etmp->from->cost_best_path) );
-            v->prev = etmp->from;
-            v->cost_best_path = max_prob;
-            
-            //assert(v->cost_best_path < 1.0);
-            
-            if(v->cost_best_path > 1)
-            {
-                cout<<"etmp->prob: " << etmp->transition_prob << endl;
-                cout<<"from->prob: "<< etmp->from->cost_best_path << endl;
-                cout<<"rrg.num_vert: "<< num_vert << endl;
-                getchar();
-            }
-        }
-    }
-    */
-
-    double min_cost = DBL_MAX;
+    double max_prob = -1;
     for(list<Edge*>::iterator i= v->edges_in.begin(); i != v->edges_in.end(); i++)
     {
         Edge *etmp = *i;
-        double tocalci = (-log(etmp->transition_prob) + etmp->from->cost_best_path);
-        if( tocalci < min_cost)
+        double tocalci = (etmp->transition_prob)*(etmp->from->prob_best_path);
+        if( tocalci > max_prob )
         {
-            min_cost = tocalci;
+            max_prob = tocalci;
             v->prev = etmp->from;
-            v->cost_best_path = tocalci;
-        }
-    }
-    
-    // check whether inside goal region
-    if( fabs(v->s.x[0] - system->max_states[0]) < goal_width)
-    {
-        if( v->cost_best_path < curr_best_cost )
-        {
-            curr_best_cost = v->cost_best_path;
-            curr_best_vertex = v;
-            cout<<"found best at num_vert: "<< num_vert<<" ";
-            for(int i=0; i< NUM_DIM; i++)
-                cout<<v->s.x[i]<<" ";
-            cout<<"prob: "<< curr_best_cost << endl;
+            v->prob_best_path = tocalci;
         }
     }
 }
@@ -782,9 +744,6 @@ void Graph::add_sample()
     num_vert++;
     insert_into_kdtree(v);
 
-    if(curr_best_vertex != NULL)
-        curr_best_cost = curr_best_vertex->cost_best_path;
-    
     connect_edges(v);
 }
 
@@ -813,8 +772,9 @@ int Graph::connect_edges(Vertex *v)
             {
                 Edge *e1 = new Edge(v, v1);
                 write_transition_prob_with_obs(e1);
-                
-                if( is_edge_free(e1) )
+                //cout<<"e1 prob: " << e1->transition_prob << endl;
+
+                if( is_edge_free(e1) && (e1->transition_prob > 1e-50))
                 {
                     elist.push_back(e1);
 
@@ -824,14 +784,15 @@ int Graph::connect_edges(Vertex *v)
                 }
                 else
                     delete e1;
-                //cout<<"wrote e: "<<v->s.x[0]<<" "<<v->s.x[1]<<" to "<<v1->s.x[0]<<" "<<v1->s.x[1]<<endl;  
+                //cout<<"wrote e: "<<v->s.x[0]<<" "<<v->s.x[1]<<" to "<<v1->s.x[0]<<" "<<v1->s.x[1]<<endl; 
             }
             else if( (v->s.x[0] - v1->s.x[0]) > 0)
             {
                 Edge *e2 = new Edge(v1, v);
                 write_transition_prob_with_obs(e2);
+                //cout<<"e2 prob: " << e2->transition_prob << endl;
 
-                if(  is_edge_free(e2) )
+                if(  is_edge_free(e2)  && (e2->transition_prob > 1e-50) )
                 {
                     elist.push_back(e2);
                     
@@ -851,13 +812,14 @@ int Graph::connect_edges(Vertex *v)
     normalize_edges(v);
     update_viterbi(v);
     
-    
+    /* 
     // update viterbi for all outgoing edges of v
     for(list<Edge*>::iterator i = v->edges_out.begin(); i != v->edges_out.end(); i++)
     {
         Edge* etmp = *i;
         update_viterbi(etmp->to);
     }
+    */
 
     //cout<<"getchar: "; getchar();
     return 0;
@@ -866,41 +828,39 @@ int Graph::connect_edges(Vertex *v)
 
 void Graph::get_best_path()
 {
-    /*
     double pos[NUM_DIM] = {0};
     double to_query[NUM_DIM];
     cout<<"truth: "<< truth.back().x[0] <<" " << truth.back().x[1] << endl;
     system->get_key(truth.back(), to_query);
 
     kdres *res;
-    res = kd_nearest_range(time_tree, &(to_query[0]), 0.1);
+    res = kd_nearest_range(time_tree, &(to_query[0]), goal_width);
     
-    double min_cost = DBL_MAX;
+    double max_prob = -1;
     Vertex *vcurr = NULL;
     cout<< "did kdtree query with: "<< truth.back().x[0] << " size: " << kd_res_size(res) << endl;
 
     while( !kd_res_end(res))
     {
         Vertex *vtmp = (Vertex *)kd_res_item(res, pos);
-        cout<< vtmp->cost_best_path<<" ";
+        cout<< vtmp->prob_best_path<<" ";
         
-        if( vtmp->cost_best_path < min_cost)
+        if( vtmp->prob_best_path > max_prob)
         {
             vcurr = vtmp;
-            min_cost = vtmp->cost_best_path;
+            max_prob = vtmp->prob_best_path;
         }
         kd_res_next(res);
     }
     kd_res_free(res);
-    */
 
-    Vertex *vcurr = curr_best_vertex;
+    //Vertex *vcurr = curr_best_vertex;
     if( vcurr != NULL)
     {
         cout<<"found last: ";
         for(int i=0; i< NUM_DIM; i++)
             cout<< vcurr->s.x[i]<<" ";
-        cout<<"prob: "<< vcurr->cost_best_path << endl;
+        cout<<"prob: "<< vcurr->prob_best_path << endl;
     }
     else
     {
@@ -914,7 +874,7 @@ void Graph::get_best_path()
     while( vcurr != NULL)
     {
         best_path.push_back( vcurr->s );
-        cout<< vcurr->cost_best_path << endl;
+        cout<< vcurr->prob_best_path << endl;
         /*
         //cout<<" all edges are" << endl;
         for(unsigned int i=0; i< vcurr->edgein.size(); i++)
@@ -945,7 +905,7 @@ void Graph::print_rrg()
     for(vector<Vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
     {
         Vertex *v = *i;
-        cout<<"node: " << countv++ << " state: " << v->s.x[0] << " " << v->s.x[1] << " " << v->cost_best_path << endl;
+        cout<<"node: " << countv++ << " state: " << v->s.x[0] << " " << v->s.x[1] << " " << v->prob_best_path << endl;
 
         counte = 0;
         cout << "ei: " << endl;
@@ -1000,8 +960,8 @@ void Graph::put_init_samples()
         v->s.x[0] = system->min_states[0];
         multivar_normal( &(system->init_state.x[1]), system->init_var, &(v->s.x[1]), NUM_DIM-1);
 
-        v->cost_best_path = normal_val( &(system->init_state.x[1]), system->init_var, &(v->s.x[1]), NUM_DIM-1);      
-        totprob += v->cost_best_path;
+        v->prob_best_path = normal_val( &(system->init_state.x[1]), system->init_var, &(v->s.x[1]), NUM_DIM-1);      
+        totprob += v->prob_best_path;
 
         vlist.push_back(v);
         num_vert++;
@@ -1012,9 +972,20 @@ void Graph::put_init_samples()
     for(vector<Vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
     {
         Vertex* v = *i;
-        double tmp = v->cost_best_path/totprob;
-        v->cost_best_path = -log(tmp);
+        double tmp = v->prob_best_path/totprob;
+        v->prob_best_path = tmp;
     }
+    
+    /*
+    // just add one vertex at the mean
+    State stmp = system->init_state;
+    Vertex* v = new Vertex(stmp);
+    v->cost_best_path = 0;
+    vlist.push_back(v);
+    num_vert++;
+    insert_into_kdtree(v);
+    */
+
 }
 
 bool Graph::is_everything_normalized()
@@ -1057,7 +1028,7 @@ int Graph::simulate_trajectory()
 
     seq.push_back(vcurr->s);
     // keep in multiplicative form for simulation
-    double traj_prob = exp(-vcurr->cost_best_path);
+    double traj_prob = vcurr->prob_best_path;
     
     while(can_go_forward)
     {
