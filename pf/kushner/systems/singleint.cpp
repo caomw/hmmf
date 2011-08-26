@@ -11,7 +11,7 @@ System::System()
     for(int i=0; i< NUM_DIM; i++)
     {
         min_states[i] = 0;
-        max_states[i] = 1.0;
+        max_states[i] = 0.5;
         init_state.x[i] = 0.5;
     }
     
@@ -151,7 +151,7 @@ State System::observation(State& s, bool is_clean)
     return t;
 }
 
-void System::get_kalman_path(list<State>& obs, list<State>& kalman_path)
+void System::get_kalman_path( vector<State>& obs, list<State>& kalman_path)
 {
     /*
     kalman_path.clear();

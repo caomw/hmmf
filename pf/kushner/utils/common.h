@@ -14,13 +14,11 @@
 #include <algorithm>
 #include <utility>
 #include <cassert>
+#include <string>
 
-#include <Eigen/Dense>
-#define EIGEN_INITIALIZE_MATRICES_BY_ZERO
-
+#include "lp_lib.h"
 #include "kdtree.h"
 using namespace std;
-using namespace Eigen;
 
 #define RANDF       (rand()/(RAND_MAX+1.0))
 
@@ -50,8 +48,8 @@ float normal_val(float *mean, float *var, float *tocalci, int dim)
     top = exp(-0.5*top);
     float to_ret = 1/pow(2*M_PI, dim/2.0)/ sqrt( det ) * top;
     
-    if ( to_ret < 1e-100)
-        to_ret = 1e-100;
+    if ( to_ret < 1e-20)
+        to_ret = 1e-20;
     
     return to_ret;
 }
@@ -61,3 +59,4 @@ void toc();
 double get_msec();
 
 #endif
+

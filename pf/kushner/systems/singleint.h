@@ -29,6 +29,49 @@ class State
             assert(which_dim < NUM_DIM);
             return x[which_dim];
         }
+        
+        float norm2()
+        {
+            float sum = 0;
+            for(int i=0; i< NUM_DIM; i++)
+                sum += (x[i]*x[i]);
+
+            return sum;
+        }
+        float norm()
+        {
+            float sum = 0;
+            for(int i=0; i< NUM_DIM; i++)
+                sum += (x[i]*x[i]);
+
+            return sqrt(sum);
+        }
+
+
+        float operator*(const State& s1)
+        {
+            float ret;
+            for(int i=0; i< NUM_DIM; i++)
+                ret += (this->x[i]*s1.x[i]);
+
+            return ret;
+        }
+        State operator+(const State& s1)
+        {
+            State ret;
+            for(int i=0; i< NUM_DIM; i++)
+                ret.x[i] = (this->x[i] + s1.x[i]);
+
+            return ret;
+        }
+        State operator-(const State& s1)
+        {
+            State ret;
+            for(int i=0; i< NUM_DIM; i++)
+                ret.x[i] = (this->x[i] - s1.x[i]);
+
+            return ret;
+        }
         State& operator=(const State &that)
         {
             if(this != &that)
@@ -68,7 +111,7 @@ class System
         State integrate(State& s, float duration, bool is_clean);
         State observation(State& s, bool is_clean);
 
-        void get_kalman_path(list<State>& obs, list<State>& kalman_path);
+        void get_kalman_path(vector<State>& obs, list<State>& kalman_path);
 };
 
 inline float dist(State s1, State s2)

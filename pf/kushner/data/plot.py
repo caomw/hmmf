@@ -42,6 +42,7 @@ def draw_edges():
 def plot_graph():
 
     rrgp = []
+    prob = []
     rrgpf = open("rrgp.dat", 'r')
     if rrgpf:
         lines = rrgpf.readlines()
@@ -49,16 +50,17 @@ def plot_graph():
             s = l.split('\t')
             to_put = [ float(s[i]) for i in range(NUM_DIM) ]
             rrgp.append( to_put )
+            prob.append( float(s[NUM_DIM]) )
         
-        rrgp_is_exists = 1;
     rrgpf.close()
     
     rrgp = array (rrgp)
+    prob = array(prob)
 
     for i in range(NUM_DIM-1):
         
         subplot(NUM_DIM-1,1,i+1, aspect='auto')
-        plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=3.0, alpha = 0.6)
+        plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=5.0, alpha = 0.2 )
         grid()
 
 def plot_trajs():
@@ -144,7 +146,7 @@ def plot_sim_trajs():
                     
                     for i in range(NUM_DIM-1):
                         subplot(NUM_DIM-1,1,i+1, aspect='auto')
-                        plot(to_plot[:,0], to_plot[:,i+1], 'mo-', alpha=0.1)
+                        plot(to_plot[:,0], to_plot[:,i+1], 'mo-', alpha=0.3)
                         grid()
 
                 curr_traj = []
@@ -156,10 +158,10 @@ def plot_sim_trajs():
 
 if __name__ == "__main__":
 
-    plot_graph()
     plot_trajs()
     plot_sim_trajs()
     
+    plot_graph()
 
     xlabel('t [s] ')
     ylabel('x')

@@ -9,11 +9,11 @@ C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)
 OBJS = $(C_OBJS) $(CPP_OBJS)
 
-INCS = -I./ -I systems/ -I utils/ -I /home/pratik/apps/eigen/
-LIBS = -L./
+INCS = -I./ -I systems/ -I utils/ -I utils/lpsolve/
+LIBS = -L./ -L utils/lpsolve/
 
-CFLAGS = -g -pg -O2
-LDFLAGS = -g -pg
+CFLAGS = -g -pg -O0
+LDFLAGS = -lm -llpsolve55 -g -pg
 
 all: $(BIN)
 	rm -rf data/*.dat

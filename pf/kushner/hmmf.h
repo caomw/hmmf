@@ -16,6 +16,8 @@ class Vertex
         
         // prob of best path that ends up here incorporating obs
         float prob_best_path;
+        float obs_update_time;
+        float holding_time;
 
         // parent of the best path
         Vertex *prev;
@@ -62,7 +64,8 @@ class Graph{
         
         float gamma, gamma_t;
         struct kdtree *state_tree;
-        
+       
+
     public:
 
         Graph(System& sys);
@@ -73,8 +76,9 @@ class Graph{
         
         unsigned int num_vert;
         list<State> truth;
-        list<float> obs_times;
-        list<State> obs;
+        int obs_curr_index;
+        vector<float> obs_times;
+        vector<State> obs;
         list<State> best_path;
         list<State> kalman_path;
         
@@ -111,10 +115,10 @@ class Graph{
 
         void propagate_system();
         
-        void put_init_samples();
-        void update_viterbi( Vertex *v );
-        void propagate_viterbi(Vertex* v);
+        void put_init_samples(int howmany);
         
+        void propagate_density(Vertex* v);
+        void update_density(Vertex* v);
         void update_observation_prob(State& yt);
         
         void get_best_path();
