@@ -50,7 +50,7 @@ class State
 
         float operator*(const State& s1)
         {
-            float ret;
+            float ret = 0;
             for(int i=0; i< NUM_DIM; i++)
                 ret += (this->x[i]*s1.x[i]);
 

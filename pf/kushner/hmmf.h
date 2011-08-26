@@ -58,15 +58,16 @@ class Edge{
 class Graph{
 
     private:
-        System* system;
         
         int obs_interval;
-        
+        float max_obs_time;
+
         float gamma, gamma_t;
         struct kdtree *state_tree;
        
 
     public:
+        System* system;
 
         Graph(System& sys);
         ~Graph();
@@ -116,11 +117,18 @@ class Graph{
         void propagate_system();
         
         void put_init_samples(int howmany);
-        
+       
+        void normalize_density();
         void propagate_density(Vertex* v);
         void update_density(Vertex* v);
-        void update_observation_prob(State& yt);
         
+        float make_holding_time_constant();
+        void propagate_viterbi(Vertex* v);
+        void update_viterbi(Vertex* v);
+        
+        void update_observation_prob(State& yt);
+       
+
         void get_best_path();
         void get_kalman_path();
         

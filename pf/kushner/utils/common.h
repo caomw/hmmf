@@ -16,7 +16,6 @@
 #include <cassert>
 #include <string>
 
-#include "lp_lib.h"
 #include "kdtree.h"
 using namespace std;
 

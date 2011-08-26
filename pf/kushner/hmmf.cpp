@@ -29,6 +29,7 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
+    max_obs_time = 0.5;
 
     state_tree = kd_create(NUM_DIM);
 
@@ -290,7 +291,7 @@ void Graph::propagate_density(Vertex* v)
         if( myq_size > max_size)
             max_size = myq_size;
     }
-    cout<<"max_size: "<< max_size << endl;
+    //cout<<"max_size: "<< max_size << endl;
 }
 
 void Graph::update_density(Vertex* v)
@@ -308,20 +309,136 @@ void Graph::update_density(Vertex* v)
         // multiply by Vinverse
         for(int i=0; i< NUM_DIM; i++)
         {
-            gx.x[i] = gx.x[i]/system->obs_noise[i];
-            dY.x[i] = dY.x[i]/system->obs_noise[i];
+            gx.x[i] = gx.x[i]/sqrt(system->obs_noise[i]);
+            dY.x[i] = dY.x[i]/sqrt(system->obs_noise[i]);
         }
-            
+        
         float Ry = exp( gx * dY - 0.5 * gx.norm2() * (v->holding_time) );
         float sum = 0;
+        //cout<<"Ry: " << Ry << endl;
         for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
         {
             Edge* etmp = *i;
-            sum += Ry* etmp->transition_prob * (etmp->from->prob_best_path);  
+            //sum = sum + Ry * etmp->transition_prob * (etmp->from->prob_best_path); 
+            sum = sum + normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM) * \
+                   etmp->transition_prob * (etmp->from->prob_best_path); 
         }
         v->prob_best_path = sum;
 
         v->obs_update_time = obs_times[obs_curr_index];
+    }
+}
+
+float Graph::make_holding_time_constant()
+{
+    float bowlr = gamma * pow( log(num_vert+2)/(num_vert+2), 1/(float)NUM_DIM);
+    float min_holding_time = bowlr*bowlr/( (system->process_noise[0])*(system->process_noise[0])/4 + \
+            bowlr*3*fabs(system->max_states[0]));
+
+    for(int i=0; i< num_vert; i++)
+    {
+        Vertex* v = vlist[i];
+        float pself = 1 - min_holding_time/(v->holding_time);
+
+        for(list<Edge*>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
+        {
+            Edge* etmp = *j;
+            etmp->transition_prob = (etmp->transition_prob)*(1 - pself);
+            etmp->transition_time = min_holding_time;
+        }
+        
+        //add new edge to itself
+        Edge* new_edge = new Edge(v, v, pself, min_holding_time);
+        elist.push_back(new_edge);
+        v->edges_out.push_back(new_edge);
+        v->edges_in.push_back(new_edge);
+        
+        normalize_edges(v);
+    }
+    return min_holding_time;
+}
+
+
+void Graph::update_viterbi(Vertex* v)
+{
+    float max_prob = -1;
+    float tmp;
+    State gx = system->observation(v->s, true);
+    float obs_prob = normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM);
+    for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
+    {
+        Edge* etmp = *i;
+
+        tmp = (etmp->from->prob_best_path)*(etmp->transition_prob)*obs_prob;
+
+        if(tmp > max_prob)
+        {
+            max_prob = tmp;
+            v->prev = etmp->from;
+            v->prob_best_path = max_prob;
+        }
+    }
+}
+
+void Graph::propagate_viterbi(Vertex* v)
+{
+    int max_size = -1;
+    list<Vertex*> myq;
+    int myq_size = 0;
+    
+    myq.push_back(v);
+    myq_size++;
+
+    for(list<Edge*>::iterator i = v->edges_out.begin(); i != v->edges_out.end(); i++)
+    {
+        myq.push_back((*i)->to);
+        myq_size++;
+    }
+
+    while(myq_size)
+    {
+        Vertex* vtmp = myq.front();
+        update_viterbi(vtmp);
+        
+        myq.pop_front();
+        myq_size--;
+
+        for(list<Edge*>::iterator i = vtmp->edges_out.begin(); i != vtmp->edges_out.end(); i++)
+        {
+            Edge* etmp = *i;
+            
+            State gx = system->observation(etmp->to->s, true);
+            float tmp = (vtmp->prob_best_path)*(etmp->transition_prob)* \
+                normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM);
+            // add to queue if not updated with latest observation
+            if( etmp->to->prob_best_path <  tmp)
+            {
+                myq.push_back(etmp->to);
+                myq_size++;
+            }
+            //else
+                //cout<<"didn't add: " << etmp->to->obs_update_time << " " << obs_times[obs_curr_index] << endl;
+        }
+        if( myq_size > max_size)
+            max_size = myq_size;
+    }
+    //cout<<"max_size: "<< max_size << endl;
+}
+
+
+
+void Graph::normalize_density()
+{
+    float totprob = 0;
+    for(int j=0; j < num_vert; j++)
+    {
+        Vertex* v = vlist[j];
+        totprob += (v->prob_best_path);
+    }
+    for(int j=0; j < num_vert; j++)
+    {
+        Vertex* v = vlist[j];
+        v->prob_best_path = v->prob_best_path/totprob;
     }
 }
 
@@ -377,13 +494,14 @@ int Graph::connect_edges_approx(Vertex* v)
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    float bowlr = gamma * pow( log(num_vert+1)/(num_vert+1), 1/(float)NUM_DIM);
+    float bowlr = gamma * pow( log(num_vert+2)/(num_vert+2), 1/(float)NUM_DIM);
     
+    //float holding_time = bowlr*bowlr/( (system->process_noise[0])*(system->process_noise[0])/4 + bowlr*3*fabs(v->s.x[0]));
+    //float holding_time = bowlr*bowlr/( (system->process_noise[0])*(system->process_noise[0])/4 + bowlr*3*fabs(system->max_states[0]));
     gamma_t = pow((gamma/12), NUM_DIM)/3/(v->s.x[0]);
-    float holding_time = bowlr*bowlr/( (system->process_noise[0])*(system->process_noise[0])/4 + bowlr*3*fabs(v->s.x[0]));
+    float holding_time = gamma_t * pow( log(num_vert+2)/(num_vert+2), 1/(float)NUM_DIM);
     v->holding_time = holding_time;
-    
-    //float holding_time = gamma_t * pow( log(num_vert+1)/(num_vert+1), 2/(float)NUM_DIM);
+     
     //cout<<"holding time: "<< holding_time << endl;
     
     kdres *res;
@@ -401,7 +519,7 @@ int Graph::connect_edges_approx(Vertex* v)
     while( !kd_res_end(res) )
     {
         Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
-
+        
         float prob_tmp = normal_val(stmp.x, var, v1->s.x, NUM_DIM);
         if(prob_tmp > 0)
         {
@@ -663,7 +781,7 @@ void Graph::print_rrg()
 void Graph::propagate_system()
 {
     float curr_time = 0;
-    float max_time = 0.1;
+    float max_time = max_obs_time;
     int count = obs_interval;
 
     truth.push_back(system->init_state);
@@ -744,7 +862,7 @@ int Graph::simulate_trajectory()
     // keep in multiplicative form for simulation
     float traj_prob = normal_val( system->init_state.x, system->init_var, stmp.x, NUM_DIM);
     float curr_time = 0;
-    float max_time = 0.1;
+    float max_time = max_obs_time;
 
     while(can_go_forward)
     {

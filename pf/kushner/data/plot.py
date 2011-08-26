@@ -113,8 +113,8 @@ def plot_trajs():
 
         if len(sys) != 0:
             plot( sys[:,0], sys[:,i+1], 'r-', label='sys', lw=2.0)
-        if len(obs) != 0:
-            plot( obs[:,0], obs[:,i+1], 'b-', label='obs')
+        #if len(obs) != 0:
+            #plot( obs[:,0], obs[:,i+1], 'b-', label='obs')
         
         if len(bp) != 0:
             plot( bp[:,0], bp[:,i+1], 'go-', label='hmm')

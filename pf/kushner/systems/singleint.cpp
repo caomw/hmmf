@@ -11,14 +11,14 @@ System::System()
     for(int i=0; i< NUM_DIM; i++)
     {
         min_states[i] = 0;
-        max_states[i] = 0.5;
-        init_state.x[i] = 0.5;
+        max_states[i] = 1.0;
+        init_state.x[i] = 1.0;
     }
     
     for(int i=0; i< NUM_DIM; i++)
     {
         process_noise[i] = 1e-3;
-        obs_noise[i] = 1e-3;
+        obs_noise[i] = 1e-2;
         init_var[i] = 1e-3;
     }
     sim_time_delta = 0.01;
@@ -135,8 +135,7 @@ State System::observation(State& s, bool is_clean)
 
     if( !is_clean)  
         multivar_normal( mean, obs_noise, tmp, NUM_DIM);
-
-    if(is_clean)
+    else
     {
         for(int i=0; i<NUM_DIM; i++)
             tmp[i] = 0;
