@@ -18,7 +18,9 @@ class Vertex
         float prob_best_path;
         float prob_best_path_buffer;
         float obs_update_time;
+        
         float holding_time;
+        float holding_time_delta;
 
         // parent of the best path
         Vertex *prev;
@@ -44,6 +46,7 @@ class Edge{
         list<Edge*>::iterator to_iter;
         list<Edge*>::iterator elist_iter;
 
+        float transition_prob_delta;
         float transition_prob;
         float transition_time;
         
@@ -65,6 +68,7 @@ class Graph{
         
         int obs_interval;
         float max_obs_time;
+        float delta;
 
         float gamma, gamma_t;
         struct kdtree *state_tree;
@@ -88,6 +92,7 @@ class Graph{
         // graph sanity check
         list< list<State> > monte_carlo_trajectories;
         list<float> monte_carlo_probabilities;
+        list< list<float> > monte_carlo_times;
 
         // graph functions
         unsigned int get_num_vert(){return num_vert; };
@@ -121,9 +126,14 @@ class Graph{
        
         void normalize_density();
         void propagate_density(Vertex* v);
-        void update_density(Vertex* v);
-        
+        void update_density_explicit(Vertex* v);
+        void update_density_implicit(Vertex* v);
+       
+        int calculate_delta();
+        int calculate_probabilities_delta(Vertex* v);
+        int calculate_probabilities_delta_all();
         float make_holding_time_constant();
+
         void propagate_viterbi(Vertex* v);
         void update_viterbi(Vertex* v);
         void update_viterbi_neighbors(Vertex* v);
@@ -131,11 +141,11 @@ class Graph{
         void update_observation_prob(State& yt);
        
 
-        void get_best_path();
         void get_kalman_path();
         
         bool is_everything_normalized();
-        int simulate_trajectory();
+        int simulate_trajectory_explicit();
+        int simulate_trajectory_implicit();
         
         friend class System;
 };

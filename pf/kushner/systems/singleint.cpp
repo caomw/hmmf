@@ -169,7 +169,7 @@ void System::get_kalman_path( vector<State>& obs, vector<float>& obs_times, list
 
     State curr_state = init_state;
     float prev_time = 0;
-    for(int i=0; i< obs.size(); i++)
+    for(unsigned int i=0; i< obs.size(); i++)
     {
         State& next_obs = obs[i];
         float delta_t = obs_times[i] - prev_time;

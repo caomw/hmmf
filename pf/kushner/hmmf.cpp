@@ -9,6 +9,8 @@ Vertex::Vertex(State& st)
     prob_best_path = -1;
     prob_best_path_buffer = -1;
     obs_update_time = 0;
+    
+    self_transition_prob = -1;
 
     edges_in.clear();
     edges_out.clear();
@@ -31,6 +33,7 @@ Graph::Graph(System& sys) {
     obs_interval = 1;
     obs_curr_index = 0;
     max_obs_time = 0.3;
+    delta = system->sim_time_delta;
 
     state_tree = kd_create(NUM_DIM);
 
@@ -96,14 +99,16 @@ void Graph::plot_graph()
     for(vector<Vertex*>::iterator i = vlist.begin(); i != vlist.end(); i++)
     {
         Vertex *tstart = (*i);
+#if 0
         for(list<Edge*>::iterator eo = tstart->edges_out.begin(); eo != tstart->edges_out.end(); eo++)
         {
             Vertex *tend = (*eo)->to;
             Edge *etmp = (*eo);
 
             //draw the edge
-            //rrgout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tend->s.x[0]<<"\t"<<tend->s.x[1]<<"\t"<<etmp->transition_prob<<"\t"<<etmp->transition_time<<endl;
+            rrgout<<tstart->s.x[0]<<"\t"<<tstart->s.x[1]<<"\t"<<tend->s.x[0]<<"\t"<<tend->s.x[1]<<"\t"<<etmp->transition_prob<<"\t"<<etmp->transition_time<<endl;
         }
+#endif
         for(int i=0; i<NUM_DIM; i++)
             rrgpout<< tstart->s.x[i]<<"\t";
 
@@ -117,49 +122,63 @@ void Graph::plot_graph()
 void Graph::plot_trajectory()
 {
     ofstream traj("data/traj.dat");
-
+    
+    int count = 0;
     traj<<"system"<<endl;
+    float curr_time =0;
     for(list<State>::iterator i= truth.begin(); i != truth.end(); i++)
     {
+        traj<< curr_time<<"\t";
         State& curr = *i;
         for(int j=0; j< NUM_DIM; j++)
         {
             traj<< curr.x[j]<<"\t";
         }
         traj<<endl;
+
+        curr_time += system->sim_time_delta;
     }
-    
+   
+    count = 0;
     traj<<"observation"<<endl;
     for(vector<State>::iterator i= obs.begin(); i != obs.end(); i++)
     {
+        traj<< obs_times[count]<<"\t";
         State& curr = *i;
         for(int j=0; j< NUM_DIM; j++)
         {
             traj<< curr.x[j]<<"\t";
         }
         traj<<endl;
+        count++;
     }
 
+    curr_time =0;
     traj<<"best_path"<<endl;
     for(list<State>::iterator i= best_path.begin(); i != best_path.end(); i++)
     {
+        traj<< curr_time<<"\t";
         State& curr = *i;
         for(int j=0; j< NUM_DIM; j++)
         {
             traj<< curr.x[j]<<"\t";
         }
         traj<<endl;
+        curr_time += system->sim_time_delta;
     }
     
+    count = 0;
     traj<<"kf_path"<<endl;
     for(list<State>::iterator i= kalman_path.begin(); i != kalman_path.end(); i++)
     {
+        traj<< obs_times[count]<<"\t";
         State& curr = *i;
         for(int j=0; j< NUM_DIM; j++)
         {
             traj<< curr.x[j]<<"\t";
         }
         traj<<endl;
+        count++;
     }
     cout<<"trajectory plotting done" << endl;
     traj.close();
@@ -259,7 +278,7 @@ void Graph::propagate_density(Vertex* v)
     while(myq_size)
     {
         Vertex* vtmp = myq.front();
-        update_density(vtmp);
+        update_density_explicit(vtmp);
         
         myq.pop_front();
         myq_size--;
@@ -282,7 +301,7 @@ void Graph::propagate_density(Vertex* v)
     //cout<<"max_size: "<< max_size << endl;
 }
 
-void Graph::update_density(Vertex* v)
+void Graph::update_density_explicit(Vertex* v)
 {
     State gx = system->observation(v->s, true);
 
@@ -299,13 +318,69 @@ void Graph::update_density(Vertex* v)
     v->obs_update_time = obs_times[obs_curr_index];
 }
 
+void Graph::update_density_implicit(Vertex* v)
+{
+    State gx = system->observation(v->s, true);
+
+    float sum = 0;
+    //cout<<"Ry: " << Ry << endl;
+    for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
+    {
+        Edge* etmp = *i;
+        sum = sum + normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM) * \
+              etmp->transition_prob_delta * (etmp->from->prob_best_path); 
+    }
+    v->prob_best_path_buffer = sum;
+
+    v->obs_update_time = obs_times[obs_curr_index];
+}
+
+int Graph::calculate_delta()
+{
+    float max_time = -1000;
+    for(unsigned int i=0; i< num_vert; i++)
+    {
+        Vertex* v = vlist[i];
+        if( v->holding_time > max_time)
+            max_time = v->holding_time;
+    }
+    delta = max_time;
+    
+    return 0;
+}
+
+int Graph::calculate_probabilities_delta_all()
+{
+    for(unsigned int i=0; i< num_vert; i++)
+    {
+        Vertex* v = vlist[i];
+        calculate_probabilities_delta(v);
+    }
+    return 0;
+}
+
+int Graph::calculate_probabilities_delta(Vertex* v)
+{
+    float holding_time = v->holding_time;
+    for(list<Edge*>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
+    {
+        Edge* etmp = (*j);
+        etmp->transition_prob_delta = (etmp->transition_prob)*(1 - holding_time/(holding_time + delta));
+    }
+
+    v->self_transition_prob = holding_time/(holding_time + delta);
+    v->holding_time_delta = delta*holding_time/(holding_time + delta);
+    
+    return 0;
+}
+
 float Graph::make_holding_time_constant()
 {
     float min_holding_time = system->get_min_holding_time(gamma, num_vert);
         
     cout<<"min_hold: "<< min_holding_time << endl;
 
-    for(int i=0; i< num_vert; i++)
+    for(unsigned int i=0; i< num_vert; i++)
     {
         Vertex* v = vlist[i];
         float pself = 1 - min_holding_time/(v->holding_time);
@@ -416,8 +491,7 @@ void Graph::propagate_viterbi(Vertex* v)
             Edge* etmp = *i;
             
             State gx = system->observation(etmp->to->s, true);
-            float tmp = (vtmp->prob_best_path)*(etmp->transition_prob)* \
-                normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM);
+            //float tmp = (vtmp->prob_best_path)*(etmp->transition_prob)* normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM);
             // add to queue if not updated with latest observation
             if( etmp->to->obs_update_time < (obs_times[obs_curr_index] - 1e-10) )
             {
@@ -435,12 +509,12 @@ void Graph::propagate_viterbi(Vertex* v)
 void Graph::normalize_density()
 {
     float totprob = 0;
-    for(int j=0; j < num_vert; j++)
+    for(unsigned int j=0; j < num_vert; j++)
     {
         Vertex* v = vlist[j];
         totprob += (v->prob_best_path);
     }
-    for(int j=0; j < num_vert; j++)
+    for(unsigned int j=0; j < num_vert; j++)
     {
         Vertex* v = vlist[j];
         v->prob_best_path = v->prob_best_path/totprob;
@@ -548,9 +622,8 @@ int Graph::connect_edges_approx(Vertex* v)
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
     //cout<<"got "<<kd_res_size(res)<<" states in bowlr= "<< bowlr << endl;
-    int pr = kd_res_size(res);
+    //int pr = kd_res_size(res);
     
-#if 1
     float *var = new float[NUM_DIM];
     State stmp = system->integrate(v->s, holding_time, true);
     system->get_variance(v->s, holding_time, var);
@@ -588,207 +661,12 @@ int Graph::connect_edges_approx(Vertex* v)
     kd_res_free(res);
     
     normalize_edges(v);
+    
+    calculate_probabilities_delta(v);
 
     delete[] var;
-#endif
 
-#if 0
-    lprec* lp;
-    lp = make_lp(0, pr);
-    set_add_rowmode(lp, TRUE);
-    
-    double* Z1 = new double[NUM_DIM*(pr+1)];
-    double* Z2 = new double[NUM_DIM*NUM_DIM*(pr+1)];
-    double* fdt = new double[NUM_DIM];
-    double* FFdt = new double[NUM_DIM*NUM_DIM];
-    double* ones = new double[pr+1];
-    
-    for(int i=0; i <NUM_DIM; i++)
-        fdt[i] = -3*(v->s.x[i])*holding_time;
-    
-    for(int i=0; i< (NUM_DIM)*(NUM_DIM); i++)
-    {
-        if (i % (NUM_DIM) == 0)
-            FFdt[i] = (system->process_noise[i/(NUM_DIM)])*holding_time*holding_time;       // already covariance
-        else
-            FFdt[i] = 0;
-    }
-
-    double pos[NUM_DIM] = {0};
-    int which_num = 0;
-    while( !kd_res_end(res) )
-    {
-        Vertex* v1 = (Vertex* )kd_res_item(res, pos);
-
-        for(int i=0; i< NUM_DIM; i++)
-        {
-            Z1[i*(pr+1) + which_num+1] = (v1->s.x[i] - v->s.x[i]);
-            Z1[i*(pr+1)] = 0;
-
-            for(int j=0; j< NUM_DIM; j++)
-            {
-                Z2[(i*NUM_DIM+j)*(pr+1) +which_num+1] = (v1->s.x[i] - v->s.x[i])*(v1->s.x[j] - v->s.x[j]); 
-                Z2[(i*NUM_DIM+j)*(pr+1)] = 0;
-            }
-        }
-
-        which_num++;
-        kd_res_next(res);
-    }
-    kd_res_free(res);
-
-    for(int i=0; i< NUM_DIM; i++)
-    {
-        double *row_tmp = new double[pr+1];
-        add_constraint(lp, &(Z1[i*(pr+1)]), EQ, fdt[i]);
-        cout<<"added constraint: "<< i << endl;
-    }
-    for(int i=1; i< pr+1; i++)
-    {
-        ones[i] = 1;
-        set_lowbo(lp, i, 0);
-        set_upbo(lp, i, 10);
-    }
-    ones[0] = 0;
-    set_obj_fn(lp, ones);
-
-    print_objective(lp);
-    print_lp(lp);
-    solve(lp);
-    
-    getchar();
-    //delete_lp(lp);
-
-    delete[] Z1;
-    delete[] Z2;
-    delete[] fdt;
-    delete[] FFdt;
-    delete[] ones;
-#endif
-
-#if 0
-    float sum_q = 0;
-    for(int i=0; i< pr; i++)
-    {
-        sum_q += q0[i];
-        sum_q += q1[i];
-    }
-    
-    float sum_prob = 0;
-    which_num = 0;
-    kd_res_rewind(res);
-    while( !kd_res_end(res) )
-    {
-        Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
-
-        Edge *e1 = new Edge(v, v1, (q0[which_num] + q1[which_num])/ sum_q, holding_time);
-        sum_prob += (q0[which_num] + q1[which_num])/ sum_q;
-        
-        //assert((q0[which_num] + q1[which_num])/ sum > 0 );
-        
-        //assert(q1[which_num] > 0);
-
-        if( is_edge_free(e1))
-        {
-            elist.push_back(e1);
-
-            v->edges_out.push_back(e1);
-            v1->edges_in.push_back(e1);
-
-        }
-        else
-            delete e1;
-
-        which_num++;
-
-        kd_res_next(res);
-    }
-    kd_res_free(res);
-    
-    Edge* e1 = new Edge(v, v, 1 - sum_prob, holding_time);
-    elist.push_back(e1);
-    v->edges_out.push_back(e1);
-    v->edges_in.push_back(e1);
-
-    //normalize_edges(v);
-
-    //propagate_viterbi(v);
-
-    //cout<<"getchar: "; getchar();
-
-#endif
     return 0;
-
-}
-
-void Graph::get_best_path()
-{
-
-#if 0
-    float pos[NUM_DIM] = {0};
-    float to_query[NUM_DIM];
-    cout<<"truth: "<< truth.back().x[0] <<" " << truth.back().x[1] << endl;
-    system->get_key(truth.back(), to_query);
-
-    kdres *res;
-    res = kd_nearest_range(time_tree, &(to_query[0]), goal_width);
-
-    float max_prob = -1;
-    Vertex *vcurr = NULL;
-    cout<< "did kdtree query with: "<< truth.back().x[0] << " size: " << kd_res_size(res) << endl;
-
-    while( !kd_res_end(res))
-    {
-        Vertex *vtmp = (Vertex *)kd_res_item(res, pos);
-        //cout<< vtmp->prob_best_path<<" ";
-
-        if( vtmp->prob_best_path > max_prob)
-        {
-            vcurr = vtmp;
-            max_prob = vtmp->prob_best_path;
-        }
-        kd_res_next(res);
-    }
-    kd_res_free(res);
-
-    //Vertex *vcurr = curr_best_vertex;
-    if( vcurr != NULL)
-    {
-        cout<<"found last: ";
-        for(int i=0; i< NUM_DIM; i++)
-            cout<< vcurr->s.x[i]<<" ";
-        cout<<"prob: "<< vcurr->prob_best_path << endl;
-    }
-    else
-    {
-        cout<<"Couldn't find vcurr" << endl;
-        return;
-    }
-
-    // populate best_path
-    cout<<"writing best path"<<endl;
-    best_path.clear();
-    while( vcurr != NULL)
-    {
-        best_path.push_back( vcurr->s );
-        cout<< vcurr->prob_best_path << endl;
-        
-        /*
-        //cout<<" all edges are" << endl;
-        for(unsigned int i=0; i< vcurr->edgein.size(); i++)
-        {
-        cout<<"edge i: "<< i << " : " << (vcurr->edgein[i]->prob) * (vcurr->edgein[i]->from->prob) << endl;
-        }
-        //cout<<"chose: "<< edge_index_connected_vertex(vcurr, vcurr->prev) << endl;
-        //cout<<"getchar: "; getchar();
-        */
-
-        vcurr = vcurr->prev;
-
-    }
-    cout<< "wrote best_path" << endl;
-#endif
-
 }
 
 void Graph::get_kalman_path()
@@ -827,6 +705,10 @@ void Graph::print_rrg()
 
 void Graph::propagate_system()
 {
+    truth.clear();
+    obs.clear();
+    obs_times.clear();
+
     float curr_time = 0;
     float max_time = max_obs_time;
     int count = obs_interval;
@@ -848,7 +730,6 @@ void Graph::propagate_system()
         }
         curr_time += system->sim_time_delta;
     }
-    
 }
 
 void Graph::put_init_samples(int howmany)
@@ -888,8 +769,85 @@ bool Graph::is_everything_normalized()
     return true;
 }
 
+int Graph::simulate_trajectory_implicit()
+{
+    list<State> seq;
+    list<float> seq_times;
+
+    
+    State stmp = system->init_state;
+    multivar_normal(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
+    
+    // keep in multiplicative form for simulation
+    float traj_prob = normal_val( system->init_state.x, system->init_var, stmp.x, NUM_DIM);
+    float curr_time = 0;
+    float max_time = max_obs_time;
+    
+    bool can_go_forward = false;
+
+    Vertex *vcurr = nearest_vertex(stmp);
+    
+    if(vcurr->edges_out.size() > 0)
+        can_go_forward = true;
+    else
+        cout<<"vcurr has zero edges" << endl;
+
+    seq.push_back(vcurr->s);
+    seq_times.push_back(curr_time);
+
+    while(curr_time < max_time)
+    {
+        while(1)
+        {
+            float rand_tmp = RANDF - vcurr->self_transition_prob;
+            if(rand_tmp < 0)
+            {
+                // jump in time
+                
+                traj_prob = traj_prob * vcurr->self_transition_prob;
+                curr_time += (vcurr->holding_time_delta);
+                break;
+            }
+            else
+            { 
+                float runner = 0;
+                for(list<Edge*>::iterator eo = vcurr->edges_out.begin(); \
+                        eo != vcurr->edges_out.end(); eo++)
+                {
+                    runner += (*eo)->transition_prob_delta;
+                    if(runner > rand_tmp)
+                    {
+                        traj_prob = traj_prob * ((*eo)->transition_prob_delta);
+                        vcurr = (*eo)->to;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        seq.push_back(vcurr->s);
+        seq_times.push_back(curr_time);
+        if(curr_time > max_time)
+        {
+            //cout<<"finished one sim" << endl;
+            break;
+        }
+    }
+
+    if(1)
+    {
+        //cout<<"traj_prob: "<<traj_prob << endl;
+        monte_carlo_times.push_back(seq_times);
+        monte_carlo_trajectories.push_back( seq);
+        monte_carlo_probabilities.push_back(traj_prob);
+        return 0;
+    }
+    return 1;
+}
+
+
 // returns 
-int Graph::simulate_trajectory()
+int Graph::simulate_trajectory_explicit()
 {
     list<State> seq;
 
@@ -974,14 +932,20 @@ void Graph::plot_monte_carlo_trajectories()
     }
 
     list<float>::iterator prob_iter = monte_carlo_probabilities.begin();
+    list< list<float> >::iterator times_iter = monte_carlo_times.begin();
+
     for(list< list<State> >::iterator i= monte_carlo_trajectories.begin(); \
             i != monte_carlo_trajectories.end(); i++)
     {
         list<State> curr_traj = (*i);
         float curr_prob = (*prob_iter)/totprob;
+
+        list<float> time_seq = (*times_iter);
+        list<float>::iterator time_seq_iter = time_seq.begin();
         mout<<count<<"\t"<< curr_prob <<"\t"<<endl;
         for(list<State>::iterator j = curr_traj.begin(); j != curr_traj.end(); j++)
         {
+            mout<< (*time_seq_iter) <<"\t";
             State& curr_state = *j;
             for(int k=0; k< NUM_DIM; k++)
             {
@@ -993,9 +957,11 @@ void Graph::plot_monte_carlo_trajectories()
             }
 
             mout<<endl;
+            time_seq_iter++;
         }
 
         prob_iter++;
+        times_iter++;
         count++;
     }
 

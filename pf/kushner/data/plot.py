@@ -76,6 +76,10 @@ def plot_trajs():
         obs = []
         bp = []
         kf = []
+        tsys = []
+        tobs = []
+        tbp = []
+        tkf = []
 
         for l in lines:
             s= l.split('\t')
@@ -90,14 +94,19 @@ def plot_trajs():
                     which = 3
 
             if len(s) > 1:
-                to_put = [ float(s[i]) for i in range(NUM_DIM) ]
+                time = float(s[0])
+                to_put = [ float(s[i+1]) for i in range(NUM_DIM) ]
                 if which == 0:
+                    tsys.append(time)
                     sys.append(to_put)
                 elif which == 1:
+                    tobs.append(time)
                     obs.append(to_put)
                 elif which == 2:
+                    tbp.append(time)
                     bp.append(to_put)
                 elif which == 3:
+                    tkf.append(time)
                     kf.append(to_put)
 
     traj.close()
@@ -107,20 +116,26 @@ def plot_trajs():
     bp = array(bp)
     kf = array(kf)
     
-    for i in range(NUM_DIM-1):
+    tsys = array(tsys)
+    tobs = array(tobs)
+    tbp = array(tbp)
+    tkf = array(tkf)
+    
+
+    for i in range(NUM_DIM):
         
-        subplot(NUM_DIM-1,1,i+1, aspect='auto')
+        subplot(NUM_DIM,1,i+1, aspect='auto')
         grid()
 
         if len(sys) != 0:
-            plot( sys[:,0], sys[:,i+1], 'r-', label='sys', lw=2.0)
+            plot( tsys[:], sys[:,i], 'r-', label='sys', lw=2.0)
         #if len(obs) != 0:
-            #plot( obs[:,0], obs[:,i+1], 'b-', label='obs')
+            #plot( tobs[:], obs[:,i], 'b-', label='obs')
         
         if len(bp) != 0:
-            plot( bp[:,0], bp[:,i+1], 'g-', label='hmm', lw=2.0)
+            plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=2.0)
         if len(kf) != 0:
-            plot( kf[:,0], kf[:,i+1], 'c-', label='kf', lw=2.0)
+            plot( tkf[:], kf[:,i], 'c-', label='kf', lw=2.0)
         
 
 def plot_sim_trajs():
@@ -129,6 +144,7 @@ def plot_sim_trajs():
     
     probs = []
     curr_traj = []
+    curr_times = []
 
     if mc:
         lines = mc.readlines()
@@ -139,20 +155,22 @@ def plot_sim_trajs():
 
             if(len(s) ==3):
                 last_prob = curr_prob
-                curr_prob = 5*float(s[1])
+                curr_prob = 50*float(s[1])
                 to_plot = array(curr_traj)
-                
-                #print curr_prob
+                to_plot_time = array(curr_times)
+
                 if( len(to_plot) > 0):
                     
-                    for i in range(NUM_DIM-1):
-                        subplot(NUM_DIM-1,1,i+1, aspect='auto')
-                        plot(to_plot[:,0], to_plot[:,i+1], 'm-', alpha=0.3)
+                    for i in range(NUM_DIM):
+                        subplot(NUM_DIM,1,i+1, aspect='auto')
                         grid()
+                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=last_prob)
 
                 curr_traj = []
-            elif(len(s) == 5):
-                to_put = [float(s[i]) for i in range(NUM_DIM)]
+                curr_times = []
+            elif(len(s) == 6):
+                curr_times.append( float(s[0]) )
+                to_put = [float(s[i+1]) for i in range(NUM_DIM)]
                 curr_traj.append( to_put )
 
         mc.close()
@@ -162,7 +180,7 @@ if __name__ == "__main__":
     plot_trajs()
     plot_sim_trajs()
     
-    plot_graph()
+    #plot_graph()
 
     #legend()
     
