@@ -16,6 +16,7 @@ class Vertex
         
         // prob of best path that ends up here incorporating obs
         float prob_best_path;
+        float prob_best_path_buffer;
         float obs_update_time;
         float holding_time;
 
@@ -57,7 +58,7 @@ class Edge{
 
 class Graph{
 
-    private:
+    public:
         
         int obs_interval;
         float max_obs_time;
@@ -65,8 +66,6 @@ class Graph{
         float gamma, gamma_t;
         struct kdtree *state_tree;
        
-
-    public:
         System* system;
 
         Graph(System& sys);

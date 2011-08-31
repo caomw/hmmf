@@ -16,6 +16,12 @@ State get_mean(Graph& graph)
     for(int j=0; j< NUM_DIM; j++)
     {
         mstate.x[j] = mean[j]/totprob;
+
+        if(mstate.x[j] != mstate.x[j])
+        {
+            cout<<"found a nan: " << mstate.x[j]<<" "<<totprob << endl;
+        }
+
         cout<< mstate.x[j] << " ";
     }
     cout<<endl;
@@ -41,8 +47,8 @@ int do_filtering()
     }
     
     // make the holding time constant
-    graph.system->sim_time_delta = graph.make_holding_time_constant();
-    cout<<"sim_time: "<< graph.system->sim_time_delta << endl;
+    //graph.system->sim_time_delta = graph.make_holding_time_constant();
+    //cout<<"sim_time: "<< graph.system->sim_time_delta << endl;
 
     graph.propagate_system();
     graph.get_kalman_path();
@@ -55,11 +61,12 @@ int do_filtering()
         graph.best_path.push_back(get_mean(graph));
         graph.obs_curr_index = i;
         cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << endl;
-        
-        State curr_mean = get_mean(graph);
-        Vertex* vnear = graph.nearest_vertex(curr_mean);
-
-        graph.propagate_viterbi(vnear);
+       
+        for(int j = 0; j< graph.num_vert; j++)
+        {
+            Vertex* v = graph.vlist[j];
+            graph.update_density(v);
+        }
         graph.normalize_density();
 
         cout<<i <<": ";
@@ -72,6 +79,74 @@ int do_filtering()
 
     cout<<"time: "<< get_msec() - start << " [ms]" << endl;
     
+}
+
+int do_batch()
+{
+    System sys;
+    Graph graph(sys);
+    
+    double start = get_msec();
+    for(int i=0; i < 2000; i++)
+    {
+        graph.add_sample();
+    }
+    for(int i=0; i < graph.num_vert; i++)
+    {
+        Vertex* v = graph.vlist[i];
+        graph.connect_edges_approx(v);
+    }
+    for(int i=0; i< graph.num_vert; i++)
+    {
+        Vertex* v = graph.vlist[i];
+        v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
+                v->s.x, NUM_DIM);
+    }
+
+    graph.plot_graph();
+    
+    float bowlr = graph.gamma * pow( log(graph.num_vert)/(graph.num_vert), 1.0/(float)NUM_DIM);
+    graph.system->sim_time_delta = bowlr*bowlr/(graph.system->process_noise[0] + \
+            bowlr*3*fabs(graph.system->max_states[0]));
+    cout<<"holding_time: " << graph.system->sim_time_delta << endl;
+
+    graph.propagate_system();
+    graph.get_kalman_path();
+   
+    tic();
+    graph.best_path.clear();
+    graph.best_path.push_back(get_mean(graph));
+    for(int i=0; i < graph.obs.size(); i++)
+    {
+        graph.obs_curr_index = i;
+        cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
+       
+        for(int j = 0; j< graph.num_vert; j++)
+        {
+            Vertex* v = graph.vlist[j];
+            graph.update_viterbi(v);
+        }
+        for(int j = 0; j< graph.num_vert; j++)
+        {
+            Vertex* v = graph.vlist[j];
+            v->prob_best_path = v->prob_best_path_buffer;
+        }
+        
+        cout<<i <<": ";
+        graph.best_path.push_back(get_mean(graph));
+    }
+    graph.plot_trajectory();
+
+
+#if 0
+    for(int i=0; i< 1000; i++)
+    {
+        graph.simulate_trajectory();
+    }
+    graph.plot_monte_carlo_trajectories();
+#endif
+
+    cout<<"time: "<< get_msec() - start << " [ms]" << endl;
 }
 
 int graph_sanity_check()
@@ -94,9 +169,6 @@ int graph_sanity_check()
     }
     
     // make the holding time constant
-    graph.system->sim_time_delta = graph.make_holding_time_constant();
-    cout<<"sim_time: "<< graph.system->sim_time_delta << endl;
-
     graph.plot_graph();
     cout<<"added samples: "<< graph.num_vert << endl;
 
@@ -121,9 +193,9 @@ int main()
 {
     srand(0);
 
-    graph_sanity_check();
-    
+    //graph_sanity_check();
     //do_filtering();
+    do_batch();
 
     return 0;
 }

@@ -8,6 +8,7 @@ Vertex::Vertex(State& st)
     prev = NULL;
     next = NULL;
     prob_best_path = -1;
+    prob_best_path_buffer = -1;
     obs_update_time = 0;
 
     edges_in.clear();
@@ -29,7 +30,7 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 0.5;
+    max_obs_time = 0.75;
 
     state_tree = kd_create(NUM_DIM);
 
@@ -332,13 +333,13 @@ void Graph::update_density(Vertex* v)
 float Graph::make_holding_time_constant()
 {
     float bowlr = gamma * pow( log(num_vert+2)/(num_vert+2), 1/(float)NUM_DIM);
-    float min_holding_time = bowlr*bowlr/( (system->process_noise[0])*(system->process_noise[0])/4 + \
-            bowlr*3*fabs(system->max_states[0]));
+    float min_holding_time = bowlr*bowlr/( system->process_noise[0]);
 
     for(int i=0; i< num_vert; i++)
     {
         Vertex* v = vlist[i];
         float pself = 1 - min_holding_time/(v->holding_time);
+        v->holding_time = min_holding_time;
 
         for(list<Edge*>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
         {
@@ -375,9 +376,10 @@ void Graph::update_viterbi(Vertex* v)
         {
             max_prob = tmp;
             v->prev = etmp->from;
-            v->prob_best_path = max_prob;
+            v->prob_best_path_buffer = max_prob;
         }
     }
+    v->obs_update_time = obs_times[obs_curr_index];
 }
 
 void Graph::propagate_viterbi(Vertex* v)
@@ -411,13 +413,11 @@ void Graph::propagate_viterbi(Vertex* v)
             float tmp = (vtmp->prob_best_path)*(etmp->transition_prob)* \
                 normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM);
             // add to queue if not updated with latest observation
-            if( etmp->to->prob_best_path <  tmp)
+            if( etmp->to->obs_update_time < (obs_times[obs_curr_index] - 1e-10) )
             {
                 myq.push_back(etmp->to);
                 myq_size++;
             }
-            //else
-                //cout<<"didn't add: " << etmp->to->obs_update_time << " " << obs_times[obs_curr_index] << endl;
         }
         if( myq_size > max_size)
             max_size = myq_size;
@@ -466,7 +466,8 @@ void Graph::add_sample()
 {
     State stmp = system->sample();
     Vertex *v = new Vertex(stmp);
-
+    
+    /*
     float extend_dist = 0.1;
     if( vlist.size() != 0)
     {
@@ -479,8 +480,7 @@ void Graph::add_sample()
                 v->s.x[i] = near->s.x[i] + (v->s.x[i] - near->s.x[i])*extend_dist/d;
         }
     }
-    
-    connect_edges_approx(v);
+    */
 
     vlist.push_back(v);
     num_vert++;
@@ -494,16 +494,14 @@ int Graph::connect_edges_approx(Vertex* v)
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    float bowlr = gamma * pow( log(num_vert+2)/(num_vert+2), 1/(float)NUM_DIM);
-    
-    //float holding_time = bowlr*bowlr/( (system->process_noise[0])*(system->process_noise[0])/4 + bowlr*3*fabs(v->s.x[0]));
-    //float holding_time = bowlr*bowlr/( (system->process_noise[0])*(system->process_noise[0])/4 + bowlr*3*fabs(system->max_states[0]));
-    gamma_t = pow((gamma/12), NUM_DIM)/3/(v->s.x[0]);
-    float holding_time = gamma_t * pow( log(num_vert+2)/(num_vert+2), 1/(float)NUM_DIM);
+    float bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
+    //cout<<"bowlr: " << bowlr << endl;
+
+    //gamma_t = pow(gamma/12, NUM_DIM)/3/(v->s.x[0]);
+    //float holding_time = gamma_t * pow( log(num_vert)/(num_vert), 1/(float)NUM_DIM);
+    float holding_time = bowlr*bowlr/(system->process_noise[0] + bowlr*3*fabs(system->max_states[0]));
     v->holding_time = holding_time;
      
-    //cout<<"holding time: "<< holding_time << endl;
-    
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
     //cout<<"got "<<kd_res_size(res)<<" states in bowlr= "<< bowlr << endl;
@@ -519,22 +517,25 @@ int Graph::connect_edges_approx(Vertex* v)
     while( !kd_res_end(res) )
     {
         Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
-        
-        float prob_tmp = normal_val(stmp.x, var, v1->s.x, NUM_DIM);
-        if(prob_tmp > 0)
+       
+        if(v1 != v)
         {
-            Edge *e1 = new Edge(v, v1, prob_tmp, holding_time);
-
-            if( is_edge_free(e1))
+            float prob_tmp = normal_val(stmp.x, var, v1->s.x, NUM_DIM);
+            if(prob_tmp > 0)
             {
-                elist.push_back(e1);
+                Edge *e1 = new Edge(v, v1, prob_tmp, holding_time);
 
-                v->edges_out.push_back(e1);
-                v1->edges_in.push_back(e1);
+                if( is_edge_free(e1))
+                {
+                    elist.push_back(e1);
 
+                    v->edges_out.push_back(e1);
+                    v1->edges_in.push_back(e1);
+
+                }
+                else
+                    delete e1;
             }
-            else
-                delete e1;
         }
         kd_res_next(res);
     }
@@ -919,15 +920,15 @@ void Graph::plot_monte_carlo_trajectories()
     int count = 0;
 
     float totprob = 0;
-    for(list<float>::iterator i = monte_carlo_probabilities.begin(); i!= monte_carlo_probabilities.end(); \
-            i++)
+    for(list<float>::iterator i = monte_carlo_probabilities.begin(); \
+            i!= monte_carlo_probabilities.end(); i++)
     {
         totprob += (*i);
     }
 
     list<float>::iterator prob_iter = monte_carlo_probabilities.begin();
-    for(list< list<State> >::iterator i= monte_carlo_trajectories.begin(); i != monte_carlo_trajectories.end(); \
-            i++)
+    for(list< list<State> >::iterator i= monte_carlo_trajectories.begin(); \
+            i != monte_carlo_trajectories.end(); i++)
     {
         list<State> curr_traj = (*i);
         float curr_prob = (*prob_iter)/totprob;

@@ -3,12 +3,12 @@
 from sys import *
 from pylab import *
 
-SAVE = 1
+NUM_DIM = 2
 
 if len(argv) > 1:
-    NUM_DIM = int(argv[1])
+    save_name = argv[1]
 else:
-    NUM_DIM = 1
+    save_name = "none"
 
 
 fig = figure(1)
@@ -167,8 +167,8 @@ if __name__ == "__main__":
     ylabel('x')
     #legend()
     
-    if SAVE:
-        fig.savefig("run.pdf")
+    if save_name != "none":
+        fig.savefig(save_name)
 
     show()
 
