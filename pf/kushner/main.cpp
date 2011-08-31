@@ -29,58 +29,6 @@ State get_mean(Graph& graph)
     return mstate;
 }
 
-int do_filtering()
-{
-    System sys;
-    Graph graph(sys);
-    
-    double start = get_msec();
-    
-    for(int i=0; i< 1000; i++)
-        graph.add_sample();
-   
-    for(int i=0; i< graph.num_vert; i++)
-    {
-        Vertex* v = graph.vlist[i];
-        v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
-                v->s.x, NUM_DIM);
-    }
-    
-    // make the holding time constant
-    //graph.system->sim_time_delta = graph.make_holding_time_constant();
-    //cout<<"sim_time: "<< graph.system->sim_time_delta << endl;
-
-    graph.propagate_system();
-    graph.get_kalman_path();
-
-    cout<<"added samples: "<< graph.num_vert << endl;
-    tic();
-    graph.best_path.clear();
-    for(int i=0; i < 10; i++)
-    {
-        graph.best_path.push_back(get_mean(graph));
-        graph.obs_curr_index = i;
-        cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << endl;
-       
-        for(int j = 0; j< graph.num_vert; j++)
-        {
-            Vertex* v = graph.vlist[j];
-            graph.update_density(v);
-        }
-        graph.normalize_density();
-
-        cout<<i <<": ";
-    }
-    graph.best_path.push_back(get_mean(graph));
-
-    graph.plot_trajectory();
-    graph.plot_graph();
-    assert(graph.is_everything_normalized());
-
-    cout<<"time: "<< get_msec() - start << " [ms]" << endl;
-    
-}
-
 int do_batch()
 {
     System sys;
@@ -88,7 +36,8 @@ int do_batch()
     
     double start = get_msec();
     
-#if 0
+#if 1
+    tic();
     for(int i=0; i < 10000; i++)
     {
         graph.add_sample();
@@ -97,16 +46,26 @@ int do_batch()
     {
         Vertex* v = graph.vlist[i];
         graph.connect_edges_approx(v);
+        if(i %1000 == 0)
+        {
+           cout<<"i: "<< i << endl;
+           toc();
+        }
     }
+    graph.make_holding_time_constant();
 #endif
-#if 1
-    for(int i=0; i < 1000; i++)
+#if 0
+    tic();
+    for(int i=0; i < 10000; i++)
     {
        Vertex* v = graph.add_sample();
        graph.connect_edges_approx(v);
        graph.reconnect_edges_neighbors(v);
-       if(i % 100 == 0)
+       if(i % 1000 == 0)
+       {
            cout<<"i: "<< i << endl;
+           toc();
+       }
     }
 #endif
 
@@ -116,10 +75,10 @@ int do_batch()
         v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
                 v->s.x, NUM_DIM);
     }
-    graph.plot_graph();
     
+    graph.system->sim_time_delta = graph.system->get_min_holding_time(graph.gamma, graph.num_vert);
     graph.propagate_system();
-    graph.get_kalman_path();
+    //graph.get_kalman_path();
 
 #if 1
     tic();
@@ -127,13 +86,23 @@ int do_batch()
     graph.best_path.push_back(get_mean(graph));
     for(int i=0; i < graph.obs.size(); i++)
     {
+        /*
+        for(int j=0; j< 200; j++)
+        {
+            Vertex* v = graph.add_sample();
+            graph.connect_edges_approx(v);
+            graph.reconnect_edges_neighbors(v);
+            //graph.update_viterbi(v);
+            graph.update_viterbi_neighbors(v);
+        }
+        */
         graph.obs_curr_index = i;
         cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
        
         for(int j = 0; j< graph.num_vert; j++)
         {
             Vertex* v = graph.vlist[j];
-            graph.update_viterbi(v);
+            graph.update_density(v);
         }
         for(int j = 0; j< graph.num_vert; j++)
         {
@@ -145,10 +114,10 @@ int do_batch()
         cout<<i <<": ";
         graph.best_path.push_back(get_mean(graph));
     }
-    graph.plot_trajectory();
 #endif
 
 #if 0
+    cout<<"starting simulation of trajectories" << endl;
     for(int i=0; i< 1000; i++)
     {
         graph.simulate_trajectory();
@@ -156,6 +125,8 @@ int do_batch()
     graph.plot_monte_carlo_trajectories();
 #endif
 
+    graph.plot_trajectory();
+    graph.plot_graph();
     cout<<"time: "<< get_msec() - start << " [ms]" << endl;
 }
 
@@ -204,7 +175,6 @@ int main()
     srand(0);
 
     //graph_sanity_check();
-    //do_filtering();
     do_batch();
 
     return 0;

@@ -105,13 +105,44 @@ class System
 
         // functions
         
+        float get_holding_time(State& s, float gamma, int num_vert)
+        {
+            float h = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
+            float num = h*h;
+
+            float den = 0;
+            for(int i=0; i< NUM_DIM; i++)
+                den += process_noise[i];
+            
+            den += (h*3*s.norm());
+            
+            return num/(den);
+        }
+        
+        float get_min_holding_time(float gamma, int num_vert)
+        {
+            float h = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
+            float num = h*h;
+
+            float den = 0;
+            for(int i=0; i< NUM_DIM; i++)
+                den += process_noise[i];
+            
+            den += (h*3*max_states[0]);
+            
+            return num/(den);
+        }
+
+
         int get_key(State& s, double *key);
         bool is_free(State &s);
         State sample();
         State integrate(State& s, float duration, bool is_clean);
+        void get_variance(State& s, float duration, float* var);
+        
         State observation(State& s, bool is_clean);
 
-        void get_kalman_path(vector<State>& obs, list<State>& kalman_path);
+        void get_kalman_path(vector<State>& obs, vector<float>& obs_times, list<State>& kalman_path);
 };
 
 inline float dist(State s1, State s2)

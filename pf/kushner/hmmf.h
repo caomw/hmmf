@@ -22,17 +22,14 @@ class Vertex
 
         // parent of the best path
         Vertex *prev;
-        Vertex *next;
-
-        Edge *best_in;
-        Edge *best_out;
 
         list<Edge *> edges_in;
         list<Edge *> edges_out;
         
+        float self_transition_prob;
+
         Vertex(State& st);
         ~Vertex(){};
-        
         
         friend class System;
 };
@@ -96,7 +93,7 @@ class Graph{
         unsigned int get_num_vert(){return num_vert; };
 
         void remove_vertex(Vertex* v);
-        int vertex_delete_edges(Vertex* v, bool out);
+        int vertex_delete_edges(Vertex* v);
         void remove_edge(Edge *e);
         
         int insert_into_kdtree(Vertex *v);
@@ -129,6 +126,7 @@ class Graph{
         float make_holding_time_constant();
         void propagate_viterbi(Vertex* v);
         void update_viterbi(Vertex* v);
+        void update_viterbi_neighbors(Vertex* v);
         
         void update_observation_prob(State& yt);
        

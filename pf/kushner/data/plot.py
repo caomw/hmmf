@@ -56,12 +56,13 @@ def plot_graph():
     
     rrgp = array (rrgp)
     prob = array(prob)
-
-    for i in range(NUM_DIM-1):
+    
+    if( len(rrgp) > 0):
+        for i in range(NUM_DIM-1):
         
-        subplot(NUM_DIM-1,1,i+1, aspect='auto')
-        plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=5.0, alpha = 0.2 )
-        grid()
+            subplot(NUM_DIM-1,1,i+1, aspect='auto')
+            plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=5.0, alpha = 0.1 )
+            grid()
 
 def plot_trajs():
     
@@ -117,9 +118,9 @@ def plot_trajs():
             #plot( obs[:,0], obs[:,i+1], 'b-', label='obs')
         
         if len(bp) != 0:
-            plot( bp[:,0], bp[:,i+1], 'go-', label='hmm')
+            plot( bp[:,0], bp[:,i+1], 'g-', label='hmm', lw=2.0)
         if len(kf) != 0:
-            plot( kf[:,0], kf[:,i+1], 'c-', label='kf')
+            plot( kf[:,0], kf[:,i+1], 'c-', label='kf', lw=2.0)
         
 
 def plot_sim_trajs():
@@ -146,7 +147,7 @@ def plot_sim_trajs():
                     
                     for i in range(NUM_DIM-1):
                         subplot(NUM_DIM-1,1,i+1, aspect='auto')
-                        plot(to_plot[:,0], to_plot[:,i+1], 'mo-', alpha=0.3)
+                        plot(to_plot[:,0], to_plot[:,i+1], 'm-', alpha=0.3)
                         grid()
 
                 curr_traj = []
@@ -163,8 +164,6 @@ if __name__ == "__main__":
     
     plot_graph()
 
-    xlabel('t [s] ')
-    ylabel('x')
     #legend()
     
     if save_name != "none":

@@ -6,7 +6,6 @@ Vertex::Vertex(State& st)
     s = st;
 
     prev = NULL;
-    next = NULL;
     prob_best_path = -1;
     prob_best_path_buffer = -1;
     obs_update_time = 0;
@@ -31,12 +30,11 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 1.0;
+    max_obs_time = 0.3;
 
     state_tree = kd_create(NUM_DIM);
 
-    gamma = 2.2;
-    gamma_t = gamma/25/3/(system->max_states[0]);
+    gamma = 2.5;
 };
 
 Graph::~Graph()
@@ -61,19 +59,16 @@ Graph::~Graph()
     kd_free(state_tree);
 }
 
-int Graph::vertex_delete_edges(Vertex* v, bool out)
+int Graph::vertex_delete_edges(Vertex* v)
 {
-    if(out == true)
+    for(list<Edge *>::reverse_iterator i = v->edges_out.rbegin(); i != v->edges_out.rend(); i++)
     {
-        for(list<Edge *>::reverse_iterator i = v->edges_out.rbegin(); i != v->edges_out.rend(); i++)
-            remove_edge(*i);
+        Edge* etmp = (*i);
+        elist.erase(etmp->elist_iter);
+        etmp->to->edges_in.erase(etmp->to_iter);
+        delete etmp;
     }
-    else
-    {
-        for(list<Edge *>::reverse_iterator i = v->edges_in.rbegin(); i != v->edges_in.rend(); i++)
-            remove_edge(*i);
-    }
-    
+    v->edges_out.clear();
     return 0;
 }
 
@@ -289,43 +284,26 @@ void Graph::propagate_density(Vertex* v)
 
 void Graph::update_density(Vertex* v)
 {
-    if(v->obs_update_time < obs_times[obs_curr_index])
+    State gx = system->observation(v->s, true);
+
+    float sum = 0;
+    //cout<<"Ry: " << Ry << endl;
+    for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
     {
-        State gx = system->observation(v->s, true);
-
-        State dY;
-        if(obs_curr_index > 1)
-            dY = obs[obs_curr_index] - obs[obs_curr_index - 1];
-        else
-            dY = obs[obs_curr_index];
-
-        // multiply by Vinverse
-        for(int i=0; i< NUM_DIM; i++)
-        {
-            gx.x[i] = gx.x[i]/sqrt(system->obs_noise[i]);
-            dY.x[i] = dY.x[i]/sqrt(system->obs_noise[i]);
-        }
-        
-        float Ry = exp( gx * dY - 0.5 * gx.norm2() * (v->holding_time) );
-        float sum = 0;
-        //cout<<"Ry: " << Ry << endl;
-        for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
-        {
-            Edge* etmp = *i;
-            //sum = sum + Ry * etmp->transition_prob * (etmp->from->prob_best_path); 
-            sum = sum + normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM) * \
-                   etmp->transition_prob * (etmp->from->prob_best_path); 
-        }
-        v->prob_best_path = sum;
-
-        v->obs_update_time = obs_times[obs_curr_index];
+        Edge* etmp = *i;
+        sum = sum + normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM) * \
+              etmp->transition_prob * (etmp->from->prob_best_path); 
     }
+    v->prob_best_path_buffer = sum;
+
+    v->obs_update_time = obs_times[obs_curr_index];
 }
 
 float Graph::make_holding_time_constant()
 {
-    float bowlr = gamma * pow( log(num_vert+2)/(num_vert+2), 1/(float)NUM_DIM);
-    float min_holding_time = bowlr*bowlr/( system->process_noise[0]);
+    float min_holding_time = system->get_min_holding_time(gamma, num_vert);
+        
+    cout<<"min_hold: "<< min_holding_time << endl;
 
     for(int i=0; i< num_vert; i++)
     {
@@ -352,11 +330,41 @@ float Graph::make_holding_time_constant()
         new_edge->to_iter = v->edges_in.end();      new_edge->to_iter--;
         
         // normalize
-        normalize_edges(v);
+        //normalize_edges(v);
     }
     return min_holding_time;
 }
 
+void Graph::update_viterbi_neighbors(Vertex* v)
+{
+    double key[NUM_DIM] ={0};
+    system->get_key(v->s, key);
+
+    float bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
+
+    kdres *res;
+    res = kd_nearest_range(state_tree, key, bowlr );
+    //cout<<"reconnecting "<<kd_res_size(res)<<" nodes, radius: " << bowlr << endl;
+    
+    float average = 0;
+    double pos[NUM_DIM] = {0};
+    while( !kd_res_end(res) )
+    {
+        Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
+       
+        if(v1 != v)
+        {
+            // remove old edges
+            average += (v1->prob_best_path);
+        }
+
+        kd_res_next(res);
+    }
+
+    v->prob_best_path = average/(float)kd_res_size(res);
+
+    kd_res_free(res);
+}
 
 void Graph::update_viterbi(Vertex* v)
 {
@@ -492,11 +500,11 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    float bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
+    float bowlr = gamma/2 * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
 
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
-    //cout<<"got "<<kd_res_size(res)<<" states in bowlr= "<< bowlr << endl;
+    //cout<<"reconnecting "<<kd_res_size(res)<<" nodes, radius: " << bowlr << endl;
     
     double pos[NUM_DIM] = {0};
     while( !kd_res_end(res) )
@@ -507,7 +515,7 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
         {
             // remove old edges
             
-            vertex_delete_edges(v1, true);
+            vertex_delete_edges(v1);
             connect_edges_approx(v1);
         }
 
@@ -525,8 +533,6 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
 }
 
 
-// sys: xdot = -3x + w
-// obs: y = x + n
 int Graph::connect_edges_approx(Vertex* v)
 {
     double key[NUM_DIM] ={0};
@@ -534,10 +540,9 @@ int Graph::connect_edges_approx(Vertex* v)
 
     float bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
     //cout<<"bowlr: " << bowlr << endl;
-
-    //gamma_t = pow(gamma/12, NUM_DIM)/3/(v->s.x[0]);
-    //float holding_time = gamma_t * pow( log(num_vert)/(num_vert), 1/(float)NUM_DIM);
-    float holding_time = bowlr*bowlr/(system->process_noise[0] + bowlr*3*fabs(system->max_states[0]));
+    
+    float holding_time = system->get_holding_time(v->s, gamma, num_vert);
+    //cout<< holding_time << endl;
     v->holding_time = holding_time;
      
     kdres *res;
@@ -545,12 +550,12 @@ int Graph::connect_edges_approx(Vertex* v)
     //cout<<"got "<<kd_res_size(res)<<" states in bowlr= "<< bowlr << endl;
     int pr = kd_res_size(res);
     
+#if 1
     float *var = new float[NUM_DIM];
-        
     State stmp = system->integrate(v->s, holding_time, true);
-    for(int i=0; i<NUM_DIM; i++)
-        var[i] = system->process_noise[i]/6*( exp(6*holding_time) -1);
-    
+    system->get_variance(v->s, holding_time, var);
+        
+    float sum_prob = 0;
     double pos[NUM_DIM] = {0};
     while( !kd_res_end(res) )
     {
@@ -562,8 +567,9 @@ int Graph::connect_edges_approx(Vertex* v)
             if(prob_tmp > 0)
             {
                 Edge *e1 = new Edge(v, v1, prob_tmp, holding_time);
+                sum_prob += prob_tmp;
 
-                if( is_edge_free(e1))
+                if( 1)
                 {
                     elist.push_back(e1);
                     v->edges_out.push_back(e1);
@@ -580,11 +586,11 @@ int Graph::connect_edges_approx(Vertex* v)
         kd_res_next(res);
     }
     kd_res_free(res);
-
+    
     normalize_edges(v);
 
     delete[] var;
-
+#endif
 
 #if 0
     lprec* lp;
@@ -608,6 +614,7 @@ int Graph::connect_edges_approx(Vertex* v)
             FFdt[i] = 0;
     }
 
+    double pos[NUM_DIM] = {0};
     int which_num = 0;
     while( !kd_res_end(res) )
     {
@@ -628,7 +635,7 @@ int Graph::connect_edges_approx(Vertex* v)
         which_num++;
         kd_res_next(res);
     }
-
+    kd_res_free(res);
 
     for(int i=0; i< NUM_DIM; i++)
     {
@@ -650,7 +657,7 @@ int Graph::connect_edges_approx(Vertex* v)
     solve(lp);
     
     getchar();
-    delete_lp(lp);
+    //delete_lp(lp);
 
     delete[] Z1;
     delete[] Z2;
@@ -784,10 +791,9 @@ void Graph::get_best_path()
 
 }
 
-
 void Graph::get_kalman_path()
 {
-    system->get_kalman_path(obs, kalman_path);
+    system->get_kalman_path(obs, obs_times, kalman_path);
     return;
 }
 
@@ -888,7 +894,8 @@ int Graph::simulate_trajectory()
     list<State> seq;
 
     State stmp = system->init_state;
-
+    multivar_normal(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
+    
     bool can_go_forward = false;
 
     Vertex *vcurr = nearest_vertex(stmp);

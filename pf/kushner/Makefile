@@ -12,7 +12,7 @@ OBJS = $(C_OBJS) $(CPP_OBJS)
 INCS = -I./ -I systems/ -I utils/
 LIBS = -L./
 
-CFLAGS = -g -pg -O0
+CFLAGS = -g -pg -O3
 LDFLAGS = -g -pg
 
 all: $(BIN)
