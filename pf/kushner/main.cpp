@@ -87,6 +87,8 @@ int do_batch()
     Graph graph(sys);
     
     double start = get_msec();
+    
+#if 0
     for(int i=0; i < 10000; i++)
     {
         graph.add_sample();
@@ -96,23 +98,30 @@ int do_batch()
         Vertex* v = graph.vlist[i];
         graph.connect_edges_approx(v);
     }
+#endif
+#if 1
+    for(int i=0; i < 1000; i++)
+    {
+       Vertex* v = graph.add_sample();
+       graph.connect_edges_approx(v);
+       graph.reconnect_edges_neighbors(v);
+       if(i % 100 == 0)
+           cout<<"i: "<< i << endl;
+    }
+#endif
+
     for(int i=0; i< graph.num_vert; i++)
     {
         Vertex* v = graph.vlist[i];
         v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
                 v->s.x, NUM_DIM);
     }
-
     graph.plot_graph();
     
-    float bowlr = graph.gamma * pow( log(graph.num_vert)/(graph.num_vert), 1.0/(float)NUM_DIM);
-    graph.system->sim_time_delta = bowlr*bowlr/(graph.system->process_noise[0] + \
-            bowlr*3*fabs(graph.system->max_states[0]));
-    cout<<"holding_time: " << graph.system->sim_time_delta << endl;
-
     graph.propagate_system();
     graph.get_kalman_path();
-   
+
+#if 1
     tic();
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph));
@@ -137,7 +146,7 @@ int do_batch()
         graph.best_path.push_back(get_mean(graph));
     }
     graph.plot_trajectory();
-
+#endif
 
 #if 0
     for(int i=0; i< 1000; i++)

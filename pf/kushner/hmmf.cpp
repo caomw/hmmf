@@ -15,6 +15,7 @@ Vertex::Vertex(State& st)
     edges_out.clear();
 }
 
+
 Edge::Edge(Vertex *f, Vertex *t, float prob, float trans_time){
     from = f;
     to = t;
@@ -60,40 +61,31 @@ Graph::~Graph()
     kd_free(state_tree);
 }
 
-void Graph::remove_vertex(Vertex *v)
+int Graph::vertex_delete_edges(Vertex* v, bool out)
 {
-    // remove from vlist
-    vector<Vertex*>::iterator which = find(vlist.begin(), vlist.end(), v);
-    if( which != vlist.end())
+    if(out == true)
     {
-        vlist.erase(which); 
-        num_vert--;
+        for(list<Edge *>::reverse_iterator i = v->edges_out.rbegin(); i != v->edges_out.rend(); i++)
+            remove_edge(*i);
     }
-    //cout<<"-------------------\nremoving edges: "<< v->edges_out.size() << " " << v->edges_in.size() << endl;
+    else
+    {
+        for(list<Edge *>::reverse_iterator i = v->edges_in.rbegin(); i != v->edges_in.rend(); i++)
+            remove_edge(*i);
+    }
     
-    //cout<<"**removing incoming" << endl;
-    // delete all edges from v and its neighbors
-    for(list<Edge *>::reverse_iterator i = v->edges_in.rbegin(); i != v->edges_in.rend(); i++)
-        remove_edge(*i);
-    
-    //cout<<"**removing outgoing" << endl;
-    for(list<Edge *>::reverse_iterator i = v->edges_out.rbegin(); i != v->edges_out.rend(); i++)
-        remove_edge(*i);
-
-    // finally delete v
-    delete v;
-    //cout<<"deleted: num_vert - " << num_vert << endl;
+    return 0;
 }
 
 void Graph::remove_edge(Edge *e)
 {
-    elist.remove(e);
+    elist.erase(e->elist_iter);
 
     //cout<<"--- inside remove_edge" << endl;
     // remove from, from + to lists and then call destructor
-    e->from->edges_out.remove(e);
+    e->from->edges_out.erase(e->from_iter);
     
-    e->to->edges_in.remove(e);
+    e->to->edges_in.erase(e->to_iter);
     //cout<<"removed to, delete" << endl;
 
     delete e;
@@ -350,10 +342,16 @@ float Graph::make_holding_time_constant()
         
         //add new edge to itself
         Edge* new_edge = new Edge(v, v, pself, min_holding_time);
+        
         elist.push_back(new_edge);
         v->edges_out.push_back(new_edge);
         v->edges_in.push_back(new_edge);
         
+        new_edge->elist_iter = elist.end();         new_edge->elist_iter--;
+        new_edge->from_iter = v->edges_out.end();   new_edge->from_iter--;
+        new_edge->to_iter = v->edges_in.end();      new_edge->to_iter--;
+        
+        // normalize
         normalize_edges(v);
     }
     return min_holding_time;
@@ -461,7 +459,7 @@ bool Graph::is_edge_free( Edge *etmp)
     return true;
 }
 
-void Graph::add_sample()
+Vertex* Graph::add_sample()
 {
     State stmp = system->sample();
     Vertex *v = new Vertex(stmp);
@@ -484,7 +482,48 @@ void Graph::add_sample()
     vlist.push_back(v);
     num_vert++;
     insert_into_kdtree(v);
+
+    return v;
 }
+
+int Graph::reconnect_edges_neighbors(Vertex* v)
+{
+#if 1
+    double key[NUM_DIM] ={0};
+    system->get_key(v->s, key);
+
+    float bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
+
+    kdres *res;
+    res = kd_nearest_range(state_tree, key, bowlr );
+    //cout<<"got "<<kd_res_size(res)<<" states in bowlr= "<< bowlr << endl;
+    
+    double pos[NUM_DIM] = {0};
+    while( !kd_res_end(res) )
+    {
+        Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
+       
+        if(v1 != v)
+        {
+            // remove old edges
+            
+            vertex_delete_edges(v1, true);
+            connect_edges_approx(v1);
+        }
+
+        kd_res_next(res);
+    }
+    kd_res_free(res);
+#endif
+
+#if 0
+    Vertex* v1 = nearest_vertex(v->s);
+    connect_edges_approx(v1);
+#endif
+
+    return 0;
+}
+
 
 // sys: xdot = -3x + w
 // obs: y = x + n
@@ -527,10 +566,12 @@ int Graph::connect_edges_approx(Vertex* v)
                 if( is_edge_free(e1))
                 {
                     elist.push_back(e1);
-
                     v->edges_out.push_back(e1);
                     v1->edges_in.push_back(e1);
-
+                    
+                    e1->elist_iter = elist.end();   e1->elist_iter--;
+                    e1->from_iter = v->edges_out.end(); e1->from_iter--;
+                    e1->to_iter = v1->edges_in.end();   e1->to_iter--;
                 }
                 else
                     delete e1;

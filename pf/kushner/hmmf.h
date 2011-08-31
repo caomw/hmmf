@@ -33,6 +33,7 @@ class Vertex
         Vertex(State& st);
         ~Vertex(){};
         
+        
         friend class System;
 };
 
@@ -41,6 +42,11 @@ class Edge{
     public:
         Vertex *from;
         Vertex *to;
+    
+        list<Edge*>::iterator from_iter;
+        list<Edge*>::iterator to_iter;
+        list<Edge*>::iterator elist_iter;
+
         float transition_prob;
         float transition_time;
         
@@ -89,11 +95,8 @@ class Graph{
         // graph functions
         unsigned int get_num_vert(){return num_vert; };
 
-        void add_vertex(Vertex *v){
-            vlist.push_back(v);
-            num_vert++;
-        }
         void remove_vertex(Vertex* v);
+        int vertex_delete_edges(Vertex* v, bool out);
         void remove_edge(Edge *e);
         
         int insert_into_kdtree(Vertex *v);
@@ -108,8 +111,10 @@ class Graph{
         // algorithm functions
         
         void iterate();
-        void add_sample();
+        Vertex* add_sample();
         bool is_edge_free( Edge *etmp);
+        
+        int reconnect_edges_neighbors(Vertex* v);
         int connect_edges(Vertex *v);
         int connect_edges_approx(Vertex *v);
 
