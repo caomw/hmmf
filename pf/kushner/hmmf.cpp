@@ -30,7 +30,7 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 0.75;
+    max_obs_time = 1.0;
 
     state_tree = kd_create(NUM_DIM);
 
@@ -424,7 +424,6 @@ void Graph::propagate_viterbi(Vertex* v)
     }
     //cout<<"max_size: "<< max_size << endl;
 }
-
 
 
 void Graph::normalize_density()

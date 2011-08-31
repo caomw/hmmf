@@ -12,13 +12,13 @@ System::System()
     {
         min_states[i] = 0;
         max_states[i] = 1.0;
-        init_state.x[i] = 1.0;
+        init_state.x[i] = 0.90;
     }
     
     for(int i=0; i< NUM_DIM; i++)
     {
         process_noise[i] = 1e-3;
-        obs_noise[i] = 1e-3;
+        obs_noise[i] = 1e-2;
         init_var[i] = 1e-3;
     }
     sim_time_delta = 0.01;

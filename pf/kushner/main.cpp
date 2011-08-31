@@ -87,7 +87,7 @@ int do_batch()
     Graph graph(sys);
     
     double start = get_msec();
-    for(int i=0; i < 2000; i++)
+    for(int i=0; i < 10000; i++)
     {
         graph.add_sample();
     }
@@ -131,7 +131,8 @@ int do_batch()
             Vertex* v = graph.vlist[j];
             v->prob_best_path = v->prob_best_path_buffer;
         }
-        
+        graph.normalize_density();
+
         cout<<i <<": ";
         graph.best_path.push_back(get_mean(graph));
     }
