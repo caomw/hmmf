@@ -3,8 +3,8 @@
 State get_mean(Graph& graph)
 {
     State mstate;
-    float mean[NUM_DIM] = {0};
-    float totprob = 0;
+    double mean[NUM_DIM] = {0};
+    double totprob = 0;
     for(unsigned int i=0; i<graph.num_vert; i++)
     {
         for(int j=0; j< NUM_DIM; j++)
@@ -42,7 +42,7 @@ int do_batch()
    
 #if 1
     tic();
-    for(int i=0; i < 10000; i++)
+    for(int i=0; i < 2000; i++)
     {
         graph.add_sample();
     }
@@ -67,6 +67,7 @@ int do_batch()
                 v->s.x, NUM_DIM);
     }
     graph.normalize_density();
+    graph.seeding_finished = true;
 #endif
 
     graph.propagate_system();
@@ -123,7 +124,7 @@ int do_incremental()
 
 #if 1 
     tic();
-    for(int i=0; i < 1000; i++)
+    for(int i=0; i < 2000; i++)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
@@ -142,6 +143,7 @@ int do_incremental()
                 v->s.x, NUM_DIM);
     }
     graph.normalize_density();
+    graph.seeding_finished = true;
 #endif
 
     graph.propagate_system();
@@ -149,7 +151,6 @@ int do_incremental()
 
 #if 1
     tic();
-    //graph.seeding_finished = true;
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph));
     for(unsigned int i=0; i < graph.obs.size(); i++)
@@ -158,27 +159,23 @@ int do_incremental()
         {
             Vertex* v = graph.add_sample();
             graph.connect_edges_approx(v);
-            graph.update_density_implicit(v);
-            v->prob_best_path = v->prob_best_path_buffer;
             
             graph.reconnect_edges_neighbors(v);
-            
+
+        }
+        for(int j=0; j< 100*log(graph.num_vert); j++)
+        {
+            int tmp = RANDF*graph.num_vert;
+            graph.approximate_density( graph.vlist[tmp] );
         }
 
+        graph.buffer_prob_copy();
+        graph.normalize_density();
+        
         graph.obs_curr_index = i;
         cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
       
-        graph.normalize_density();
-        for(unsigned int j = 0; j< graph.num_vert; j++)
-        {
-            Vertex* v = graph.vlist[j];
-            graph.update_density_implicit(v);
-        }
-        for(unsigned int j = 0; j< graph.num_vert; j++)
-        {
-            Vertex* v = graph.vlist[j];
-            v->prob_best_path = v->prob_best_path_buffer;
-        }
+        graph.update_density_implicit_all();
         graph.normalize_density();
         
         cout<<i <<": ";

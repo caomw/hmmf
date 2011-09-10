@@ -9,14 +9,14 @@
 class State
 {
     public:
-        float x[NUM_DIM];
+        double x[NUM_DIM];
 
         State()
         {
             for(int i=0; i<NUM_DIM; i++)
                 x[i] = 0;
         }
-        State(float *val)
+        State(double *val)
         {
             for(int i=0; i<NUM_DIM; i++)
                 x[i] = val[i];
@@ -25,23 +25,23 @@ class State
         {
         }
 
-        float operator[](int which_dim)
+        double operator[](int which_dim)
         {
             assert(which_dim < NUM_DIM);
             return x[which_dim];
         }
         
-        float norm2()
+        double norm2()
         {
-            float sum = 0;
+            double sum = 0;
             for(int i=0; i< NUM_DIM; i++)
                 sum += (x[i]*x[i]);
 
             return sum;
         }
-        float norm()
+        double norm()
         {
-            float sum = 0;
+            double sum = 0;
             for(int i=0; i< NUM_DIM; i++)
                 sum += (x[i]*x[i]);
 
@@ -49,9 +49,9 @@ class State
         }
 
 
-        float operator*(const State& s1)
+        double operator*(const State& s1)
         {
-            float ret = 0;
+            double ret = 0;
             for(int i=0; i< NUM_DIM; i++)
                 ret += (this->x[i]*s1.x[i]);
 
@@ -91,13 +91,13 @@ class System
 {
     public:
 
-        float *obs_noise;
-        float *process_noise;
-        float *init_var;
+        double *obs_noise;
+        double *process_noise;
+        double *init_var;
 
-        float *min_states;
-        float *max_states;
-        float sim_time_delta;
+        double *min_states;
+        double *max_states;
+        double sim_time_delta;
 
         State init_state;
 
@@ -106,16 +106,16 @@ class System
 
         // functions
         
-        float get_holding_time(State& s, float gamma, int num_vert)
+        double get_holding_time(State& s, double gamma, int num_vert)
         {
-            float h = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
-            float num = h*h;
+            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+            double num = h*h;
 
             //for(int i=0; i< NUM_DIM; i++)
             //    num = num*(max_states[i] - min_states[i]);
             
-            float sqnum = sqrt(num);
-            float den = 0;
+            double sqnum = sqrt(num);
+            double den = 0;
             for(int i=0; i< NUM_DIM; i++)
                 den += process_noise[i];
            
@@ -131,21 +131,21 @@ class System
             return num/(den);
         }
         
-        float get_min_holding_time(float gamma, int num_vert)
+        double get_min_holding_time(double gamma, int num_vert)
         {
-            float h = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
-            float num = h*h;
+            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+            double num = h*h;
             //for(int i=0; i< NUM_DIM; i++)
             //    num = num*(max_states[i] - min_states[i]);
             
-            float sqnum = sqrt(num);
+            double sqnum = sqrt(num);
 
-            float den = 0;
+            double den = 0;
             for(int i=0; i< NUM_DIM; i++)
             {
                 den += process_noise[i];
             }
-            float max_abs_f = sqrt(max_states[2]*max_states[2] + max_states[3]*max_states[3] + 2*25);
+            double max_abs_f = sqrt(max_states[2]*max_states[2] + max_states[3]*max_states[3] + 2*25);
             den += (sqnum*max_abs_f);
             
             return num/(den);
@@ -155,17 +155,17 @@ class System
         int get_key(State& s, double *key);
         bool is_free(State &s);
         State sample();
-        State integrate(State& s, float duration, bool is_clean);
-        void get_variance(State& s, float duration, float* var);
+        State integrate(State& s, double duration, bool is_clean);
+        void get_variance(State& s, double duration, double* var);
         
         State observation(State& s, bool is_clean);
 
-        void get_kalman_path(vector<State>& obs, vector<float>& obs_times, list<State>& kalman_path);
+        void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path);
 };
 
-inline float dist(State s1, State s2)
+inline double dist(State s1, State s2)
 {
-    float t = 0;
+    double t = 0;
     for(int i=0; i<NUM_DIM; i++)
         t += (s1.x[i] - s2.x[i])*(s1.x[i] - s2.x[i]);
 

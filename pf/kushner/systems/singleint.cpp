@@ -2,11 +2,11 @@
 
 System::System()
 {
-    min_states = new float[NUM_DIM];
-    max_states = new float[NUM_DIM];
-    obs_noise = new float[NUM_DIM];
-    process_noise = new float[NUM_DIM];
-    init_var = new float[NUM_DIM];
+    min_states = new double[NUM_DIM];
+    max_states = new double[NUM_DIM];
+    obs_noise = new double[NUM_DIM];
+    process_noise = new double[NUM_DIM];
+    init_var = new double[NUM_DIM];
 
     for(int i=0; i< NUM_DIM; i++)
     {
@@ -93,13 +93,13 @@ int System::get_key(State& s, double *key)
     return 0;
 }
 
-State System::integrate(State& s, float duration, bool is_clean)
+State System::integrate(State& s, double duration, bool is_clean)
 {
     State t;
 
-    float *var = new float[NUM_DIM];
-    float *mean = new float[NUM_DIM];
-    float *tmp = new float[NUM_DIM];
+    double *var = new double[NUM_DIM];
+    double *mean = new double[NUM_DIM];
+    double *tmp = new double[NUM_DIM];
 
     for(int i=0; i<NUM_DIM; i++)
     {
@@ -125,7 +125,7 @@ State System::integrate(State& s, float duration, bool is_clean)
     return t;
 }
 
-void System::get_variance(State& s, float duration, float* var)
+void System::get_variance(State& s, double duration, double* var)
 {
     for(int i=0; i<NUM_DIM; i++)
     {   
@@ -137,8 +137,8 @@ State System::observation(State& s, bool is_clean)
 {
     State t;
 
-    float *tmp = new float[NUM_DIM];
-    float *mean = new float[NUM_DIM];
+    double *tmp = new double[NUM_DIM];
+    double *mean = new double[NUM_DIM];
 
     if( !is_clean)  
         multivar_normal( mean, obs_noise, tmp, NUM_DIM);
@@ -157,22 +157,22 @@ State System::observation(State& s, bool is_clean)
     return t;
 }
 
-void System::get_kalman_path( vector<State>& obs, vector<float>& obs_times, list<State>& kalman_path)
+void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path)
 {
     kalman_path.clear();
 
     kalman_path.push_back(init_state);
 
-    float *Q = new float[NUM_DIM];
+    double *Q = new double[NUM_DIM];
     for(int i=0; i < NUM_DIM; i++)
         Q[i] = init_var[i];
 
     State curr_state = init_state;
-    float prev_time = 0;
+    double prev_time = 0;
     for(unsigned int i=0; i< obs.size(); i++)
     {
         State& next_obs = obs[i];
-        float delta_t = obs_times[i] - prev_time;
+        double delta_t = obs_times[i] - prev_time;
         
         //cout<<"delta_t: "<< delta_t << endl;
         State next_state = integrate(curr_state, delta_t, true);
@@ -181,8 +181,8 @@ void System::get_kalman_path( vector<State>& obs, vector<float>& obs_times, list
         for(int j=0; j < NUM_DIM; j++)
         {
             Q[j] = exp(-6*delta_t)*Q[j] + process_noise[j]/6*( exp(6*delta_t) -1);
-            float S = next_obs.x[j] - clean_obs.x[j];
-            float L = Q[j]/(Q[j] + obs_noise[j]);
+            double S = next_obs.x[j] - clean_obs.x[j];
+            double L = Q[j]/(Q[j] + obs_noise[j]);
 
             next_state.x[j] += L*S;
 

@@ -15,12 +15,12 @@ class Vertex
         State s;
         
         // prob of best path that ends up here incorporating obs
-        float prob_best_path;
-        float prob_best_path_buffer;
-        float obs_update_time;
+        double prob_best_path;
+        double prob_best_path_buffer;
+        double obs_update_time;
          
-        float holding_time;
-        float holding_time_delta;
+        double holding_time;
+        double holding_time_delta;
 
         // parent of the best path
         Vertex *prev;
@@ -28,7 +28,7 @@ class Vertex
         list<Edge *> edges_in;
         list<Edge *> edges_out;
         
-        float self_transition_prob;
+        double self_transition_prob;
 
         Vertex(State& st);
         ~Vertex(){};
@@ -46,11 +46,11 @@ class Edge{
         list<Edge*>::iterator to_iter;
         list<Edge*>::iterator elist_iter;
 
-        float transition_prob_delta;
-        float transition_prob;
-        float transition_time;
+        double transition_prob_delta;
+        double transition_prob;
+        double transition_time;
         
-        Edge(Vertex* f, Vertex* t, float prob, float trans_time);
+        Edge(Vertex* f, Vertex* t, double prob, double trans_time);
 
         Edge reverse(){
             return Edge(this->to, this->from, this->transition_prob, this->transition_time);
@@ -67,12 +67,12 @@ class Graph{
     public:
         
         int obs_interval;
-        float max_obs_time;
-        float delta;
-        float min_holding_time;
-        float seeding_finished;
+        double max_obs_time;
+        double delta;
+        double min_holding_time;
+        bool seeding_finished;
 
-        float gamma, gamma_t;
+        double gamma, gamma_t;
         struct kdtree *state_tree;
        
         System* system;
@@ -86,15 +86,15 @@ class Graph{
         unsigned int num_vert;
         list<State> truth;
         int obs_curr_index;
-        vector<float> obs_times;
+        vector<double> obs_times;
         vector<State> obs;
         list<State> best_path;
         list<State> kalman_path;
         
         // graph sanity check
         list< list<State> > monte_carlo_trajectories;
-        list<float> monte_carlo_probabilities;
-        list< list<float> > monte_carlo_times;
+        list<double> monte_carlo_probabilities;
+        list< list<double> > monte_carlo_times;
 
         // graph functions
         unsigned int get_num_vert(){return num_vert; };
@@ -107,9 +107,9 @@ class Graph{
         Vertex* nearest_vertex(State s);
         void normalize_edges(Vertex *from);
  
-        float dist(State s1, State s2)
+        double dist(State s1, State s2)
         {
-            float t = 0;
+            double t = 0;
             for(int i=0; i<NUM_DIM; i++)
                 t = t + (s1.x[i] - 2*system->min_states[i]- s2.x[i])*(s1.x[i] - s2.x[i] -2*system->min_states[i])/(system->max_states[i] - system->min_states[i])/(system->max_states[i] - system->min_states[i]);
 
@@ -135,15 +135,19 @@ class Graph{
         
         void put_init_samples(int howmany);
        
+        void average_density(Vertex* v);
+        void approximate_density(Vertex* v);
         void normalize_density();
         void propagate_density(Vertex* v);
         void update_density_explicit(Vertex* v);
         void update_density_implicit(Vertex* v);
+        void update_density_implicit_all();
+        void buffer_prob_copy();
        
         int calculate_delta();
         int calculate_probabilities_delta(Vertex* v);
         int calculate_probabilities_delta_all();
-        float make_holding_time_constant();
+        double make_holding_time_constant();
 
         void propagate_viterbi(Vertex* v);
         void update_viterbi(Vertex* v);

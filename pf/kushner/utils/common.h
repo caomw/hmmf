@@ -22,22 +22,22 @@ using namespace std;
 #define RANDF       (rand()/(RAND_MAX+1.0))
 
 
-float randn();
-void multivar_normal(float *mean, float *var, float *ret, int dim);
-float sq(float x);
-float normal_val(float *mean, float *var, float *tocalci, int dim);
+double randn();
+void multivar_normal(double *mean, double *var, double *ret, int dim);
+double sq(double x);
+double normal_val(double *mean, double *var, double *tocalci, int dim);
 
 inline
-float sq(float x)
+double sq(double x)
 {
     return (x)*(x);
 }
 
 inline
-float normal_val(float *mean, float *var, float *tocalci, int dim)
+double normal_val(double *mean, double *var, double *tocalci, int dim)
 {
-    float top = 0;
-    float det = 1;
+    double top = 0;
+    double det = 1;
     for(int i=0; i<dim; i++)
     {
         top += sq(mean[i] - tocalci[i])/2/var[i];
@@ -45,10 +45,10 @@ float normal_val(float *mean, float *var, float *tocalci, int dim)
         det = det*var[i];
     }
     top = exp(-0.5*top);
-    float to_ret = (top/pow(2*M_PI, dim/2.0))/ sqrt( det );
+    double to_ret = (top/pow(2*M_PI, dim/2.0))/ sqrt( det );
     
-    if ( to_ret < 1e-20)
-        to_ret = 1e-20;
+    if ( to_ret < 1e-30)
+        to_ret = 1e-30;
     
     return to_ret;
 }

@@ -3,7 +3,7 @@
 from sys import *
 from pylab import *
 
-NUM_DIM = 1
+NUM_DIM = 2
 
 if len(argv) > 1:
     save_name = argv[1]
