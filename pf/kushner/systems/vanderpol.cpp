@@ -18,9 +18,9 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-4;
-        obs_noise[i] = 1e-4;
-        init_var[i] = 1e-4;
+        process_noise[i] = 1e-2;
+        obs_noise[i] = 1e-2;
+        init_var[i] = 1e-2;
     }
     
     sim_time_delta = 0.005;
@@ -70,9 +70,9 @@ State System::integrate(State& s, double duration, bool is_clean)
 {
     State t;
 
-    double *var = new double[NUM_DIM];
-    double *mean = new double[NUM_DIM];
-    double *tmp = new double[NUM_DIM];
+    double *var = new double[NUM_DIM-1];
+    double *mean = new double[NUM_DIM-1];
+    double *tmp = new double[NUM_DIM-1];
     
     double delta_t = min(duration, 0.005);
 
@@ -81,7 +81,7 @@ State System::integrate(State& s, double duration, bool is_clean)
         t.x[i] = s.x[i];
     }
 
-    for(int i=0; i<NUM_DIM; i++)
+    for(int i=0; i<NUM_DIM-1; i++)
     {   
         var[i] = process_noise[i]*delta_t;
         tmp[i] = 0;
@@ -92,14 +92,14 @@ State System::integrate(State& s, double duration, bool is_clean)
     while(curr_time < duration)
     {
         if( !is_clean)
-            multivar_normal( mean, var, tmp, NUM_DIM);
+            multivar_normal( mean, var, tmp, NUM_DIM-1);
         
         double f1dt=0, f2dt = 0;
         f1dt = t.x[1]*delta_t;
         f2dt = (-t.x[0] + 2.0*t.x[1]*(1 - t.x[0]*t.x[0]) )*delta_t;
     
-        t.x[0] = t.x[0] + f1dt + tmp[0];
-        t.x[1] = t.x[1] + f2dt + tmp[1];
+        t.x[0] = t.x[0] + f1dt;
+        t.x[1] = t.x[1] + f2dt + tmp[0];
 
         curr_time += min(delta_t, duration - curr_time);
     }
@@ -148,41 +148,67 @@ State System::observation(State& s, bool is_clean)
 
 void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path)
 {
-#if 0
+
+#if 1
     kalman_path.clear();
 
     kalman_path.push_back(init_state);
+    
+    Matrix2d Q;
+    Q << init_var[0], 0, 0, init_var[1];
+    Vector2d curr_state;
+    curr_state(0) = init_state.x[0];
+    curr_state(1) = init_state.x[1];
+    
+    MatrixXd Rk(1,1);
+    Rk(0,0) = obs_noise[0];
+    MatrixXd Cd(1,2);
+    Cd(0,0) = 1; Cd(0,1) = 0;
 
-    double *Q = new double[NUM_DIM];
-    for(int i=0; i < NUM_DIM; i++)
-        Q[i] = init_var[i];
-
-    State curr_state = init_state;
     double prev_time = 0;
     for(unsigned int i=0; i< obs.size(); i++)
     {
         State& next_obs = obs[i];
+        MatrixXd noisy_obs(1,1);
+        noisy_obs(0,0) = next_obs.x[0];
+
         double delta_t = obs_times[i] - prev_time;
         
         //cout<<"delta_t: "<< delta_t << endl;
-        State next_state = integrate(curr_state, delta_t, true);
+        State stmp1;
+        stmp1.x[0] = curr_state(0);
+        stmp1.x[1] = curr_state(1);
+        State next_state = integrate(stmp1, delta_t, true);
         State clean_obs = observation(next_state, true);
+        
+        Matrix2d Ad;
+        Ad(0,0) = 0; Ad(0,1) = 1; Ad(1,0) = -1 -4*stmp1.x[0]*stmp1.x[1]; Ad(1,1) = 2*(1-stmp1.x[0]*stmp1.x[0]);
+        Matrix2d Wk;
+        Wk(0,0) = process_noise[0]*delta_t; Wk(0,1) = 0;
+        Wk(1,1) = process_noise[1]*delta_t; Wk(1,0) = 0;
+        
+        Matrix2d Q_new = Ad * Q * Ad.transpose() + Wk;
+        Vector2d Lk = Q_new*Cd.transpose()*(Cd*Q_new*Cd.transpose() + Rk).inverse();
+        
+        MatrixXd Sk(1,1);
+        curr_state(0) = next_state.x[0];
+        curr_state(1) = next_state.x[1];
+        Sk = noisy_obs - Cd*curr_state;
+        
+        Vector2d estimate = curr_state + Lk*Sk;
+        
+        MatrixXd covar = (Matrix2d::Identity() - Lk*Cd)*Q_new;
 
-        for(int j=0; j < NUM_DIM; j++)
-        {
-            Q[j] = exp(-6*delta_t)*Q[j] + process_noise[j]/6*( exp(6*delta_t) -1);
-            double S = next_obs.x[j] - clean_obs.x[j];
-            double L = Q[j]/(Q[j] + obs_noise[j]);
+        Q = covar;
+        curr_state = estimate;
 
-            next_state.x[j] += L*S;
-
-            Q[j] = (1 -L)*Q[j];
-        }
-        curr_state = next_state;
-
-        kalman_path.push_back(curr_state);
+        State stmp2;
+        stmp2.x[0] = curr_state(0);
+        stmp2.x[1] = curr_state(1);
+        kalman_path.push_back(stmp2);
         prev_time = obs_times[i];
     }
+
 #endif
 }
 

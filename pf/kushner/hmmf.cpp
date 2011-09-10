@@ -32,7 +32,7 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 1.0;
+    max_obs_time = 1;
     delta = system->sim_time_delta;
     min_holding_time = delta;
     seeding_finished = false;
@@ -338,7 +338,7 @@ void Graph::update_density_implicit(Vertex* v)
         Edge* etmp = *i;
         sum = sum + etmp->transition_prob_delta * (etmp->from->prob_best_path);
     }
-    //sum = v->self_transition_prob * (sum + v->prob_best_path); 
+    sum = v->self_transition_prob * (sum + v->prob_best_path); 
     
     double sumt = sum;
     v->prob_best_path_buffer = sum*normal_val(obs[obs_curr_index].x,
@@ -644,6 +644,7 @@ void Graph::approximate_density(Vertex* v)
 
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
+    //cout<<"approx size: "<< kd_res_size(res) << " bowlr: " << bowlr << endl;
 
     double pos[NUM_DIM] = {0};
     while( !kd_res_end(res) )
@@ -687,26 +688,20 @@ void Graph::approximate_density(Vertex* v)
     for(int i=0; i<NUM_DIM; i++)
     {
         var[i] = tprob*var[i]/(tprob*tprob - tprob2);
-        if( (var[i] < 1e-20) || (var[i] != var[i]) )
+        if( (var[i] < 1e-30) || (var[i] != var[i]) )
         {
-            var[i] = 1e-20;
-            
+            var[i] = 1e-30;
+            //cout<<"reset var"<<endl; 
             //if(tprob < 1e-30)
             //    mean[i] = v->s.x[i];
         }
         //cout<<"var "<< i<<" "<< var[i] << endl;
     }
-    
-    kd_res_rewind(res);
-    while( !kd_res_end(res) )
-    {
-        Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
 
-        v1->prob_best_path_buffer = normal_val(mean, var, v1->s.x, NUM_DIM);
-        //cout<<"v_pbp: "<< v->prob_best_path_buffer << endl; getchar();
-        
-        kd_res_next(res);
-    }
+
+    v->prob_best_path = tprob/(double)kd_res_size(res);
+    //v->prob_best_path = normal_val(mean, var, v->s.x, NUM_DIM);
+    //cout<<"v_pbp: "<< v->prob_best_path << endl; getchar();
 
     delete[] mean;
     delete[] var;
@@ -747,7 +742,6 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
     if(seeding_finished)
     {
         approximate_density(v);
-        v->prob_best_path = v->prob_best_path_buffer;
     }
 #endif
 

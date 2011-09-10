@@ -16,8 +16,11 @@
 #include <cassert>
 #include <string>
 
+#include <Eigen/Dense>
 #include "kdtree.h"
+
 using namespace std;
+using namespace Eigen;
 
 #define RANDF       (rand()/(RAND_MAX+1.0))
 
@@ -46,10 +49,10 @@ double normal_val(double *mean, double *var, double *tocalci, int dim)
     }
     top = exp(-0.5*top);
     double to_ret = (top/pow(2*M_PI, dim/2.0))/ sqrt( det );
-    
+   
     if ( to_ret < 1e-30)
         to_ret = 1e-30;
-    
+
     return to_ret;
 }
 
