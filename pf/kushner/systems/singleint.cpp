@@ -10,7 +10,7 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = 0;
+        min_states[i] = -1;
         max_states[i] = 1.0;
         init_state.x[i] = 0.90;
     }

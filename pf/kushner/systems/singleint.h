@@ -110,12 +110,15 @@ class System
         {
             float h = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
             float num = h*h;
-            
+            for(int i=0; i<NUM_DIM; i++)
+                num = num*(max_states[i] - min_states[i]);
+
+            float sqnum = sqrt(num);
             float den = 0;
             for(int i=0; i< NUM_DIM; i++)
                 den += process_noise[i];
             
-            den += (h*3*s.norm());
+            den += (sqnum*3*s.norm());
             
             return num/(den);
         }
@@ -124,12 +127,16 @@ class System
         {
             float h = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
             float num = h*h;
+            for(int i=0; i<NUM_DIM; i++)
+                num = num*(max_states[i] - min_states[i]);
+
+            float sqnum = sqrt(num);
 
             float den = 0;
             for(int i=0; i< NUM_DIM; i++)
                 den += process_noise[i];
             
-            den += (h*3*max_states[0]);
+            den += (sqnum*3*max_states[0]);
             
             return num/(den);
         }
@@ -146,13 +153,6 @@ class System
         void get_kalman_path(vector<State>& obs, vector<float>& obs_times, list<State>& kalman_path);
 };
 
-inline float dist(State s1, State s2)
-{
-    float t = 0;
-    for(int i=0; i<NUM_DIM; i++)
-        t += (s1.x[i] - s2.x[i])*(s1.x[i] - s2.x[i]);
 
-    return sqrt(t);
-};
 
 #endif

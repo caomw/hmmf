@@ -10,20 +10,21 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = -15;
-        max_states[i] = 15;
-        init_state.x[i] = -8;
+        min_states[i] = -10;
+        max_states[i] = 10;
+        init_state.x[i] = -7;
     }
-    init_state.x[2] = 1;
-    init_state.x[3] = 1;
+    init_state.x[2] = 0;
+    init_state.x[3] = 0;
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-3;
-        obs_noise[i] = 1e-3;
+        process_noise[i] = 0.3*0.3;
+        obs_noise[i] = 1e-2;
         init_var[i] = 1e-2;
     }
-    sim_time_delta = 0.01;
+    
+    sim_time_delta = 0.1;
 }
 
 System::~System()
@@ -81,7 +82,7 @@ State System::integrate(State& s, float duration, bool is_clean)
 
     for(int i=0; i<NUM_DIM; i++)
     {   
-        var[i] = process_noise[i]*sim_time_delta;
+        var[i] = process_noise[i]*0.01;
         tmp[i] = 0;
         mean[i] = 0;
     }
@@ -106,7 +107,7 @@ State System::integrate(State& s, float duration, bool is_clean)
         t.x[0] = t.x[0] + sim_time_delta*(old_x3) + tmp[0]; 
         t.x[1] = t.x[1] + sim_time_delta*(old_x4) + tmp[1];
 
-        curr_time += sim_time_delta;
+        curr_time += 0.01;
     }
 
     delete[] mean;
@@ -128,18 +129,23 @@ State System::observation(State& s, bool is_clean)
 {
     State t;
 
-    float *tmp = new float[1];
-    float *mean = new float[1];
+    float *tmp = new float[NUM_DIM_OBS];
+    float *mean = new float[NUM_DIM_OBS];
 
     if( !is_clean)  
-        multivar_normal( mean, obs_noise, tmp, 1);
+        multivar_normal( mean, obs_noise, tmp, NUM_DIM_OBS);
     else
     {
-        for(int i=0; i<NUM_DIM; i++)
+        for(int i=0; i<NUM_DIM_OBS; i++)
             tmp[i] = 0;
     }
+    
 
-    t.x[0] = atan2(s.x[1],s.x[0]) + tmp[0];
+    for(int i=0; i<NUM_DIM_OBS; i++)
+        t.x[i] = 0;
+
+    for(int i=0; i<NUM_DIM_OBS; i++)
+        t.x[i] = s.x[i] + tmp[i];
 
     delete[] mean;
     delete[] tmp;

@@ -3,7 +3,7 @@
 
 #include "../utils/common.h"
 #define NUM_DIM         (4)
-#define NUM_DIM_OBS     (1)
+#define NUM_DIM_OBS     (2)
 // no time in this algorithm
 
 class State
@@ -110,7 +110,11 @@ class System
         {
             float h = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
             float num = h*h;
+
+            //for(int i=0; i< NUM_DIM; i++)
+            //    num = num*(max_states[i] - min_states[i]);
             
+            float sqnum = sqrt(num);
             float den = 0;
             for(int i=0; i< NUM_DIM; i++)
                 den += process_noise[i];
@@ -122,7 +126,7 @@ class System
                 f.x[2] = -50*s.x[0]/sqrt(s.x[0]*s.x[0] + s.x[1]*s.x[1]);
                 f.x[3] = -50*s.x[1]/sqrt(s.x[0]*s.x[0] + s.x[1]*s.x[1]);
             }
-            den += (h*f.norm());
+            den += (sqnum*f.norm());
             
             return num/(den);
         }
@@ -131,14 +135,18 @@ class System
         {
             float h = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
             float num = h*h;
+            //for(int i=0; i< NUM_DIM; i++)
+            //    num = num*(max_states[i] - min_states[i]);
+            
+            float sqnum = sqrt(num);
 
             float den = 0;
             for(int i=0; i< NUM_DIM; i++)
             {
                 den += process_noise[i];
             }
-            float max_abs_f = sqrt(max_states[2]*max_states[2] + max_states[3]*max_states[3] + 2*2500);
-            den += (h*max_abs_f);
+            float max_abs_f = sqrt(max_states[2]*max_states[2] + max_states[3]*max_states[3] + 2*25);
+            den += (sqnum*max_abs_f);
             
             return num/(den);
         }

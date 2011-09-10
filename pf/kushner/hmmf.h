@@ -2,7 +2,7 @@
 #define __hmmf_h__
 
 #include "utils/common.h"
-#include "systems/ship.h"
+#include "systems/singleint.h"
 
 class Edge;
 class Vertex;
@@ -18,7 +18,7 @@ class Vertex
         float prob_best_path;
         float prob_best_path_buffer;
         float obs_update_time;
-        
+         
         float holding_time;
         float holding_time_delta;
 
@@ -69,6 +69,8 @@ class Graph{
         int obs_interval;
         float max_obs_time;
         float delta;
+        float min_holding_time;
+        float seeding_finished;
 
         float gamma, gamma_t;
         struct kdtree *state_tree;
@@ -104,6 +106,15 @@ class Graph{
         int insert_into_kdtree(Vertex *v);
         Vertex* nearest_vertex(State s);
         void normalize_edges(Vertex *from);
+ 
+        float dist(State s1, State s2)
+        {
+            float t = 0;
+            for(int i=0; i<NUM_DIM; i++)
+                t = t + (s1.x[i] - 2*system->min_states[i]- s2.x[i])*(s1.x[i] - s2.x[i] -2*system->min_states[i])/(system->max_states[i] - system->min_states[i])/(system->max_states[i] - system->min_states[i]);
+
+            return sqrt(t);
+        };       
         
         void print_rrg();
         void plot_graph();

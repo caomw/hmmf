@@ -45,7 +45,7 @@ float normal_val(float *mean, float *var, float *tocalci, int dim)
         det = det*var[i];
     }
     top = exp(-0.5*top);
-    float to_ret = 1/pow(2*M_PI, dim/2.0)/ sqrt( det ) * top;
+    float to_ret = (top/pow(2*M_PI, dim/2.0))/ sqrt( det );
     
     if ( to_ret < 1e-20)
         to_ret = 1e-20;

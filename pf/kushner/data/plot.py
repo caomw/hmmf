@@ -3,7 +3,7 @@
 from sys import *
 from pylab import *
 
-NUM_DIM = 2
+NUM_DIM = 1
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -41,7 +41,6 @@ def draw_edges():
 
 def plot_graph():
 
-    figure(1)    
     rrgp = []
     prob = []
     rrgpf = open("rrgp.dat", 'r')
@@ -57,13 +56,21 @@ def plot_graph():
     
     rrgp = array (rrgp)
     prob = array(prob)
-    
+     
     if( len(rrgp) > 0):
+        """
+        figure(1)    
         for i in range(NUM_DIM-1):
         
             subplot(NUM_DIM-1,1,i+1, aspect='auto')
             plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=5.0, alpha = 0.1 )
             grid()
+        """
+        """
+        figure(2)
+        plot(rrgp[:,0], rrgp[:,1], 'yo', ms=5.0, alpha=0.1)
+        grid()
+        """
 
 def plot_trajs():
     
@@ -130,18 +137,21 @@ def plot_trajs():
         grid()
 
         if len(sys) != 0:
-            plot( tsys[:], sys[:,i], 'r-', label='sys', lw=1.0)
+            plot( tsys[:], sys[:,i], 'r-', label='sys', lw=1.5)
         #if len(obs) != 0:
             #plot( tobs[:], obs[:,i], 'b-', label='obs')
         
         if len(bp) != 0:
-            plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.0)
+            plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.5)
         if len(kf) != 0:
-            plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.0)
-    
+            plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
+   
+    """
     figure(2)
-    plot( sys[:,0], sys[:,1], 'r-', label='sys', lw=1.0)
+    plot( sys[:,0], sys[:,1], 'ro-', label='sys', lw=1.0)
+    #plot( bp[:,0], bp[:,1], 'g-', label='sys', lw=1.0)
     grid()
+    """
 
 def plot_sim_trajs():
 
@@ -170,11 +180,13 @@ def plot_sim_trajs():
                     for i in range(NUM_DIM):
                         subplot(NUM_DIM,1,i+1, aspect='auto')
                         grid()
-                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=0.5)
-                    
+                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=last_prob)
+                   
+                    """
                     figure(2)
-                    plot(to_plot[:,0], to_plot[:,1], 'm-', alpha=0.5)
+                    plot(to_plot[:,0], to_plot[:,1], 'mo-', alpha=0.1)
                     grid()
+                    """
 
                 curr_traj = []
                 curr_times = []
@@ -191,6 +203,9 @@ if __name__ == "__main__":
     plot_sim_trajs()
     
     #plot_graph()
+    
+    #figure(2)
+    #axis([-15, 15, -15, 15])
 
     #legend()
     
