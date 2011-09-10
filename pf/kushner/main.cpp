@@ -64,7 +64,8 @@ int do_batch()
         v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
                 v->s.x, NUM_DIM);
     }
-    
+    graph.normalize_density();
+
     graph.propagate_system();
     //graph.get_kalman_path();
 
@@ -118,7 +119,7 @@ int do_incremental()
     double start = get_msec();
     
     tic();
-    for(int i=0; i < 10000; i++)
+    for(int i=0; i < 100; i++)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
@@ -136,17 +137,17 @@ int do_incremental()
         v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
                 v->s.x, NUM_DIM);
     }
-    
+    graph.normalize_density();
+
     graph.propagate_system();
     graph.get_kalman_path();
 
-#if 0
+#if 1
     tic();
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph));
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {
-        /*
         for(int j=0; j< 100; j++)
         {
             Vertex* v = graph.add_sample();
@@ -156,7 +157,6 @@ int do_incremental()
             graph.update_density_implicit(v);
             v->prob_best_path = v->prob_best_path_buffer;
         }
-        */
         graph.obs_curr_index = i;
         cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
       
@@ -177,7 +177,7 @@ int do_incremental()
     }
 #endif
 
-#if 1
+#if 0
     cout<<"starting simulation of trajectories" << endl;
     for(int i=0; i< 1000; i++)
     {
