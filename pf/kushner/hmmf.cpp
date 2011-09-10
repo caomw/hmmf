@@ -32,7 +32,7 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 0.3;
+    max_obs_time = 0.5;
     delta = system->sim_time_delta;
 
     state_tree = kd_create(NUM_DIM);
@@ -167,18 +167,18 @@ void Graph::plot_trajectory()
         curr_time += system->sim_time_delta;
     }
     
-    count = 0;
+    curr_time =0;
     traj<<"kf_path"<<endl;
     for(list<State>::iterator i= kalman_path.begin(); i != kalman_path.end(); i++)
     {
-        traj<< obs_times[count]<<"\t";
+        traj<< curr_time<<"\t";
         State& curr = *i;
         for(int j=0; j< NUM_DIM; j++)
         {
             traj<< curr.x[j]<<"\t";
         }
         traj<<endl;
-        count++;
+        curr_time += system->sim_time_delta;
     }
     cout<<"trajectory plotting done" << endl;
     traj.close();
@@ -327,10 +327,13 @@ void Graph::update_density_implicit(Vertex* v)
     for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
     {
         Edge* etmp = *i;
-        sum = sum + normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM) * \
-              etmp->transition_prob_delta * (etmp->from->prob_best_path); 
+        sum = sum + etmp->transition_prob_delta * (etmp->from->prob_best_path) * \
+              v->self_transition_prob; 
     }
-    v->prob_best_path_buffer = sum;
+    sum = sum + v->self_transition_prob * (v->prob_best_path); 
+
+    v->prob_best_path_buffer = sum*normal_val(obs[obs_curr_index].x,
+            system->obs_noise, gx.x, NUM_DIM);
 
     v->obs_update_time = obs_times[obs_curr_index];
 }
@@ -591,6 +594,9 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
             
             vertex_delete_edges(v1);
             connect_edges_approx(v1);
+            
+            //update_density_implicit(v1);
+            //v1->prob_best_path = v1->prob_best_path_buffer;
         }
 
         kd_res_next(res);
@@ -664,6 +670,7 @@ int Graph::connect_edges_approx(Vertex* v)
     
     calculate_probabilities_delta(v);
 
+    
     delete[] var;
 
     return 0;

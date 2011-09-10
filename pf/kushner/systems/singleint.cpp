@@ -17,9 +17,9 @@ System::System()
     
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-3;
-        obs_noise[i] = 1e-2;
-        init_var[i] = 1e-3;
+        process_noise[i] = 1e-2;
+        obs_noise[i] = 1e-3;
+        init_var[i] = 1e-2;
     }
     sim_time_delta = 0.01;
 }

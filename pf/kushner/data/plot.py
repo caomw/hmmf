@@ -164,7 +164,7 @@ def plot_sim_trajs():
                     for i in range(NUM_DIM):
                         subplot(NUM_DIM,1,i+1, aspect='auto')
                         grid()
-                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=last_prob)
+                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=0.01)
 
                 curr_traj = []
                 curr_times = []
