@@ -70,9 +70,9 @@ State System::integrate(State& s, double duration, bool is_clean)
 {
     State t;
 
-    double *var = new double[NUM_DIM-1];
-    double *mean = new double[NUM_DIM-1];
-    double *tmp = new double[NUM_DIM-1];
+    double *var = new double[NUM_DIM];
+    double *mean = new double[NUM_DIM];
+    double *tmp = new double[NUM_DIM];
     
     double delta_t = min(duration, 0.005);
 
@@ -81,7 +81,7 @@ State System::integrate(State& s, double duration, bool is_clean)
         t.x[i] = s.x[i];
     }
 
-    for(int i=0; i<NUM_DIM-1; i++)
+    for(int i=0; i<NUM_DIM; i++)
     {   
         var[i] = process_noise[i]*delta_t;
         tmp[i] = 0;
@@ -92,14 +92,14 @@ State System::integrate(State& s, double duration, bool is_clean)
     while(curr_time < duration)
     {
         if( !is_clean)
-            multivar_normal( mean, var, tmp, NUM_DIM-1);
+            multivar_normal( mean, var, tmp, NUM_DIM);
         
         double f1dt=0, f2dt = 0;
         f1dt = t.x[1]*delta_t;
         f2dt = (-t.x[0] + 2.0*t.x[1]*(1 - t.x[0]*t.x[0]) )*delta_t;
     
-        t.x[0] = t.x[0] + f1dt;
-        t.x[1] = t.x[1] + f2dt + tmp[0];
+        t.x[0] = t.x[0] + f1dt + tmp[0];
+        t.x[1] = t.x[1] + f2dt + tmp[1];
 
         curr_time += min(delta_t, duration - curr_time);
     }

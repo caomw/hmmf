@@ -3,7 +3,7 @@
 
 #include "../utils/common.h"
 #define NUM_DIM         (2)
-#define NUM_DIM_OBS     (2)
+#define NUM_DIM_OBS     (1)
 // no time in this algorithm
 
 class State

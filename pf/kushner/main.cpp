@@ -122,9 +122,11 @@ int do_incremental()
     
     double start = get_msec();
 
+    graph.propagate_system();
+    graph.get_kalman_path();
 #if 1 
     tic();
-    for(int i=0; i < 1000; i++)
+    for(int i=0; i < 2000; i++)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
@@ -145,27 +147,24 @@ int do_incremental()
     graph.normalize_density();
     graph.seeding_finished = true;
    
-    /*
+#if 0
     // checking approximation
     cout<<"starting----" << endl;
     get_mean(graph);
-    for(int j=0; j< 100; j++)
+    for(int j=0; j< 500; j++)
     {
         Vertex* v = graph.add_sample();
-        //graph.connect_edges_approx(v);
+        graph.connect_edges_approx(v);
         
-        //graph.reconnect_edges_neighbors(v);
-
+        graph.reconnect_edges_neighbors(v);
+        
         graph.approximate_density(v);
         graph.normalize_density();
         
         get_mean(graph);
     }
-    */
 #endif
-
-    graph.propagate_system();
-    graph.get_kalman_path();
+#endif
 
 #if 1
     tic();
@@ -180,12 +179,14 @@ int do_incremental()
             
             graph.reconnect_edges_neighbors(v);
             
-            graph.normalize_density();
+            graph.approximate_density(v);
+            //graph.normalize_density();
         }
         
         graph.obs_curr_index = i;
         cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
       
+        graph.update_density_implicit_no_obs_all();
         graph.update_density_implicit_all();
         graph.normalize_density();
         

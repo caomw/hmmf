@@ -3,6 +3,7 @@
 from sys import *
 from pylab import *
 
+times = []
 NUM_DIM = 2
 
 if len(argv) > 1:
@@ -14,10 +15,9 @@ else:
 fig = figure(1)
 
 def draw_obstacles():
+    fig = figure(2)
     axplot = fig.add_subplot(111)
-    rect = Rectangle( (.127, 0), .26-.127, .217, fc='blue', alpha = 0.2)
-    axplot.add_patch(rect)
-    rect = Rectangle( (.1, .32), .2 - .1, .5 - .32, fc='blue', alpha = 0.2)
+    rect = Rectangle( (0.56, 0.4), 0.14, 0.2, fc='blue', alpha = 0.2)
     axplot.add_patch(rect)
 
 def draw_edges():
@@ -40,7 +40,8 @@ def draw_edges():
         rrg.close()
 
 def plot_graph():
-
+    
+    global times
     rrgp = []
     prob = []
     rrgpf = open("rrgp.dat", 'r')
@@ -56,24 +57,26 @@ def plot_graph():
     
     rrgp = array (rrgp)
     prob = array(prob)
-     
+    
+    """ 
+    figure(1)    
     if( len(rrgp) > 0):
-        """
-        figure(1)    
-        for i in range(NUM_DIM-1):
-        
-            subplot(NUM_DIM-1,1,i+1, aspect='auto')
-            plot(rrgp[:,0], rrgp[:,i+1], 'yo', ms=5.0, alpha = 0.1 )
-            grid()
-        """
-        """
-        figure(2)
-        plot(rrgp[:,0], rrgp[:,1], 'yo', ms=5.0, alpha=0.1)
-        grid()
-        """
+        for i in range(len(times)):
+            for j in range(NUM_DIM):
+                
+                tmp = [times[i] for x in range(len(rrgp))]
+                tmp = array(tmp)
+                subplot(NUM_DIM,1,j+1, aspect='auto')
+                plot(tmp, rrgp[:,j], 'yo', ms=5.0, alpha = 0.1 )
+                grid()
+    """
+    figure(2)
+    plot(rrgp[:,0], rrgp[:,1], 'yo', ms=5.0, alpha=0.1)
+    grid()
 
 def plot_trajs():
     
+    global times
     traj = open("traj.dat", 'r')
 
     if traj:
@@ -128,7 +131,8 @@ def plot_trajs():
     tobs = array(tobs)
     tbp = array(tbp)
     tkf = array(tkf)
-    
+   
+    times = tobs
 
     figure(1)    
     for i in range(NUM_DIM):
@@ -139,21 +143,23 @@ def plot_trajs():
         if len(sys) != 0:
             plot( tsys[:], sys[:,i], 'r-', label='sys', lw=1.5)
         #if len(obs) != 0:
-            #plot( tobs[:], obs[:,i], 'b-', label='obs')
+            #plot( tobs[:], obs[:,i], 'bx', label='obs')
         
         if len(bp) != 0:
             plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.5)
         if len(kf) != 0:
             plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
-    
-    """
+   
     figure(2)
     if len(sys) != 0:
-        plot( sys[:,0], sys[:,1], 'r-', label='sys', lw=1.0)
+        plot( sys[:,0], sys[:,1], 'r-', label='sys', lw=1.5)
     if len(bp) != 0:
-        plot( bp[:,0], bp[:,1], 'g-', label='sys', lw=1.0)
+        plot( bp[:,0], bp[:,1], 'g-', label='sys', lw=1.5)
+    if len(kf) != 0:
+        plot( kf[:,0], kf[:,1], 'c-', label='kf', lw=1.5)
+    #if len(obs) != 0:
+        #plot( obs[:,0], obs[:,1], 'bx', label='obs')
     grid()
-    """
 
 def plot_sim_trajs():
 
@@ -203,11 +209,12 @@ if __name__ == "__main__":
 
     plot_trajs()
     plot_sim_trajs()
+    draw_obstacles()    
     
     #plot_graph()
     
     #figure(2)
-    #axis([-15, 15, -15, 15])
+    #axis([-10, 10, -10, 10])
 
     #legend()
     

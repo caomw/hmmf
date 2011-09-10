@@ -556,6 +556,30 @@ void Graph::normalize_density()
     }
 }
 
+void Graph::update_density_implicit_no_obs(Vertex* v)
+{
+    double sum = 0;
+    //cout<<"Ry: " << Ry << endl;
+    for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
+    {
+        Edge* etmp = *i;
+        sum = sum + etmp->transition_prob_delta * (etmp->from->prob_best_path);
+    }
+    sum = v->self_transition_prob * (sum + v->prob_best_path); 
+    
+    v->prob_best_path_buffer = sum;
+}
+
+void Graph::update_density_implicit_no_obs_all()
+{
+    for(unsigned int j = 0; j< num_vert; j++)
+    {
+        Vertex* v = vlist[j];
+        update_density_implicit_no_obs(v);
+    }
+    buffer_prob_copy();
+}
+
 void Graph::update_density_implicit_all()
 {
     for(unsigned int j = 0; j< num_vert; j++)
@@ -627,15 +651,8 @@ Vertex* Graph::add_sample()
 
 void Graph::approximate_density(Vertex* v)
 {
-    double* mean = new double[NUM_DIM];
-    double* var = new double [NUM_DIM];
-    double tprob = 0, tprob2 = 0;
-
-    for(int i=0; i< NUM_DIM; i++)
-    {
-        mean[i] = 0;
-        var[i] = 0;
-    }
+#if 0
+    double tprob = 0;
 
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
@@ -653,59 +670,30 @@ void Graph::approximate_density(Vertex* v)
 
         if(v1 != v)
         {
-            for(int i=0; i<NUM_DIM; i++)
-            {
-                mean[i] = mean[i] + (v1->s.x[i])*(v1->prob_best_path);
-            }
             tprob = tprob + (v1->prob_best_path);
-            tprob2 = tprob2 + (v1->prob_best_path)*(v1->prob_best_path);
             //cout<<"v1_pbp: "<< v1->prob_best_path << endl;
         }
         kd_res_next(res);
     }
 
-    //cout<<"tprob: "<< tprob <<" tprob2: " << tprob2 << endl;
-    for(int i=0; i<NUM_DIM; i++)
-    {
-        mean[i] = mean[i]/tprob;
-        //cout<<"mean "<< i<<" "<< mean[i] << endl;
-    }
-    kd_res_rewind(res);
-    while( !kd_res_end(res) )
-    {
-        Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
-
-        if(v1 != v)
-        {
-            for(int i=0; i<NUM_DIM; i++)
-            {
-                var[i] = var[i] + (v1->s.x[i] - mean[i])*(v1->s.x[i] - mean[i])*(v1->prob_best_path);
-            }
-
-        }
-        kd_res_next(res);
-    }
-    for(int i=0; i<NUM_DIM; i++)
-    {
-        var[i] = tprob*var[i]/(tprob*tprob - tprob2);
-        if( (var[i] < 1e-30) || (var[i] != var[i]) )
-        {
-            var[i] = 1e-30;
-            //cout<<"reset var"<<endl; 
-            //if(tprob < 1e-30)
-            //    mean[i] = v->s.x[i];
-        }
-        //cout<<"var "<< i<<" "<< var[i] << endl;
-    }
-
-
     v->prob_best_path = tprob/(double)kd_res_size(res);
-    //v->prob_best_path = normal_val(mean, var, v->s.x, NUM_DIM);
     //cout<<"v_pbp: "<< v->prob_best_path << endl; getchar();
 
-    delete[] mean;
-    delete[] var;
     kd_res_free(res);
+#endif
+
+    State gx = system->observation(v->s, true);
+
+    double sum = 0;
+    //cout<<"Ry: " << Ry << endl;
+    for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
+    {
+        Edge* etmp = *i;
+        sum = sum + etmp->transition_prob_delta * (etmp->from->prob_best_path);
+    }
+    
+    v->prob_best_path = sum*normal_val(obs[obs_curr_index].x,
+            system->obs_noise, gx.x, NUM_DIM_OBS);
 }
 
 int Graph::reconnect_edges_neighbors(Vertex* v)
@@ -715,7 +703,7 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    double bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+    double bowlr = gamma/2 * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
 
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
@@ -739,10 +727,6 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
     }
     kd_res_free(res);
     
-    if(seeding_finished)
-    {
-        approximate_density(v);
-    }
 #endif
 
 #if 0
@@ -788,10 +772,11 @@ int Graph::connect_edges_approx(Vertex* v)
             if(prob_tmp > 0)
             {
                 Edge *e1 = new Edge(v, v1, prob_tmp, holding_time);
-                sum_prob += prob_tmp;
 
-                if( 1)
+                if(is_edge_free(e1))
                 {
+                    sum_prob += prob_tmp;
+                    
                     elist.push_back(e1);
                     v->edges_out.push_back(e1);
                     v1->edges_in.push_back(e1);

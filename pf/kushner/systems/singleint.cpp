@@ -10,15 +10,15 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = -1;
-        max_states[i] = 1.0;
+        min_states[i] = 0;
+        max_states[i] = 1;
         init_state.x[i] = 0.90;
     }
     
     for(int i=0; i< NUM_DIM; i++)
     {
         process_noise[i] = 1e-2;
-        obs_noise[i] = 1e-3;
+        obs_noise[i] = 1e-2;
         init_var[i] = 1e-2;
     }
     sim_time_delta = 0.01;
@@ -51,36 +51,16 @@ State System::sample()
 
 bool System::is_free(State &s)
 {
-    return 1;
-
-    bool retflag = 0;
+    bool free_state = 1;
 
     // obs 1
-    if( (s[0] >= 0.127) && (s[0] <= 0.26) )
+    if( (s[0] <= 0.7) && (s[0] >= 0.56) )
     {
-        if( (s[1] >= 0) && (s[1] <= .217) )
-            retflag = 0;
-        else
-            retflag = 1;
+        if( (s[1] <= 0.6) && (s[1] >= 0.4) )
+            free_state = 0;
     }
-    else
-        retflag = 1;
-
-    if (retflag == 0)
-        return 0;
-
-    // obs 2
-    if( (s[0] >= 0.1) && (s[0] <= 0.2) )
-    {
-        if( (s[1] >= .32) && (s[1] <= .5) )
-            retflag = 0;
-        else
-            retflag = 1;
-    }
-    else
-        retflag = 1;
-
-    return retflag;
+    
+    return free_state;
 }
 
 int System::get_key(State& s, double *key)

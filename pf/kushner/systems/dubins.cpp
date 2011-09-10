@@ -11,10 +11,10 @@ System::System()
     for(int i=0; i< NUM_DIM; i++)
     {
         min_states[i] = 0;
-        max_states[i] = 0.6;
+        max_states[i] = 1.0;
         init_state.x[i] = 0.1;
     }
-    max_states[2] = M_PI/2;
+    max_states[2] = M_PI;
     init_state.x[2] = 0;
 
     for(int i=0; i< NUM_DIM; i++)
@@ -104,7 +104,7 @@ State System::integrate(State& s, double duration, bool is_clean)
     double *mean = new double[NUM_DIM];
     double *tmp = new double[NUM_DIM];
 
-    float delta_t = min(duration, 0.01);
+    double delta_t = min(duration, 0.01);
     for(int i=0; i<NUM_DIM; i++)
     {
         t.x[i] = s.x[i];
@@ -173,5 +173,72 @@ State System::observation(State& s, bool is_clean)
 
 void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path)
 {
-    ;
+
+#if 1
+    kalman_path.clear();
+
+    kalman_path.push_back(init_state);
+    
+    Matrix3d Q;
+    Q << init_var[0], 0, 0, 0, init_var[1], 0, 0, 0, init_var[2];
+    Vector3d curr_state;
+    curr_state(0) = init_state.x[0];
+    curr_state(1) = init_state.x[1];
+    curr_state(2) = init_state.x[2];
+    
+    MatrixXd Rk(3,3);
+    Rk << obs_noise[0], 0, 0, 0, obs_noise[1], 0, 0, 0, obs_noise[2];
+    Matrix3d Cd = Matrix3d::Identity();
+
+    double prev_time = 0;
+    for(unsigned int i=0; i< obs.size(); i++)
+    {
+        State& next_obs = obs[i];
+        Vector3d noisy_obs;
+        noisy_obs(0) = next_obs.x[0];
+        noisy_obs(1) = next_obs.x[1];
+        noisy_obs(2) = next_obs.x[2];
+
+        double delta_t = obs_times[i] - prev_time;
+        
+        //cout<<"delta_t: "<< delta_t << endl;
+        State stmp1;
+        stmp1.x[0] = curr_state(0);
+        stmp1.x[1] = curr_state(1);
+        stmp1.x[2] = curr_state(2);
+        State next_state = integrate(stmp1, delta_t, true);
+        State clean_obs = observation(next_state, true);
+        
+        Matrix3d Ad;
+        Ad << 0, 0, -sin(stmp1.x[2]), 0, 0, cos(stmp1.x[2]), 0, 0, 0; 
+        
+        Matrix3d Wk;
+        Wk << process_noise[0]*delta_t, 0, 0, 0, process_noise[1]*delta_t, 0, 0, 0, process_noise[2]*delta_t;
+        
+        Matrix3d Q_new = Ad * Q * Ad.transpose() + Wk;
+        Matrix3d Lk = Q_new*Cd.transpose()*(Cd*Q_new*Cd.transpose() + Rk).inverse();
+        
+        Vector3d Sk;
+        curr_state(0) = next_state.x[0];
+        curr_state(1) = next_state.x[1];
+        curr_state(2) = next_state.x[2];
+        Sk = noisy_obs - Cd*curr_state;
+        
+        Vector3d estimate = curr_state + Lk*Sk;
+        
+        Matrix3d covar = (Matrix3d::Identity() - Lk*Cd)*Q_new;
+
+        Q = covar;
+        curr_state = estimate;
+
+        State stmp2;
+        stmp2.x[0] = curr_state(0);
+        stmp2.x[1] = curr_state(1);
+        stmp2.x[2] = curr_state(2);
+        kalman_path.push_back(stmp2);
+        prev_time = obs_times[i];
+    }
+
+#endif
 }
+
