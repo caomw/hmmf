@@ -612,7 +612,7 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    float bowlr = gamma/2 * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
+    float bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
 
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
@@ -744,8 +744,10 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
         }
 
     }
-
+    
     kd_res_free(res);
+    delete[] var;
+
 #endif
 
 #if 0

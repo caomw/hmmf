@@ -123,7 +123,7 @@ int do_incremental()
 
 #if 1 
     tic();
-    for(int i=0; i < 5000; i++)
+    for(int i=0; i < 1000; i++)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
@@ -149,12 +149,12 @@ int do_incremental()
 
 #if 1
     tic();
-    graph.seeding_finished = true;
+    //graph.seeding_finished = true;
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph));
-    for(unsigned int i=0; i < 1; i++)
+    for(unsigned int i=0; i < graph.obs.size(); i++)
     {
-        for(int j=0; j< 10; j++)
+        for(int j=0; j< 100; j++)
         {
             Vertex* v = graph.add_sample();
             graph.connect_edges_approx(v);
