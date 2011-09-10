@@ -1,4 +1,4 @@
-#include "dubins.h"
+#include "vanderpol.h"
 
 System::System()
 {
@@ -10,21 +10,20 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = 0;
-        max_states[i] = 0.6;
-        init_state.x[i] = 0.1;
+        min_states[i] = -6;
+        max_states[i] = 6;
     }
-    max_states[2] = M_PI/2;
-    init_state.x[2] = 0;
+    init_state.x[0] = 0;
+    init_state.x[1] = 1.0;
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-3;
-        obs_noise[i] = 1e-3;
+        process_noise[i] = 1e-4;
+        obs_noise[i] = 1e-4;
         init_var[i] = 1e-4;
     }
-
-    sim_time_delta = 0.01;
+    
+    sim_time_delta = 0.005;
 }
 
 System::~System()
@@ -55,35 +54,6 @@ State System::sample()
 bool System::is_free(State &s)
 {
     return 1;
-
-    bool retflag = 0;
-
-    // obs 1
-    if( (s[0] >= 0.127) && (s[0] <= 0.26) )
-    {
-        if( (s[1] >= 0) && (s[1] <= .217) )
-            retflag = 0;
-        else
-            retflag = 1;
-    }
-    else
-        retflag = 1;
-
-    if (retflag == 0)
-        return 0;
-
-    // obs 2
-    if( (s[0] >= 0.1) && (s[0] <= 0.2) )
-    {
-        if( (s[1] >= .32) && (s[1] <= .5) )
-            retflag = 0;
-        else
-            retflag = 1;
-    }
-    else
-        retflag = 1;
-
-    return retflag;
 }
 
 int System::get_key(State& s, double *key)
@@ -103,29 +73,33 @@ State System::integrate(State& s, double duration, bool is_clean)
     double *var = new double[NUM_DIM];
     double *mean = new double[NUM_DIM];
     double *tmp = new double[NUM_DIM];
+    
+    double delta_t = min(duration, 0.005);
 
-    float delta_t = min(duration, 0.01);
     for(int i=0; i<NUM_DIM; i++)
     {
         t.x[i] = s.x[i];
     }
 
     for(int i=0; i<NUM_DIM; i++)
-    {
+    {   
         var[i] = process_noise[i]*delta_t;
         tmp[i] = 0;
         mean[i] = 0;
     }
-        
+
     double curr_time = 0;
     while(curr_time < duration)
     {
-        if( !is_clean)  
+        if( !is_clean)
             multivar_normal( mean, var, tmp, NUM_DIM);
         
-        t.x[0] += (1.0*cos(t.x[2])*delta_t + tmp[0]);
-        t.x[1] += (1.0*sin(t.x[2])*delta_t + tmp[1]);
-        t.x[2] += (2.0*delta_t + tmp[2]);
+        double f1dt=0, f2dt = 0;
+        f1dt = t.x[1]*delta_t;
+        f2dt = (-t.x[0] + 2.0*t.x[1]*(1 - t.x[0]*t.x[0]) )*delta_t;
+    
+        t.x[0] = t.x[0] + f1dt + tmp[0];
+        t.x[1] = t.x[1] + f2dt + tmp[1];
 
         curr_time += min(delta_t, duration - curr_time);
     }
@@ -145,24 +119,25 @@ void System::get_variance(State& s, double duration, double* var)
     } 
 }
 
-
 State System::observation(State& s, bool is_clean)
 {
     State t;
 
-    double *tmp = new double[NUM_DIM];
-    double *mean = new double[NUM_DIM];
+    double *tmp = new double[NUM_DIM_OBS];
+    double *mean = new double[NUM_DIM_OBS];
 
     if( !is_clean)  
-        multivar_normal( mean, obs_noise, tmp, NUM_DIM);
-
-    if(is_clean)
+        multivar_normal( mean, obs_noise, tmp, NUM_DIM_OBS);
+    else
     {
-        for(int i=0; i<NUM_DIM; i++)
+        for(int i=0; i<NUM_DIM_OBS; i++)
             tmp[i] = 0;
     }
+    
+    for(int i=0; i<NUM_DIM_OBS; i++)
+        t.x[i] = 0;
 
-    for(int i=0; i<NUM_DIM; i++)
+    for(int i=0; i<NUM_DIM_OBS; i++)
         t.x[i] = s.x[i] + tmp[i];
 
     delete[] mean;
@@ -173,5 +148,41 @@ State System::observation(State& s, bool is_clean)
 
 void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path)
 {
-    ;
+#if 0
+    kalman_path.clear();
+
+    kalman_path.push_back(init_state);
+
+    double *Q = new double[NUM_DIM];
+    for(int i=0; i < NUM_DIM; i++)
+        Q[i] = init_var[i];
+
+    State curr_state = init_state;
+    double prev_time = 0;
+    for(unsigned int i=0; i< obs.size(); i++)
+    {
+        State& next_obs = obs[i];
+        double delta_t = obs_times[i] - prev_time;
+        
+        //cout<<"delta_t: "<< delta_t << endl;
+        State next_state = integrate(curr_state, delta_t, true);
+        State clean_obs = observation(next_state, true);
+
+        for(int j=0; j < NUM_DIM; j++)
+        {
+            Q[j] = exp(-6*delta_t)*Q[j] + process_noise[j]/6*( exp(6*delta_t) -1);
+            double S = next_obs.x[j] - clean_obs.x[j];
+            double L = Q[j]/(Q[j] + obs_noise[j]);
+
+            next_state.x[j] += L*S;
+
+            Q[j] = (1 -L)*Q[j];
+        }
+        curr_state = next_state;
+
+        kalman_path.push_back(curr_state);
+        prev_time = obs_times[i];
+    }
+#endif
 }
+

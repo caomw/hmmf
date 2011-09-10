@@ -42,7 +42,7 @@ int do_batch()
    
 #if 1
     tic();
-    for(int i=0; i < 2000; i++)
+    for(int i=0; i < 1000; i++)
     {
         graph.add_sample();
     }
@@ -155,6 +155,7 @@ int do_incremental()
     graph.best_path.push_back(get_mean(graph));
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {
+        /*
         for(int j=0; j< 100; j++)
         {
             Vertex* v = graph.add_sample();
@@ -163,7 +164,7 @@ int do_incremental()
             graph.reconnect_edges_neighbors(v);
 
         }
-        for(int j=0; j< 100*log(graph.num_vert); j++)
+        for(int j=0; j< 1000*log(graph.num_vert); j++)
         {
             int tmp = RANDF*graph.num_vert;
             graph.approximate_density( graph.vlist[tmp] );
@@ -171,7 +172,8 @@ int do_incremental()
 
         graph.buffer_prob_copy();
         graph.normalize_density();
-        
+        */
+
         graph.obs_curr_index = i;
         cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
       

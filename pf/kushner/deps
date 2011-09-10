@@ -31,19 +31,19 @@ utils/common.o: /usr/include/bits/typesizes.h /usr/include/time.h
 utils/common.o: /usr/include/bits/time.h /usr/include/sys/select.h
 utils/common.o: /usr/include/bits/select.h /usr/include/bits/sigset.h
 utils/common.o: utils/kdtree.h
-systems/singleint.o: systems/singleint.h utils/common.h /usr/include/math.h
-systems/singleint.o: /usr/include/features.h /usr/include/bits/predefs.h
-systems/singleint.o: /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h
-systems/singleint.o: /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h
-systems/singleint.o: /usr/include/bits/huge_val.h
-systems/singleint.o: /usr/include/bits/huge_valf.h
-systems/singleint.o: /usr/include/bits/huge_vall.h /usr/include/bits/inf.h
-systems/singleint.o: /usr/include/bits/nan.h /usr/include/bits/mathdef.h
-systems/singleint.o: /usr/include/bits/mathcalls.h /usr/include/sys/time.h
-systems/singleint.o: /usr/include/bits/types.h /usr/include/bits/typesizes.h
-systems/singleint.o: /usr/include/time.h /usr/include/bits/time.h
-systems/singleint.o: /usr/include/sys/select.h /usr/include/bits/select.h
-systems/singleint.o: /usr/include/bits/sigset.h utils/kdtree.h
+systems/vanderpol.o: systems/vanderpol.h utils/common.h /usr/include/math.h
+systems/vanderpol.o: /usr/include/features.h /usr/include/bits/predefs.h
+systems/vanderpol.o: /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h
+systems/vanderpol.o: /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h
+systems/vanderpol.o: /usr/include/bits/huge_val.h
+systems/vanderpol.o: /usr/include/bits/huge_valf.h
+systems/vanderpol.o: /usr/include/bits/huge_vall.h /usr/include/bits/inf.h
+systems/vanderpol.o: /usr/include/bits/nan.h /usr/include/bits/mathdef.h
+systems/vanderpol.o: /usr/include/bits/mathcalls.h /usr/include/sys/time.h
+systems/vanderpol.o: /usr/include/bits/types.h /usr/include/bits/typesizes.h
+systems/vanderpol.o: /usr/include/time.h /usr/include/bits/time.h
+systems/vanderpol.o: /usr/include/sys/select.h /usr/include/bits/select.h
+systems/vanderpol.o: /usr/include/bits/sigset.h utils/kdtree.h
 hmmf.o: hmmf.h utils/common.h /usr/include/math.h /usr/include/features.h
 hmmf.o: /usr/include/bits/predefs.h /usr/include/sys/cdefs.h
 hmmf.o: /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h
@@ -55,7 +55,7 @@ hmmf.o: /usr/include/sys/time.h /usr/include/bits/types.h
 hmmf.o: /usr/include/bits/typesizes.h /usr/include/time.h
 hmmf.o: /usr/include/bits/time.h /usr/include/sys/select.h
 hmmf.o: /usr/include/bits/select.h /usr/include/bits/sigset.h utils/kdtree.h
-hmmf.o: systems/singleint.h utils/common.h
+hmmf.o: systems/vanderpol.h utils/common.h
 main.o: hmmf.h utils/common.h /usr/include/math.h /usr/include/features.h
 main.o: /usr/include/bits/predefs.h /usr/include/sys/cdefs.h
 main.o: /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h
@@ -67,4 +67,4 @@ main.o: /usr/include/sys/time.h /usr/include/bits/types.h
 main.o: /usr/include/bits/typesizes.h /usr/include/time.h
 main.o: /usr/include/bits/time.h /usr/include/sys/select.h
 main.o: /usr/include/bits/select.h /usr/include/bits/sigset.h utils/kdtree.h
-main.o: systems/singleint.h utils/common.h
+main.o: systems/vanderpol.h utils/common.h
