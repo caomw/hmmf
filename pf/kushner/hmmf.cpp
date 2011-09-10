@@ -32,12 +32,12 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 0.5;
+    max_obs_time = 10;
     delta = system->sim_time_delta;
 
     state_tree = kd_create(NUM_DIM);
 
-    gamma = 2.5;
+    gamma = 2.1*pow( (1+1/(float)NUM_DIM), 1/(float)NUM_DIM);
 };
 
 Graph::~Graph()
@@ -310,7 +310,7 @@ void Graph::update_density_explicit(Vertex* v)
     for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
     {
         Edge* etmp = *i;
-        sum = sum + normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM) * \
+        sum = sum + normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM_OBS) * \
               etmp->transition_prob * (etmp->from->prob_best_path); 
     }
     v->prob_best_path_buffer = sum;
@@ -333,7 +333,7 @@ void Graph::update_density_implicit(Vertex* v)
     sum = sum + v->self_transition_prob * (v->prob_best_path); 
 
     v->prob_best_path_buffer = sum*normal_val(obs[obs_curr_index].x,
-            system->obs_noise, gx.x, NUM_DIM);
+            system->obs_noise, gx.x, NUM_DIM_OBS);
 
     v->obs_update_time = obs_times[obs_curr_index];
 }
@@ -379,8 +379,14 @@ int Graph::calculate_probabilities_delta(Vertex* v)
 
 float Graph::make_holding_time_constant()
 {
-    float min_holding_time = system->get_min_holding_time(gamma, num_vert);
-        
+    float min_holding_time = 1000;
+    for(unsigned int i=0; i< num_vert; i++)
+    {
+        Vertex* v = vlist[i];
+        if(min_holding_time > v->holding_time)
+            min_holding_time = v->holding_time;
+    } 
+
     cout<<"min_hold: "<< min_holding_time << endl;
 
     for(unsigned int i=0; i< num_vert; i++)
@@ -407,8 +413,6 @@ float Graph::make_holding_time_constant()
         new_edge->from_iter = v->edges_out.end();   new_edge->from_iter--;
         new_edge->to_iter = v->edges_in.end();      new_edge->to_iter--;
         
-        // normalize
-        //normalize_edges(v);
     }
     return min_holding_time;
 }
@@ -449,7 +453,7 @@ void Graph::update_viterbi(Vertex* v)
     float max_prob = -1;
     float tmp;
     State gx = system->observation(v->s, true);
-    float obs_prob = normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM);
+    float obs_prob = normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM_OBS);
     for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
     {
         Edge* etmp = *i;
@@ -493,8 +497,8 @@ void Graph::propagate_viterbi(Vertex* v)
         {
             Edge* etmp = *i;
             
-            State gx = system->observation(etmp->to->s, true);
-            //float tmp = (vtmp->prob_best_path)*(etmp->transition_prob)* normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM);
+            //State gx = system->observation(etmp->to->s, true);
+            //float tmp = (vtmp->prob_best_path)*(etmp->transition_prob)* normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM_OBS);
             // add to queue if not updated with latest observation
             if( etmp->to->obs_update_time < (obs_times[obs_curr_index] - 1e-10) )
             {
@@ -618,7 +622,7 @@ int Graph::connect_edges_approx(Vertex* v)
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    float bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(float)NUM_DIM);
+    float bowlr = gamma * pow( log(num_vert)/(float)(num_vert), 1.0/(float)NUM_DIM);
     //cout<<"bowlr: " << bowlr << endl;
     
     float holding_time = system->get_holding_time(v->s, gamma, num_vert);
@@ -670,7 +674,6 @@ int Graph::connect_edges_approx(Vertex* v)
     
     calculate_probabilities_delta(v);
 
-    
     delete[] var;
 
     return 0;
@@ -857,9 +860,10 @@ int Graph::simulate_trajectory_implicit()
 int Graph::simulate_trajectory_explicit()
 {
     list<State> seq;
+    list<float> seq_times;
 
     State stmp = system->init_state;
-    multivar_normal(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
+    //multivar_normal(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
     
     bool can_go_forward = false;
 
@@ -871,9 +875,10 @@ int Graph::simulate_trajectory_explicit()
         cout<<"vcurr has zero edges" << endl;
 
     seq.push_back(vcurr->s);
-    
+    seq_times.push_back(0);
+
     // keep in multiplicative form for simulation
-    float traj_prob = normal_val( system->init_state.x, system->init_var, stmp.x, NUM_DIM);
+    float traj_prob = vcurr->prob_best_path;
     float curr_time = 0;
     float max_time = max_obs_time;
 
@@ -903,6 +908,7 @@ int Graph::simulate_trajectory_explicit()
         if(which_edge != NULL)
         {
             seq.push_back(vcurr->s);
+            seq_times.push_back(curr_time);
             traj_prob *= which_edge->transition_prob;
             
             curr_time += which_edge->transition_time;
@@ -918,6 +924,7 @@ int Graph::simulate_trajectory_explicit()
     if(1)
     {
         //cout<<"traj_prob: "<<traj_prob << endl; 
+        monte_carlo_times.push_back(seq_times);
         monte_carlo_trajectories.push_back( seq);
         monte_carlo_probabilities.push_back(traj_prob);
         return 0;

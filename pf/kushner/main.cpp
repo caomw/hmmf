@@ -35,7 +35,8 @@ int do_batch()
     Graph graph(sys);
     
     double start = get_msec();
-    
+   
+#if 1
     tic();
     for(int i=0; i < 10000; i++)
     {
@@ -51,11 +52,8 @@ int do_batch()
            toc();
         }
     }
-    
-    //graph.calculate_delta();
-    //graph.calculate_probabilities_delta_all();
 
-    graph.make_holding_time_constant();
+    //graph.make_holding_time_constant();
     //graph.system->sim_time_delta = graph.system->get_min_holding_time(graph.gamma, graph.num_vert);
 
     for(unsigned int i=0; i< graph.num_vert; i++)
@@ -65,11 +63,12 @@ int do_batch()
                 v->s.x, NUM_DIM);
     }
     graph.normalize_density();
+#endif
 
     graph.propagate_system();
-    //graph.get_kalman_path();
+    graph.get_kalman_path();
 
-#if 1
+#if 0
     tic();
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph));
@@ -95,11 +94,11 @@ int do_batch()
     }
 #endif
 
-#if 0
+#if 1
     cout<<"starting simulation of trajectories" << endl;
-    for(int i=0; i< 1000; i++)
+    for(int i=0; i< 10; i++)
     {
-        graph.simulate_trajectory_implicit();
+        graph.simulate_trajectory_explicit();
     }
     graph.plot_monte_carlo_trajectories();
 #endif
@@ -117,9 +116,10 @@ int do_incremental()
     Graph graph(sys);
     
     double start = get_msec();
-    
+
+#if 1 
     tic();
-    for(int i=0; i < 100; i++)
+    for(int i=0; i < 1000; i++)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
@@ -138,17 +138,19 @@ int do_incremental()
                 v->s.x, NUM_DIM);
     }
     graph.normalize_density();
+#endif
 
     graph.propagate_system();
     graph.get_kalman_path();
 
-#if 1
+#if 0
     tic();
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph));
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {
-        for(int j=0; j< 100; j++)
+        /*
+        for(int j=0; j< 200; j++)
         {
             Vertex* v = graph.add_sample();
             graph.connect_edges_approx(v);
@@ -157,6 +159,7 @@ int do_incremental()
             graph.update_density_implicit(v);
             v->prob_best_path = v->prob_best_path_buffer;
         }
+        */
         graph.obs_curr_index = i;
         cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
       
@@ -177,9 +180,9 @@ int do_incremental()
     }
 #endif
 
-#if 0
+#if 1
     cout<<"starting simulation of trajectories" << endl;
-    for(int i=0; i< 1000; i++)
+    for(int i=0; i< 100; i++)
     {
         graph.simulate_trajectory_implicit();
     }
@@ -197,8 +200,8 @@ int main()
 {
     srand(0);
 
-    //do_batch();
-    do_incremental();
+    do_batch();
+    //do_incremental();
 
     return 0;
 }

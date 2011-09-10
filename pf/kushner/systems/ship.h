@@ -1,9 +1,9 @@
-#ifndef __singleint_h__
-#define __singleint_h__
+#ifndef __ship_h__
+#define __ship_h__
 
 #include "../utils/common.h"
-#define NUM_DIM         (2)
-#define NUM_DIM_OBS     (2)
+#define NUM_DIM         (4)
+#define NUM_DIM_OBS     (1)
 // no time in this algorithm
 
 class State
@@ -114,8 +114,15 @@ class System
             float den = 0;
             for(int i=0; i< NUM_DIM; i++)
                 den += process_noise[i];
-            
-            den += (h*3*s.norm());
+           
+            State f;
+            f.x[0] = s.x[2]; f.x[1] = s.x[3]; f.x[2] = 0; f.x[3] = 0;
+            if( ( sqrt(s.x[0]*s.x[0] + s.x[1]*s.x[1]) >= 9) && ( (s.x[0]*s.x[2] + s.x[1]*s.x[3]) >= 0) )
+            {
+                f.x[2] = -50*s.x[0]/sqrt(s.x[0]*s.x[0] + s.x[1]*s.x[1]);
+                f.x[3] = -50*s.x[1]/sqrt(s.x[0]*s.x[0] + s.x[1]*s.x[1]);
+            }
+            den += (h*f.norm());
             
             return num/(den);
         }
@@ -127,9 +134,11 @@ class System
 
             float den = 0;
             for(int i=0; i< NUM_DIM; i++)
+            {
                 den += process_noise[i];
-            
-            den += (h*3*max_states[0]);
+            }
+            float max_abs_f = sqrt(max_states[2]*max_states[2] + max_states[3]*max_states[3] + 2*2500);
+            den += (h*max_abs_f);
             
             return num/(den);
         }
