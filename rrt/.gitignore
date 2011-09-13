@@ -1,7 +1,0 @@
-*.d
-*.o
-main
-output/*
-*.dat
-*.out
-genobs
