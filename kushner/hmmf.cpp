@@ -32,7 +32,7 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 1;
+    max_obs_time = 0.3;
     delta = system->sim_time_delta;
     min_holding_time = delta;
     seeding_finished = false;
@@ -98,7 +98,6 @@ void Graph::remove_edge(Edge *e)
 
     delete e;
 }
-
 
 void Graph::plot_graph()
 {
@@ -619,9 +618,14 @@ bool Graph::is_edge_free( Edge *etmp)
     return true;
 }
 
-Vertex* Graph::add_sample()
+Vertex* Graph::add_sample(bool is_seed)
 {
-    State stmp = system->sample();
+    State stmp;
+    
+    if(is_seed)
+        multivar_normal(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
+    else
+        stmp = system->sample();
     Vertex *v = new Vertex(stmp);
 
     /*
@@ -651,13 +655,13 @@ Vertex* Graph::add_sample()
 
 void Graph::approximate_density(Vertex* v)
 {
-#if 0
+#if 1
     double tprob = 0;
 
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    double bowlr = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+    double bowlr = gamma/10 * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
 
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
@@ -676,12 +680,23 @@ void Graph::approximate_density(Vertex* v)
         kd_res_next(res);
     }
 
-    v->prob_best_path = tprob/(double)kd_res_size(res);
+    v->prob_best_path = tprob/(tprob + (double)kd_res_size(res));
     //cout<<"v_pbp: "<< v->prob_best_path << endl; getchar();
 
     kd_res_free(res);
+    
+    double factor = 1 - v->prob_best_path;
+    for(unsigned int i=0; i< num_vert; i++)
+    {
+        Vertex* vtmp = vlist[i];
+        if(vtmp != v)
+        {
+            vtmp->prob_best_path = vtmp->prob_best_path*factor;
+        }
+    }
 #endif
 
+#if 0
     State gx = system->observation(v->s, true);
 
     double sum = 0;
@@ -694,6 +709,7 @@ void Graph::approximate_density(Vertex* v)
     
     v->prob_best_path = sum*normal_val(obs[obs_curr_index].x,
             system->obs_noise, gx.x, NUM_DIM_OBS);
+#endif
 }
 
 int Graph::reconnect_edges_neighbors(Vertex* v)

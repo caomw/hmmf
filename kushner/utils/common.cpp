@@ -37,13 +37,14 @@ void tic()
     curr_time = start.tv_sec*1000 + start.tv_usec/1000.0;
 }
 
-void toc()
+double toc()
 {
     struct timeval start;
     gettimeofday(&start, NULL);
     double delta_t = start.tv_sec*1000 + start.tv_usec/1000.0 - curr_time;
     
-    cout<< delta_t/1000.0 << " [s]\n";
+    //cout<< delta_t/1000.0 << " [s]\n";
+    return delta_t/1000.0;
 }
 
 double get_msec()

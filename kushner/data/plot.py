@@ -205,12 +205,47 @@ def plot_sim_trajs():
 
         mc.close()
 
+def do_timing_plot():
+
+    tp = open("timing_vanderpol.txt", "r")
+
+    times=[]
+    vert=[]
+    bpe = []
+    kfe=[]
+
+    if tp:
+        lines = tp.readlines()
+        for l in lines:
+            s = l.split('\t')
+
+            vert.append( float(s[0]))
+            times.append( float(s[1]))
+            bpe.append( float(s[2]))
+            kfe.append( float(s[3]))
+
+        vert = array(vert)
+        times = array(times)
+        bpe = array(bpe)
+        kfe = array(kfe)
+
+        figure(3)
+        grid()
+        plot(vert[:], times[:], 'b-', lw=1.5)
+        figure(4)
+        grid()
+        plot(vert[:], bpe[:], 'g-', lw=1.5)
+        plot(vert[:], kfe[:], 'r-', lw=1.5)
+
+
 if __name__ == "__main__":
 
     plot_trajs()
     plot_sim_trajs()
     draw_obstacles()    
     
+    do_timing_plot()
+
     #plot_graph()
     
     #figure(2)
