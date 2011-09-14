@@ -57,7 +57,7 @@ void get_sq_error(Graph& graph, double& bpe, double& kfe)
     }
 }
 
-int do_batch()
+int do_batch(int tot_vert)
 {
     System sys;
     Graph graph(sys);
@@ -66,7 +66,10 @@ int do_batch()
    
 #if 1
     tic();
-    for(int i=0; i < 1000; i++)
+    for(int i=0; i< 10; i++)
+        graph.add_sample(true);
+
+    for(int i=0; i < tot_vert; i++)
     {
         graph.add_sample();
     }
@@ -104,7 +107,7 @@ int do_batch()
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {
         graph.obs_curr_index = i;
-        cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
+        cout<< "time: " << graph.obs_times[graph.obs_curr_index] << " ";
        
         for(unsigned int j = 0; j< graph.num_vert; j++)
         {
@@ -139,7 +142,7 @@ int do_batch()
     return 0;
 }
 
-int do_incremental()
+int do_incremental(int tot_vert)
 {
     System sys;
     Graph graph(sys);
@@ -150,14 +153,14 @@ int do_incremental()
     graph.get_kalman_path();
 #if 1 
     tic();
-    for(int i=0; i< 10; i++)
+    for(int i=0; i< 100; i++)
     {
         Vertex* v = graph.add_sample(true);
         graph.connect_edges_approx(v);
         graph.reconnect_edges_neighbors(v);
     }
 
-    for(int i=0; i < 100; i++)
+    for(int i=0; i < 1000; i++)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
@@ -198,12 +201,13 @@ int do_incremental()
 #endif
 
 #if 1
+    int to_add = tot_vert/graph.obs.size();
     tic();
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph));
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {
-        for(int j=0; j< 100; j++)
+        for(int j=0; j< to_add; j++)
         {
             Vertex* v = graph.add_sample();
             graph.connect_edges_approx(v);
@@ -211,11 +215,10 @@ int do_incremental()
             graph.reconnect_edges_neighbors(v);
             
             graph.approximate_density(v);
-            //graph.normalize_density();
         }
         
         graph.obs_curr_index = i;
-        cout<< "obs_times: " << graph.obs_times[graph.obs_curr_index] << " ";
+        cout<< "time: " << graph.obs_times[graph.obs_curr_index] << " ";
       
         graph.update_density_implicit_all();
         graph.normalize_density();
@@ -246,7 +249,7 @@ int do_incremental()
 
 int do_timing_plot()
 {
-    int max_runs = 10;
+    int max_runs = 1;
 
     System sys;
     
@@ -257,7 +260,7 @@ int do_timing_plot()
     get_sq_error(g1, bpe1, kfe1);
     //cout<<"bpe1: "<<bpe1<<" " << " kfe1: "<< kfe1 << endl;
     
-    for(int tot_vert=100; tot_vert < 1000; tot_vert+= 100)
+    for(int tot_vert=1000; tot_vert < 10000; tot_vert+= 5000)
     {
         double average_time = 0;
         double average_bpe = 0;
@@ -343,10 +346,10 @@ int do_timing_plot()
 
 int main(int argv, char* argc[])
 {
-    //do_batch();
-    //do_incremental();
+    //do_batch(5000);
+    do_incremental(50000);
     
-    do_timing_plot();
+    //do_timing_plot();
     
     return 0;
 }

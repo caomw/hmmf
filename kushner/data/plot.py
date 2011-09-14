@@ -70,9 +70,11 @@ def plot_graph():
                 plot(tmp, rrgp[:,j], 'yo', ms=5.0, alpha = 0.1 )
                 grid()
     """
+    """
     figure(2)
     plot(rrgp[:,0], rrgp[:,1], 'yo', ms=5.0, alpha=0.1)
     grid()
+    """
 
 def plot_trajs():
     
@@ -149,7 +151,7 @@ def plot_trajs():
             plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.5)
         if len(kf) != 0:
             plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
-   
+    
     figure(2)
     if len(sys) != 0:
         plot( sys[:,0], sys[:,1], 'r-', label='sys', lw=1.5)
@@ -242,9 +244,9 @@ if __name__ == "__main__":
 
     plot_trajs()
     plot_sim_trajs()
-    draw_obstacles()    
+    #draw_obstacles()    
     
-    do_timing_plot()
+    #do_timing_plot()
 
     #plot_graph()
     
