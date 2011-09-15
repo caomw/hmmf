@@ -14,6 +14,7 @@ System::System()
         max_states[i] = 1.0;
         init_state.x[i] = 0.1;
     }
+    min_states[2] = -M_PI;
     max_states[2] = M_PI;
     init_state.x[2] = 0;
 
@@ -24,7 +25,7 @@ System::System()
         init_var[i] = 1e-2;
     }
 
-    sim_time_delta = 0.01;
+    sim_time_delta = 0.05;
 }
 
 System::~System()
@@ -104,7 +105,7 @@ State System::integrate(State& s, double duration, bool is_clean)
     double *mean = new double[NUM_DIM];
     double *tmp = new double[NUM_DIM];
 
-    double delta_t = min(duration, 0.01);
+    double delta_t = min(duration, 0.02);
     for(int i=0; i<NUM_DIM; i++)
     {
         t.x[i] = s.x[i];

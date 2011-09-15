@@ -152,6 +152,7 @@ def plot_trajs():
         if len(kf) != 0:
             plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
     
+    """
     figure(2)
     if len(sys) != 0:
         plot( sys[:,0], sys[:,1], 'r-', label='sys', lw=1.5)
@@ -162,6 +163,7 @@ def plot_trajs():
     #if len(obs) != 0:
         #plot( obs[:,0], obs[:,1], 'bx', label='obs')
     grid()
+    """
 
 def plot_sim_trajs():
 

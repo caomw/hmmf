@@ -23,7 +23,7 @@ System::System()
         init_var[i] = 1e-2;
     }
     
-    sim_time_delta = 0.005;
+    sim_time_delta = 0.01;
 }
 
 System::~System()
@@ -138,7 +138,9 @@ State System::observation(State& s, bool is_clean)
         t.x[i] = 0;
 
     for(int i=0; i<NUM_DIM_OBS; i++)
+    {
         t.x[i] = s.x[i] + tmp[i];
+    }
 
     delete[] mean;
     delete[] tmp;

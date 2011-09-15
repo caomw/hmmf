@@ -32,8 +32,9 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 1.0;
-    delta = system->sim_time_delta;
+    max_obs_time = 20;
+    delta = 0.01;
+
     min_holding_time = delta;
     seeding_finished = false;
 

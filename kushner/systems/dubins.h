@@ -4,7 +4,7 @@
 #include "../utils/common.h"
 
 #define NUM_DIM         (3)
-#define NUM_DIM_OBS     (3)
+#define NUM_DIM_OBS     (2)
 
 class State
 {
@@ -144,15 +144,16 @@ class System
         State observation(State& s, bool is_clean);
         
         void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path);
+        
+        double dist(State& s1, State& s2)
+        {
+            double t = 0;
+            for(int i=0; i<NUM_DIM; i++)
+                t += (s1.x[i] - s2.x[i])*(s1.x[i] - s2.x[i]);
+
+            //cout<<"dist: "<< t << endl;
+            return sqrt(t);
+        };
 };
 
-inline double dist(State& s1, State& s2)
-{
-    double t = 0;
-    for(int i=0; i<NUM_DIM; i++)
-        t += (s1.x[i] - s2.x[i])*(s1.x[i] - s2.x[i]);
-    
-    //cout<<"dist: "<< t << endl;
-    return sqrt(t);
-};
 #endif
