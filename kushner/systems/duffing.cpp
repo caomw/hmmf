@@ -1,4 +1,4 @@
-#include "dubins.h"
+#include "duffing.h"
 
 System::System()
 {
@@ -10,22 +10,20 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = 0;
-        max_states[i] = 1.0;
-        init_state.x[i] = 0.1;
+        min_states[i] = -4;
+        max_states[i] = 4.0;
     }
-    min_states[2] = -M_PI;
-    max_states[2] = M_PI;
-    init_state.x[2] = 0;
+    init_state.x[0] = 1.2;
+    init_state.x[1] = 1;
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-2;
-        obs_noise[i] = 1e-3;
+        process_noise[i] = 1e-4;
+        obs_noise[i] = 1e-2;
         init_var[i] = 1e-2;
     }
 
-    sim_time_delta = 0.05;
+    sim_time_delta = 0.01;
 }
 
 System::~System()
@@ -56,35 +54,6 @@ State System::sample()
 bool System::is_free(State &s)
 {
     return 1;
-
-    bool retflag = 0;
-
-    // obs 1
-    if( (s[0] >= 0.127) && (s[0] <= 0.26) )
-    {
-        if( (s[1] >= 0) && (s[1] <= .217) )
-            retflag = 0;
-        else
-            retflag = 1;
-    }
-    else
-        retflag = 1;
-
-    if (retflag == 0)
-        return 0;
-
-    // obs 2
-    if( (s[0] >= 0.1) && (s[0] <= 0.2) )
-    {
-        if( (s[1] >= .32) && (s[1] <= .5) )
-            retflag = 0;
-        else
-            retflag = 1;
-    }
-    else
-        retflag = 1;
-
-    return retflag;
 }
 
 int System::get_key(State& s, double *key)
@@ -99,6 +68,7 @@ int System::get_key(State& s, double *key)
 
 State System::integrate(State& s, double duration, bool is_clean)
 {
+    double d1 = 1.0, beta=-1.0, alpha=1.0;
     State t;
 
     double *var = new double[NUM_DIM];
@@ -113,7 +83,6 @@ State System::integrate(State& s, double duration, bool is_clean)
 
     for(int i=0; i<NUM_DIM; i++)
     {
-        var[i] = process_noise[i]*delta_t;
         tmp[i] = 0;
         mean[i] = 0;
     }
@@ -121,12 +90,18 @@ State System::integrate(State& s, double duration, bool is_clean)
     double curr_time = 0;
     while(curr_time < duration)
     {
-        if( !is_clean)  
+        if( !is_clean)
+        {
+            for(int i=0; i<NUM_DIM; i++)
+                tmp[i] = 0;
+            
+            var[0] = process_noise[0]*delta_t;
+            var[1] = pow(t.x[0],4)*process_noise[1]*delta_t;
             multivar_normal( mean, var, tmp, NUM_DIM);
+        }
         
-        t.x[0] += (1.0*cos(t.x[2])*delta_t + tmp[0]);
-        t.x[1] += (1.0*sin(t.x[2])*delta_t + tmp[1]);
-        t.x[2] += (2.0*delta_t + tmp[2]);
+        t.x[0] += (t.x[1]*delta_t + tmp[0]);
+        t.x[1] += (( -d1*t.x[1] -beta*t.x[0] - alpha*pow(t.x[0],3))*delta_t + tmp[1]);
 
         curr_time += min(delta_t, duration - curr_time);
     }
@@ -140,10 +115,8 @@ State System::integrate(State& s, double duration, bool is_clean)
 
 void System::get_variance(State& s, double duration, double* var)
 {
-    for(int i=0; i<NUM_DIM; i++)
-    {   
-        var[i] = process_noise[i]*duration;
-    } 
+    var[0] = process_noise[0]*duration;
+    var[1] = pow(s.x[0],4)*process_noise[1]*duration;
 }
 
 
@@ -162,9 +135,9 @@ State System::observation(State& s, bool is_clean)
         for(int i=0; i<NUM_DIM_OBS; i++)
             tmp[i] = 0;
     }
-    
-    double range = sqrt(s.x[0]*s.x[0] + s.x[1]*s.x[1]);
-    t.x[0] = range + tmp[0];
+
+    for(int i=0; i<NUM_DIM_OBS; i++)
+        t.x[i] = s.x[i] + tmp[i];
 
     delete[] mean;
     delete[] tmp;
@@ -175,7 +148,7 @@ State System::observation(State& s, bool is_clean)
 void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path)
 {
 
-#if 1
+#if 0
     kalman_path.clear();
 
     kalman_path.push_back(init_state);
@@ -208,7 +181,8 @@ void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, lis
         stmp1.x[1] = curr_state(1);
         stmp1.x[2] = curr_state(2);
         State next_state = integrate(stmp1, delta_t, true);
-
+        State clean_obs = observation(next_state, true);
+        
         Matrix3d Ad;
         Ad << 0, 0, -sin(stmp1.x[2]), 0, 0, cos(stmp1.x[2]), 0, 0, 0; 
         

@@ -1,9 +1,9 @@
-#ifndef __dubins_h__
-#define __dubins_h__
+#ifndef __duffing_h__
+#define __duffing_h__
 
 #include "../utils/common.h"
 
-#define NUM_DIM         (3)
+#define NUM_DIM         (2)
 #define NUM_DIM_OBS     (1)
 
 class State
@@ -114,10 +114,9 @@ class System
 
             double den = 0;
             for(int i=0; i< NUM_DIM; i++)
-                den += process_noise[i];
+                den += pow(s.x[i], 4)*process_noise[i];
             
-            den += (h*sqrt(5));
-            // |f| = sqrt(5) always
+            den += (h*fabs(s.x[0] - pow(s.x[0],3)));
             
             return num/(den);
         }
@@ -128,10 +127,9 @@ class System
 
             double den = 0;
             for(int i=0; i< NUM_DIM; i++)
-                den += process_noise[i];
+                den += pow(max_states[i], 4)*process_noise[i];
             
-            den += (h*sqrt(5));
-            // |f| = sqrt(5) always
+            den += (h*fabs(max_states[0] - pow(max_states[0],3)));
             
             return num/(den);
         }
@@ -155,5 +153,6 @@ class System
             return sqrt(t);
         };
 };
+
 
 #endif

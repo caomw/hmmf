@@ -4,7 +4,7 @@ from sys import *
 from pylab import *
 
 times = []
-NUM_DIM = 2
+NUM_DIM = 1
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -89,10 +89,13 @@ def plot_trajs():
         obs = []
         bp = []
         kf = []
+        kf_covar = []
+
         tsys = []
         tobs = []
         tbp = []
         tkf = []
+        tkf_covar = []
 
         for l in lines:
             s= l.split('\t')
@@ -105,6 +108,8 @@ def plot_trajs():
                     which = 2
                 elif s[0] == "kf_path\n":
                     which = 3
+                elif s[0] == "kf_covar\n":
+                    which = 4
 
             if len(s) > 1:
                 time = float(s[0])
@@ -121,6 +126,9 @@ def plot_trajs():
                 elif which == 3:
                     tkf.append(time)
                     kf.append(to_put)
+                elif which == 4:
+                    tkf_covar.append(time)
+                    kf_covar.append(to_put)
 
     traj.close()
 
@@ -128,18 +136,20 @@ def plot_trajs():
     obs = array(obs)
     bp = array(bp)
     kf = array(kf)
+    kf_covar = array(kf_covar)
     
     tsys = array(tsys)
     tobs = array(tobs)
     tbp = array(tbp)
     tkf = array(tkf)
+    tkf_covar = array(tkf_covar)
    
     times = tobs
 
     figure(1)    
     for i in range(NUM_DIM):
         
-        subplot(NUM_DIM,1,i+1, aspect='auto')
+        ax1 = subplot(NUM_DIM,1,i+1, aspect='auto')
         grid()
 
         if len(sys) != 0:
@@ -151,6 +161,11 @@ def plot_trajs():
             plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.5)
         if len(kf) != 0:
             plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
+        
+        ax2 = ax1.twinx()
+        if len(kf_covar) != 0:
+            plot( tkf_covar[:], kf[:len(kf_covar),i] + sqrt(kf_covar[:,i]), 'm-', label='kf_covar1', lw=1.5)
+            plot( tkf_covar[:], kf[:len(kf_covar),i] - sqrt(kf_covar[:,i]), 'm-', label='kf_covar2', lw=1.5)
     
     """
     figure(2)

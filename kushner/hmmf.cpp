@@ -1,6 +1,5 @@
 #include "hmmf.h"
 
-
 Vertex::Vertex(State& st)
 {
     s = st;
@@ -32,7 +31,7 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 20;
+    max_obs_time = 0.5;
     delta = 0.01;
 
     min_holding_time = delta;
@@ -190,6 +189,20 @@ void Graph::plot_trajectory()
         traj<<endl;
         curr_time += system->sim_time_delta;
     }
+    curr_time =0;
+    traj<<"kf_covar"<<endl;
+    for(list<State>::iterator i= kalman_covar.begin(); i != kalman_covar.end(); i++)
+    {
+        traj<< curr_time<<"\t";
+        State& curr = *i;
+        for(int j=0; j< NUM_DIM; j++)
+        {
+            traj<< curr.x[j]<<"\t";
+        }
+        traj<<endl;
+        curr_time += system->sim_time_delta;
+    }
+
     cout<<"trajectory plotting done" << endl;
     traj.close();
 }
@@ -314,6 +327,8 @@ void Graph::propagate_density(Vertex* v)
 void Graph::update_density_explicit(Vertex* v)
 {
     State gx = system->observation(v->s, true);
+    double *obs_var = new double[NUM_DIM_OBS];
+    system->get_obs_variance(v->s, obs_var);
 
     double sum = 0;
     //cout<<"Ry: " << Ry << endl;
@@ -322,14 +337,18 @@ void Graph::update_density_explicit(Vertex* v)
         Edge* etmp = *i;
         sum = sum + etmp->transition_prob * (etmp->from->prob_best_path); 
     }
-    v->prob_best_path_buffer = sum * normal_val(obs[obs_curr_index].x, system->obs_noise, gx.x, NUM_DIM_OBS);
+    v->prob_best_path_buffer = sum * normal_val(obs[obs_curr_index].x, obs_var, gx.x, NUM_DIM_OBS);
 
     v->obs_update_time = obs_times[obs_curr_index];
+
+    delete[] obs_var;
 }
 
 void Graph::update_density_implicit(Vertex* v)
 {
     State gx = system->observation(v->s, true);
+    double *obs_var = new double[NUM_DIM_OBS];
+    system->get_obs_variance(v->s, obs_var);
 
     double sum = 0;
     //cout<<"Ry: " << Ry << endl;
@@ -342,7 +361,7 @@ void Graph::update_density_implicit(Vertex* v)
     
     double sumt = sum;
     v->prob_best_path_buffer = sum*normal_val(obs[obs_curr_index].x,
-            system->obs_noise, gx.x, NUM_DIM_OBS);
+            obs_var, gx.x, NUM_DIM_OBS);
     
     if(v->prob_best_path_buffer != v->prob_best_path_buffer)
     {
@@ -351,6 +370,8 @@ void Graph::update_density_implicit(Vertex* v)
     }
     
     v->obs_update_time = obs_times[obs_curr_index];
+    
+    delete[] obs_var;
 }
 
 void Graph::average_density(Vertex* v)
@@ -478,6 +499,7 @@ void Graph::update_viterbi_neighbors(Vertex* v)
 
 void Graph::update_viterbi(Vertex* v)
 {
+#if 0
     double max_prob = -1;
     double tmp;
     State gx = system->observation(v->s, true);
@@ -496,10 +518,12 @@ void Graph::update_viterbi(Vertex* v)
         }
     }
     v->obs_update_time = obs_times[obs_curr_index];
+#endif
 }
 
 void Graph::propagate_viterbi(Vertex* v)
 {
+#if 0
     int max_size = -1;
     list<Vertex*> myq;
     int myq_size = 0;
@@ -538,6 +562,7 @@ void Graph::propagate_viterbi(Vertex* v)
             max_size = myq_size;
     }
     //cout<<"max_size: "<< max_size << endl;
+#endif
 }
 
 
@@ -773,9 +798,9 @@ int Graph::connect_edges_approx(Vertex* v)
     //cout<<"got "<<kd_res_size(res)<<" states in bowlr= "<< bowlr << endl;
     //int pr = kd_res_size(res);
 
-    double *var = new double[NUM_DIM];
+    double *sys_var = new double[NUM_DIM];
     State stmp = system->integrate(v->s, holding_time, true);
-    system->get_variance(v->s, holding_time, var);
+    system->get_variance(v->s, holding_time, sys_var);
 
     double sum_prob = 0;
     double pos[NUM_DIM] = {0};
@@ -785,7 +810,7 @@ int Graph::connect_edges_approx(Vertex* v)
 
         if(v1 != v)
         {
-            double prob_tmp = normal_val(stmp.x, var, v1->s.x, NUM_DIM);
+            double prob_tmp = normal_val(stmp.x, sys_var, v1->s.x, NUM_DIM);
             if(prob_tmp > 0)
             {
                 Edge *e1 = new Edge(v, v1, prob_tmp, holding_time);
@@ -814,14 +839,14 @@ int Graph::connect_edges_approx(Vertex* v)
 
     calculate_probabilities_delta(v);
 
-    delete[] var;
+    delete[] sys_var;
 
     return 0;
 }
 
 void Graph::get_kalman_path()
 {
-    system->get_kalman_path(obs, obs_times, kalman_path);
+    system->get_kalman_path(obs, obs_times, kalman_path, kalman_covar);
     return;
 }
 

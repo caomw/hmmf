@@ -2,7 +2,7 @@
 #define __hmmf_h__
 
 #include "utils/common.h"
-#include "systems/ship.h"
+#include "systems/singleint.h"
 
 class Edge;
 class Vertex;
@@ -90,6 +90,7 @@ class Graph{
         vector<State> obs;
         list<State> best_path;
         list<State> kalman_path;
+        list<State> kalman_covar;
         
         // graph sanity check
         list< list<State> > monte_carlo_trajectories;

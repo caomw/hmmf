@@ -1,10 +1,10 @@
-#ifndef __dubins_h__
-#define __dubins_h__
+#ifndef __springmass_h__
+#define __springmass_h__
 
 #include "../utils/common.h"
 
-#define NUM_DIM         (3)
-#define NUM_DIM_OBS     (1)
+#define NUM_DIM         (2)
+#define NUM_DIM_OBS     (2)
 
 class State
 {
@@ -112,12 +112,9 @@ class System
             double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
             double num = h*h;
 
-            double den = 0;
-            for(int i=0; i< NUM_DIM; i++)
-                den += process_noise[i];
-            
-            den += (h*sqrt(5));
-            // |f| = sqrt(5) always
+            double den = process_noise[0];
+            den += pow(exp(-s.x[0]*s.x[0]/100),2)*process_noise[1];
+            den += (h*sqrt(s.norm2() + pow(s.x[0],6)));
             
             return num/(den);
         }
@@ -126,12 +123,10 @@ class System
             double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
             double num = h*h;
 
-            double den = 0;
-            for(int i=0; i< NUM_DIM; i++)
-                den += process_noise[i];
-            
-            den += (h*sqrt(5));
-            // |f| = sqrt(5) always
+            double den = process_noise[0];
+            den += process_noise[1];
+            den += (h*sqrt(max_states[0]*max_states[0] + max_states[1]*max_states[1] +\
+                        pow(max_states[0],6)));
             
             return num/(den);
         }
@@ -155,5 +150,6 @@ class System
             return sqrt(t);
         };
 };
+
 
 #endif

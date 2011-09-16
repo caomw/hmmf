@@ -152,7 +152,7 @@ int do_incremental(int tot_vert)
     graph.propagate_system();
     graph.get_kalman_path();
 
-#if 1 
+#if 0 
     tic();
     for(int i=0; i< 100; i++)
     {
@@ -201,11 +201,11 @@ int do_incremental(int tot_vert)
 #endif
 #endif
 
-#if 1
+#if 0
     int to_add = tot_vert/graph.obs.size();
     tic();
     graph.best_path.clear();
-    graph.best_path.push_back(get_mean(graph));
+    graph.best_path.push_back(get_mean(graph, false));
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {
         for(int j=0; j< to_add; j++)
@@ -219,7 +219,7 @@ int do_incremental(int tot_vert)
         }
         
         graph.obs_curr_index = i;
-        cout<< "time: " << graph.obs_times[graph.obs_curr_index] << " ";
+        cout<< "time: " << graph.obs_times[graph.obs_curr_index] << "\t";
         
         for(int j=0; j< (int)(graph.delta/graph.system->sim_time_delta); j++)
         {
@@ -229,7 +229,6 @@ int do_incremental(int tot_vert)
         graph.update_density_implicit_all();
         graph.normalize_density();
         
-        cout<<i <<": ";
         graph.best_path.push_back(get_mean(graph));
     }
 #endif
@@ -355,8 +354,9 @@ int do_timing_plot()
 
 int main(int argv, char* argc[])
 {
+    cout.precision(5);
     //do_batch(5000);
-    do_incremental(30000);
+    do_incremental(10000);
     
     //do_timing_plot();
     
