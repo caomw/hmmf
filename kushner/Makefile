@@ -3,7 +3,7 @@ CPP = g++
 
 BIN = ./main
 C_SRCS = utils/kdtree.c
-CPP_SRCS = utils/common.cpp systems/singleint.cpp hmmf.cpp main.cpp
+CPP_SRCS = utils/common.cpp systems/beacon.cpp hmmf.cpp main.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)

@@ -1,9 +1,9 @@
-#ifndef __singleint_h__
-#define __singleint_h__
+#ifndef __beacon_h__
+#define __beacon_h__
 
 #include "../utils/common.h"
 #define NUM_DIM         (2)
-#define NUM_DIM_OBS     (2)
+#define NUM_DIM_OBS     (1)
 // no time in this algorithm
 
 class State
@@ -100,6 +100,7 @@ class System
         double sim_time_delta;
 
         State init_state;
+        State beacon_state;
 
         System();
         ~System();

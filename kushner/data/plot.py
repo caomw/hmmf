@@ -154,19 +154,27 @@ def plot_trajs():
 
         if len(sys) != 0:
             plot( tsys[:], sys[:,i], 'r-', label='sys', lw=1.5)
-        #if len(obs) != 0:
-            #plot( tobs[:], obs[:,i], 'bx', label='obs')
+        if len(obs) != 0:
+            plot( tobs[:], obs[:,i], 'bx', label='obs')
         
         if len(bp) != 0:
             plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.5)
         if len(kf) != 0:
             plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
         
+        """
         ax2 = ax1.twinx()
         if len(kf_covar) != 0:
-            plot( tkf_covar[:], kf[:len(kf_covar),i] + sqrt(kf_covar[:,i]), 'm-', label='kf_covar1', lw=1.5)
-            plot( tkf_covar[:], kf[:len(kf_covar),i] - sqrt(kf_covar[:,i]), 'm-', label='kf_covar2', lw=1.5)
-    
+            upper = [ kf[x,i] + sqrt(kf_covar[x,i]) for x in range(len(kf_covar))]
+            lower = [ kf[x,i] - sqrt(kf_covar[x,i]) for x in range(len(kf_covar))]
+            
+            print "kf: ", kf
+            print "kf_covar: ", kf_covar
+            print "upper: ", upper
+
+            plot( tkf_covar[:], upper, 'm-', label='kf_covar1', lw=1.5)
+            plot( tkf_covar[:], lower, 'm-', label='kf_covar2', lw=1.5)
+        """
     """
     figure(2)
     if len(sys) != 0:

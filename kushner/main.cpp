@@ -152,7 +152,7 @@ int do_incremental(int tot_vert)
     graph.propagate_system();
     graph.get_kalman_path();
 
-#if 0 
+#if 1 
     tic();
     for(int i=0; i< 100; i++)
     {
@@ -201,7 +201,7 @@ int do_incremental(int tot_vert)
 #endif
 #endif
 
-#if 0
+#if 1
     int to_add = tot_vert/graph.obs.size();
     tic();
     graph.best_path.clear();
@@ -356,7 +356,7 @@ int main(int argv, char* argc[])
 {
     cout.precision(5);
     //do_batch(5000);
-    do_incremental(10000);
+    do_incremental(20000);
     
     //do_timing_plot();
     
