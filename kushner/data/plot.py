@@ -4,7 +4,7 @@ from sys import *
 from pylab import *
 
 times = []
-NUM_DIM = 1
+NUM_DIM = 2
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -154,8 +154,8 @@ def plot_trajs():
 
         if len(sys) != 0:
             plot( tsys[:], sys[:,i], 'r-', label='sys', lw=1.5)
-        if len(obs) != 0:
-            plot( tobs[:], obs[:,i], 'bx', label='obs')
+        #if len(obs) != 0:
+            #plot( tobs[:], obs[:,i], 'bx', label='obs')
         
         if len(bp) != 0:
             plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.5)
@@ -234,15 +234,16 @@ def plot_sim_trajs():
 
 def do_timing_plot():
 
-    tp = open("timing_vanderpol.txt", "r")
+    ep = open("err_vanderpol.txt", "r")
+    tp = open("timing_inc.dat", "r")
 
     times=[]
     vert=[]
     bpe = []
     kfe=[]
 
-    if tp:
-        lines = tp.readlines()
+    if ep:
+        lines = ep.readlines()
         for l in lines:
             s = l.split('\t')
 
@@ -256,22 +257,38 @@ def do_timing_plot():
         bpe = array(bpe)
         kfe = array(kfe)
 
-        figure(3)
-        grid()
-        plot(vert[:], times[:], 'b-', lw=1.5)
         figure(4)
         grid()
         plot(vert[:], bpe[:], 'g-', lw=1.5)
         plot(vert[:], kfe[:], 'r-', lw=1.5)
+    
+    times = []
+    vert = []
+    
+    if tp:
+        lines = tp.readlines()
+        for l in lines:
+            s = l.split('\t')
+            
+            n = float(s[0])
+            vert.append(n)
+            times.append( float(s[1])/n/pow(log(n),4))
+
+        vert = array(vert)
+        times = array(times)
+        
+        figure(3)
+        grid()
+        plot(vert[:], times[:], 'b-', lw=1.5)
 
 
 if __name__ == "__main__":
 
-    plot_trajs()
-    plot_sim_trajs()
+    #plot_trajs()
+    #plot_sim_trajs()
     #draw_obstacles()    
     
-    #do_timing_plot()
+    do_timing_plot()
 
     #plot_graph()
     

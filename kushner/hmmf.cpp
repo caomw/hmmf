@@ -815,7 +815,7 @@ int Graph::connect_edges_approx(Vertex* v)
             {
                 Edge *e1 = new Edge(v, v1, prob_tmp, holding_time);
 
-                if(is_edge_free(e1))
+                if(1)
                 {
                     sum_prob += prob_tmp;
                     
@@ -880,6 +880,9 @@ void Graph::print_rrg()
 
 void Graph::propagate_system()
 {
+    for(int i=0; i<NUM_DIM_OBS; i++)
+        system->obs_noise[i] = 1e-3;
+
     truth.clear();
     obs.clear();
     obs_times.clear();
@@ -905,6 +908,9 @@ void Graph::propagate_system()
         }
         curr_time += system->sim_time_delta;
     }
+    
+    for(int i=0; i<NUM_DIM_OBS; i++)
+        system->obs_noise[i] = 5e-3;
 }
 
 void Graph::put_init_samples(int howmany)

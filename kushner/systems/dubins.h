@@ -4,7 +4,7 @@
 #include "../utils/common.h"
 
 #define NUM_DIM         (3)
-#define NUM_DIM_OBS     (1)
+#define NUM_DIM_OBS     (2)
 
 class State
 {
@@ -140,10 +140,11 @@ class System
         bool is_free(State &s);
         State sample();
         State integrate(State& s, double duration, bool is_clean);
+        void get_obs_variance(State& s, double* var);
         void get_variance(State& s, double duration, double* var);
         State observation(State& s, bool is_clean);
         
-        void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path);
+        void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar);
         
         double dist(State& s1, State& s2)
         {
