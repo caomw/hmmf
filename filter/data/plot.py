@@ -2,6 +2,10 @@
 
 from sys import *
 from pylab import *
+import mpl_toolkits.mplot3d.axes3d as p3
+import numpy as np
+import matplotlib.cm as cm
+import matplotlib.colors as mcolor
 
 times = []
 NUM_DIM = 2
@@ -11,8 +15,6 @@ if len(argv) > 1:
 else:
     save_name = "none"
 
-
-fig = figure(1)
 
 def draw_obstacles():
     fig = figure(2)
@@ -55,8 +57,8 @@ def plot_graph():
         
     rrgpf.close()
     
-    rrgp = array (rrgp)
-    prob = array(prob)
+    rrgp = np.array (rrgp)
+    prob = np.array(prob)
     
     """ 
     figure(1)    
@@ -70,11 +72,18 @@ def plot_graph():
                 plot(tmp, rrgp[:,j], 'yo', ms=5.0, alpha = 0.1 )
                 grid()
     """
+    
+    fig = figure(2)
+    ax = fig.add_subplot(111, aspect=1.0)
     """
-    figure(2)
-    plot(rrgp[:,0], rrgp[:,1], 'yo', ms=5.0, alpha=0.1)
+    for i in range(len(rrgp[:,0])):
+        circle = Circle( (rrgp[i,0], rrgp[i,1]), 0.005, fc='blue', alpha = 500*prob[i])
+        ax.add_patch(circle)
+    """
+    scatter( rrgp[:,0], rrgp[:,1], marker='o', c= prob[:], alpha=0.3)
     grid()
-    """
+    axis([0, 1.5, 0, 1.5])
+
 
 def plot_trajs():
     
@@ -215,7 +224,7 @@ def plot_sim_trajs():
                     for i in range(NUM_DIM):
                         subplot(NUM_DIM,1,i+1, aspect='auto')
                         grid()
-                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=last_prob)
+                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=0.1)
                    
                     """
                     figure(2)
@@ -281,22 +290,45 @@ def do_timing_plot():
         grid()
         plot(vert[:], times[:], 'b-', lw=1.5)
 
+def plot_density():
+    
+    denp = []
+    denf = open("density.dat", 'r')
+    if denf:
+        lines = denf.readlines()
+        for l in lines:
+            s = l.split('\t')
+            to_put = [ float(s[i]) for i in range(NUM_DIM+1) ]
+            denp.append( to_put )
+        
+    denf.close()
+    
+    denp = np.array (denp)
+    minp = min(denp[:,0])
+    maxp = max(denp[:,0])
+    size = [ (3+(x-minp)/(maxp-minp)*1000) for x in denp[:,0] ]
+
+    fig = figure(2)
+    ax = fig.add_subplot(111, aspect=1.0)
+    scatter( denp[:,1], denp[:,2], marker='o', c=1e50*denp[:,0], alpha=0.65)
+    axis([0, 1, 0, 1])
+    grid()
+
+
 
 if __name__ == "__main__":
 
-    #plot_trajs()
+    plot_trajs()
     #plot_sim_trajs()
     #draw_obstacles()    
     
-    do_timing_plot()
+    #do_timing_plot()
 
-    #plot_graph()
-    
-    #figure(2)
-    #axis([-10, 10, -10, 10])
+    plot_graph()
+    #plot_density()
 
     #legend()
-    
+     
     if save_name != "none":
         fig.savefig(save_name)
 

@@ -2,7 +2,7 @@
 #define __hmmf_h__
 
 #include "utils/common.h"
-#include "systems/dubins.h"
+#include "systems/singleint.h"
 
 class Edge;
 class Vertex;
@@ -121,6 +121,7 @@ class Graph{
         void plot_graph();
         void plot_trajectory();
         void plot_monte_carlo_trajectories(); 
+        void plot_monte_carlo_density(char* filename);
 
         // algorithm functions
         
@@ -141,6 +142,7 @@ class Graph{
         void normalize_density();
         void propagate_density(Vertex* v);
         void update_density_explicit(Vertex* v);
+        void update_density_explicit_no_obs(Vertex* v);
         
         void update_density_implicit_no_obs(Vertex* v);
         void update_density_implicit_no_obs_all();

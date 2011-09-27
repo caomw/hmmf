@@ -10,16 +10,16 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = 0;
-        max_states[i] = 1;
-        init_state.x[i] = 0.90;
+        min_states[i] = -2;
+        max_states[i] = 2;
+        init_state.x[i] = 1;
     }
     
     for(int i=0; i< NUM_DIM; i++)
     {
         process_noise[i] = 1e-2;
         obs_noise[i] = 1e-2;
-        init_var[i] = 1e-2;
+        init_var[i] = 1e-8;
     }
     sim_time_delta = 0.01;
 }
@@ -51,6 +51,8 @@ State System::sample()
 
 bool System::is_free(State &s)
 {
+    return 1;
+
     bool free_state = 1;
 
     // obs 1

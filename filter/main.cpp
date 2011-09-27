@@ -66,7 +66,7 @@ int do_batch(int tot_vert)
    
 #if 1
     tic();
-    for(int i=0; i< 10; i++)
+    for(int i=0; i< 100; i++)
         graph.add_sample(true);
 
     for(int i=0; i < tot_vert; i++)
@@ -99,11 +99,13 @@ int do_batch(int tot_vert)
 
     graph.propagate_system();
     graph.get_kalman_path();
+    
+    get_mean(graph);
 
 #if 1
     tic();
     graph.best_path.clear();
-    //graph.best_path.push_back(get_mean(graph));
+    graph.best_path.push_back(get_mean(graph));
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {
         graph.obs_curr_index = i;
@@ -112,7 +114,7 @@ int do_batch(int tot_vert)
         for(unsigned int j = 0; j< graph.num_vert; j++)
         {
             Vertex* v = graph.vlist[j];
-            graph.update_density_explicit(v);
+            graph.update_density_explicit_no_obs(v);
         }
         for(unsigned int j = 0; j< graph.num_vert; j++)
         {
@@ -222,11 +224,6 @@ int do_incremental(int tot_vert)
         graph.obs_curr_index = i;
         cout<< "time: " << graph.obs_times[graph.obs_curr_index] << "\t";
         
-        for(int j=0; j< (int)(graph.delta/graph.system->sim_time_delta); j++)
-        {
-            graph.update_density_implicit_no_obs_all();
-            graph.normalize_density();
-        }
         graph.update_density_implicit_all();
         graph.normalize_density();
         
@@ -434,14 +431,92 @@ int do_timing_plot()
     return 0;
 }
 
-int main(int argv, char* argc[])
+int do_movie(int tot_vert)
+{
+    System sys;
+
+    Graph graph(sys);
+    graph.propagate_system();
+    //graph.get_kalman_path();
+
+#if 1
+    // incremental construction
+    tic();
+    for(int i=0; i< 10; i++)
+    {
+        Vertex* v = graph.add_sample(true);
+        graph.connect_edges_approx(v);
+        graph.reconnect_edges_neighbors(v);
+    }
+
+    for(int i=0; i < 500; i++)
+    {
+        Vertex* v = graph.add_sample();
+        graph.connect_edges_approx(v);
+        graph.reconnect_edges_neighbors(v);
+    }
+
+    for(int j=0; j< tot_vert-500; j++)
+    {
+        Vertex* v = graph.add_sample();
+        graph.connect_edges_approx(v);
+
+        graph.reconnect_edges_neighbors(v);
+
+        if(graph.num_vert%1000 == 0)
+        {
+            cout<<graph.num_vert << endl;
+        }
+    }
+    // normalize density
+    for(unsigned int i=0; i< graph.num_vert; i++)
+    {
+        Vertex* v = graph.vlist[i];
+        v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
+                v->s.x, NUM_DIM);
+    }
+    graph.normalize_density();
+    
+    graph.best_path.clear(); 
+    graph.best_path.push_back(get_mean(graph));
+    for(unsigned int i=0; i< graph.obs.size(); i++)
+    {
+        graph.update_density_implicit_no_obs_all();
+        graph.normalize_density();
+        graph.best_path.push_back(get_mean(graph));
+    }
+
+#if 0
+    cout<<"starting simulation of trajectories" << endl;
+    for(int i=0; i< 1000; i++)
+    {
+        graph.simulate_trajectory_implicit();
+    }
+    graph.plot_monte_carlo_density("data/density.dat");
+#endif
+#endif
+
+    // output graph
+    graph.plot_graph();
+    graph.plot_trajectory();
+
+    return 0;
+}
+
+int main(int argc, char* argv[])
 {
     cout.precision(5);
-    //do_batch(5000);
+    
+    int tot_vert = 1000;
+    if (argc > 1)
+        tot_vert = atoi(argv[1]);
+
+    //do_batch(tot_vert);
     //do_incremental(25000);
     
-    do_timing_plot();
-    
+    //do_timing_plot();
+    do_movie(tot_vert);
+
     return 0;
 }
 

@@ -15,7 +15,6 @@ Vertex::Vertex(State& st)
     edges_out.clear();
 }
 
-
 Edge::Edge(Vertex *f, Vertex *t, double prob, double trans_time){
     from = f;
     to = t;
@@ -344,6 +343,18 @@ void Graph::update_density_explicit(Vertex* v)
     delete[] obs_var;
 }
 
+void Graph::update_density_explicit_no_obs(Vertex* v)
+{
+    double sum = 0;
+    //cout<<"Ry: " << Ry << endl;
+    for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
+    {
+        Edge* etmp = *i;
+        sum = sum + etmp->transition_prob * (etmp->from->prob_best_path); 
+    }
+    v->prob_best_path_buffer = sum + v->self_transition_prob * v->prob_best_path;
+}
+
 void Graph::update_density_implicit(Vertex* v)
 {
     State gx = system->observation(v->s, true);
@@ -450,7 +461,9 @@ double Graph::make_holding_time_constant()
             etmp->transition_prob = (etmp->transition_prob)*(1 - pself);
             etmp->transition_time = min_holding_time;
         }
-
+        
+        v->self_transition_prob = pself;
+        /*
         //add new edge to itself
         Edge* new_edge = new Edge(v, v, pself, min_holding_time);
 
@@ -461,7 +474,7 @@ double Graph::make_holding_time_constant()
         new_edge->elist_iter = elist.end();         new_edge->elist_iter--;
         new_edge->from_iter = v->edges_out.end();   new_edge->from_iter--;
         new_edge->to_iter = v->edges_in.end();      new_edge->to_iter--;
-
+        */
     }
     return min_holding_time;
 }
@@ -584,7 +597,6 @@ void Graph::normalize_density()
 void Graph::update_density_implicit_no_obs(Vertex* v)
 {
     double sum = 0;
-    //cout<<"Ry: " << Ry << endl;
     for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
     {
         Edge* etmp = *i;
@@ -779,7 +791,6 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
 
     return 0;
 }
-
 
 int Graph::connect_edges_approx(Vertex* v)
 {
@@ -1152,5 +1163,47 @@ void Graph::plot_monte_carlo_trajectories()
     }
 
     mout.close();
-}   
+} 
+
+void Graph::plot_monte_carlo_density(char* filename)
+{
+    ofstream dout(filename);
+    int count = 0;
+
+    double totprob = 0;
+    for(list<double>::iterator i = monte_carlo_probabilities.begin(); \
+            i!= monte_carlo_probabilities.end(); i++)
+    {
+        totprob += (*i);
+    }
+    //cout<<"totprob: "<< totprob << endl;
+
+    list<double>::iterator prob_iter = monte_carlo_probabilities.begin();
+    for(list< list<State> >::iterator i= monte_carlo_trajectories.begin(); \
+            i != monte_carlo_trajectories.end(); i++)
+    {
+        list<State> curr_traj = (*i);
+        double curr_prob = (*prob_iter);
+        curr_prob = curr_prob/totprob; 
+        //cout<<"curr_prob: "<< curr_prob << endl;
+
+        dout << curr_prob <<"\t";
+        State& curr_state = curr_traj.back();
+        for(int k=0; k< NUM_DIM; k++)
+        {
+            dout<< curr_state.x[k]<<"\t";
+        }
+        for(int k=NUM_DIM; k< 4; k++)
+        {
+            dout<< 0 <<"\t";
+        }
+
+        dout<<endl;
+
+        prob_iter++;
+        count++;
+    }
+
+    dout.close();
+}
 
