@@ -19,7 +19,7 @@ System::System()
     {
         process_noise[i] = 1e-2;
         obs_noise[i] = 1e-2;
-        init_var[i] = 1e-8;
+        init_var[i] = 1e-2;
     }
     sim_time_delta = 0.01;
 }

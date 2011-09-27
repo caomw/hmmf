@@ -114,7 +114,7 @@ int do_batch(int tot_vert)
         for(unsigned int j = 0; j< graph.num_vert; j++)
         {
             Vertex* v = graph.vlist[j];
-            graph.update_density_explicit_no_obs(v);
+            graph.update_density_explicit(v);
         }
         for(unsigned int j = 0; j< graph.num_vert; j++)
         {
@@ -465,7 +465,7 @@ int do_movie(int tot_vert)
 
         if(graph.num_vert%1000 == 0)
         {
-            cout<<graph.num_vert << endl;
+            //cout<<graph.num_vert << endl;
         }
     }
     // normalize density
@@ -477,18 +477,22 @@ int do_movie(int tot_vert)
     }
     graph.normalize_density();
     
+#if 0
     graph.best_path.clear(); 
-    graph.best_path.push_back(get_mean(graph));
+    //graph.best_path.push_back(get_mean(graph));
     for(unsigned int i=0; i< graph.obs.size(); i++)
     {
+        graph.obs_curr_index = i;
+        //cout<< "time: " << graph.obs_times[graph.obs_curr_index] << "\t";
+        
         graph.update_density_implicit_no_obs_all();
         graph.normalize_density();
-        graph.best_path.push_back(get_mean(graph));
+        
+        graph.best_path.push_back(get_mean(graph, false));
     }
-
-#if 0
-    cout<<"starting simulation of trajectories" << endl;
-    for(int i=0; i< 1000; i++)
+#endif
+#if 1
+    for(int i=0; i< 10000; i++)
     {
         graph.simulate_trajectory_implicit();
     }
@@ -498,7 +502,7 @@ int do_movie(int tot_vert)
 
     // output graph
     graph.plot_graph();
-    graph.plot_trajectory();
+    //graph.plot_trajectory();
 
     return 0;
 }

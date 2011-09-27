@@ -41,7 +41,7 @@ def draw_edges():
 
         rrg.close()
 
-def plot_graph():
+def plot_graph(fname):
     
     global times
     rrgp = []
@@ -51,9 +51,10 @@ def plot_graph():
         lines = rrgpf.readlines()
         for l in lines:
             s = l.split('\t')
-            to_put = [ float(s[i]) for i in range(NUM_DIM) ]
-            rrgp.append( to_put )
-            prob.append( float(s[NUM_DIM]) )
+            if ( float(s[NUM_DIM]) > -1):
+                to_put = [ float(s[i]) for i in range(NUM_DIM) ]
+                rrgp.append( to_put )
+                prob.append( float(s[NUM_DIM]) )
         
     rrgpf.close()
     
@@ -80,10 +81,11 @@ def plot_graph():
         circle = Circle( (rrgp[i,0], rrgp[i,1]), 0.005, fc='blue', alpha = 500*prob[i])
         ax.add_patch(circle)
     """
-    scatter( rrgp[:,0], rrgp[:,1], marker='o', c= prob[:], alpha=0.3)
+    scatter( rrgp[:,0], rrgp[:,1], marker='o', c= prob[:], s=30, alpha=0.8)
     grid()
-    axis([0, 1.5, 0, 1.5])
-
+    axis([-2, 2, -2, 2])
+    
+    fig.savefig(fname)
 
 def plot_trajs():
     
@@ -290,10 +292,10 @@ def do_timing_plot():
         grid()
         plot(vert[:], times[:], 'b-', lw=1.5)
 
-def plot_density():
+def plot_density(fname):
     
     denp = []
-    denf = open("density.dat", 'r')
+    denf = open("data/density.dat", 'r')
     if denf:
         lines = denf.readlines()
         for l in lines:
@@ -307,30 +309,40 @@ def plot_density():
     minp = min(denp[:,0])
     maxp = max(denp[:,0])
     size = [ (3+(x-minp)/(maxp-minp)*1000) for x in denp[:,0] ]
-
+    
+    """
     fig = figure(2)
     ax = fig.add_subplot(111, aspect=1.0)
-    scatter( denp[:,1], denp[:,2], marker='o', c=1e50*denp[:,0], alpha=0.65)
+    scatter( denp[:,1], denp[:,2], marker='o', c='b', s= 25, alpha=0.7)
     axis([0, 1, 0, 1])
     grid()
 
-
+    fig.savefig(fname)
+    """
+    
+    fig = figure(2)
+    hexbin(denp[:,1], denp[:,2], bins='log', cmap=cm.get_cmap('Jet'), alpha=0.9, mincnt=1)
+    axis([-0.5, 1, -0.5, 1])
+    #colorbar()
+    fig.savefig(fname)
 
 if __name__ == "__main__":
 
-    plot_trajs()
+    #plot_trajs()
     #plot_sim_trajs()
     #draw_obstacles()    
     
     #do_timing_plot()
 
-    plot_graph()
-    #plot_density()
+    #plot_graph(save_name)
+    plot_density(save_name)
 
     #legend()
-     
+    
+    """
     if save_name != "none":
         fig.savefig(save_name)
+    """
 
-    show()
+    #show()
 

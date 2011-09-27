@@ -352,7 +352,7 @@ void Graph::update_density_explicit_no_obs(Vertex* v)
         Edge* etmp = *i;
         sum = sum + etmp->transition_prob * (etmp->from->prob_best_path); 
     }
-    v->prob_best_path_buffer = sum + v->self_transition_prob * v->prob_best_path;
+    v->prob_best_path_buffer = sum;
 }
 
 void Graph::update_density_implicit(Vertex* v)
@@ -462,8 +462,6 @@ double Graph::make_holding_time_constant()
             etmp->transition_time = min_holding_time;
         }
         
-        v->self_transition_prob = pself;
-        /*
         //add new edge to itself
         Edge* new_edge = new Edge(v, v, pself, min_holding_time);
 
@@ -474,7 +472,6 @@ double Graph::make_holding_time_constant()
         new_edge->elist_iter = elist.end();         new_edge->elist_iter--;
         new_edge->from_iter = v->edges_out.end();   new_edge->from_iter--;
         new_edge->to_iter = v->edges_in.end();      new_edge->to_iter--;
-        */
     }
     return min_holding_time;
 }
