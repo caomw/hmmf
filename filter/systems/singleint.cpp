@@ -184,3 +184,7 @@ void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, lis
     }
 }
 
+void System::get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path)
+{
+
+}

@@ -152,6 +152,7 @@ class System
         State observation(State& s, bool is_clean);
 
         void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar);
+        void get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path);
 };
 
 

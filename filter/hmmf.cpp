@@ -30,8 +30,8 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 0.5;
-    delta = 0.01;
+    max_obs_time = 1.0;
+    delta = system->sim_time_delta;
 
     min_holding_time = delta;
     seeding_finished = false;
@@ -66,6 +66,7 @@ Graph::~Graph()
     obs.clear();
     obs_times.clear();
     kalman_path.clear();
+    pf_path.clear();
     best_path.clear();
 
     kd_free(state_tree);
@@ -188,6 +189,20 @@ void Graph::plot_trajectory()
         traj<<endl;
         curr_time += system->sim_time_delta;
     }
+    curr_time =0;
+    traj<<"pf_path"<<endl;
+    for(list<State>::iterator i= pf_path.begin(); i != pf_path.end(); i++)
+    {
+        traj<< curr_time<<"\t";
+        State& curr = *i;
+        for(int j=0; j< NUM_DIM; j++)
+        {
+            traj<< curr.x[j]<<"\t";
+        }
+        traj<<endl;
+        curr_time += system->sim_time_delta;
+    }
+
     curr_time =0;
     traj<<"kf_covar"<<endl;
     for(list<State>::iterator i= kalman_covar.begin(); i != kalman_covar.end(); i++)
@@ -362,7 +377,6 @@ void Graph::update_density_implicit(Vertex* v)
     system->get_obs_variance(v->s, obs_var);
 
     double sum = 0;
-    //cout<<"Ry: " << Ry << endl;
     for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
     {
         Edge* etmp = *i;
@@ -691,6 +705,10 @@ Vertex* Graph::add_sample(bool is_seed)
 void Graph::approximate_density(Vertex* v)
 {
 #if 1
+    v->prob_best_path = 0;
+
+#endif
+#if 0
     double tprob = 0;
 
     double key[NUM_DIM] ={0};
@@ -715,7 +733,7 @@ void Graph::approximate_density(Vertex* v)
         kd_res_next(res);
     }
 
-    v->prob_best_path = tprob/(tprob + (double)kd_res_size(res));
+    v->prob_best_path = tprob/((double)kd_res_size(res));
     //cout<<"v_pbp: "<< v->prob_best_path << endl; getchar();
 
     kd_res_free(res);
@@ -855,6 +873,12 @@ int Graph::connect_edges_approx(Vertex* v)
 void Graph::get_kalman_path()
 {
     system->get_kalman_path(obs, obs_times, kalman_path, kalman_covar);
+    return;
+}
+
+void Graph::get_pf_path()
+{
+    system->get_pf_path(obs, obs_times, pf_path);
     return;
 }
 

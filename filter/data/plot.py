@@ -100,12 +100,14 @@ def plot_trajs():
         obs = []
         bp = []
         kf = []
+        pf = []
         kf_covar = []
 
         tsys = []
         tobs = []
         tbp = []
         tkf = []
+        tpf = []
         tkf_covar = []
 
         for l in lines:
@@ -119,8 +121,10 @@ def plot_trajs():
                     which = 2
                 elif s[0] == "kf_path\n":
                     which = 3
-                elif s[0] == "kf_covar\n":
+                elif s[0] == "pf_path\n":
                     which = 4
+                elif s[0] == "kf_covar\n":
+                    which = 5
 
             if len(s) > 1:
                 time = float(s[0])
@@ -138,6 +142,9 @@ def plot_trajs():
                     tkf.append(time)
                     kf.append(to_put)
                 elif which == 4:
+                    tpf.append(time)
+                    pf.append(to_put)
+                elif which == 5:
                     tkf_covar.append(time)
                     kf_covar.append(to_put)
 
@@ -147,12 +154,14 @@ def plot_trajs():
     obs = array(obs)
     bp = array(bp)
     kf = array(kf)
+    pf = array(pf)
     kf_covar = array(kf_covar)
     
     tsys = array(tsys)
     tobs = array(tobs)
     tbp = array(tbp)
     tkf = array(tkf)
+    tpf = array(tpf)
     tkf_covar = array(tkf_covar)
    
     times = tobs
@@ -172,6 +181,8 @@ def plot_trajs():
             plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.5)
         if len(kf) != 0:
             plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
+        if len(pf) != 0:
+            plot( tpf[:], pf[:,i], 'y-', label='pf', lw=1.5)
         
         """
         ax2 = ax1.twinx()
@@ -328,14 +339,14 @@ def plot_density(fname):
 
 if __name__ == "__main__":
 
-    #plot_trajs()
+    plot_trajs()
     #plot_sim_trajs()
     #draw_obstacles()    
     
     #do_timing_plot()
 
     #plot_graph(save_name)
-    plot_density(save_name)
+    #plot_density(save_name)
 
     #legend()
     
@@ -344,5 +355,5 @@ if __name__ == "__main__":
         fig.savefig(save_name)
     """
 
-    #show()
+    show()
 

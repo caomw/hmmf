@@ -2,7 +2,7 @@
 #define __hmmf_h__
 
 #include "utils/common.h"
-#include "systems/singleint.h"
+#include "systems/vanderpol.h"
 
 class Edge;
 class Vertex;
@@ -90,6 +90,7 @@ class Graph{
         vector<State> obs;
         list<State> best_path;
         list<State> kalman_path;
+        list<State> pf_path;
         list<State> kalman_covar;
         
         // graph sanity check
@@ -163,6 +164,7 @@ class Graph{
        
 
         void get_kalman_path();
+        void get_pf_path();
         
         bool is_everything_normalized();
         int simulate_trajectory_explicit();

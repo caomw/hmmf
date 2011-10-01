@@ -36,24 +36,30 @@ State get_mean(Graph& graph, bool is_cout=true)
     return mstate;
 }
 
-void get_sq_error(Graph& graph, double& bpe, double& kfe)
+void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
 {
     bpe = 0;
     kfe = 0;
+    pfe = 0;
+
     list<State>::iterator bpiter = graph.best_path.begin();
     list<State>::iterator kfiter = graph.kalman_path.begin();
+    list<State>::iterator pfiter = graph.pf_path.begin();
 
     for(list<State>::iterator i = graph.truth.begin(); i!=graph.truth.end(); i++)
     {
         State& s1 = (*i);
         State& s2 = (*bpiter);
         State& s3 = (*kfiter);
+        State& s4 = (*pfiter);
         
         bpe += graph.dist(s1,s2)*graph.dist(s1,s2);
         kfe += graph.dist(s1,s3)*graph.dist(s1,s3);
+        pfe += graph.dist(s1,s4)*graph.dist(s1,s4);
 
         bpiter++;
         kfiter++;
+        pfiter++;
     }
 }
 
@@ -153,6 +159,7 @@ int do_incremental(int tot_vert)
 
     graph.propagate_system();
     graph.get_kalman_path();
+    graph.get_pf_path();
 
 #if 1 
     tic();
@@ -163,14 +170,14 @@ int do_incremental(int tot_vert)
         graph.reconnect_edges_neighbors(v);
     }
 
-    for(int i=0; i < 100; i++)
+    for(int i=0; i < 1000; i++)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
         graph.reconnect_edges_neighbors(v);
         if(i %1000 == 0)
         {
-           cout<<"i: "<< i << endl;
+           //cout<<"i: "<< i << endl;
            toc();
         }
     }
@@ -201,7 +208,6 @@ int do_incremental(int tot_vert)
         get_mean(graph);
     }
 #endif
-#endif
 
 #if 1
     cout<<"starting filtering"<<endl;
@@ -222,13 +228,14 @@ int do_incremental(int tot_vert)
         }
         
         graph.obs_curr_index = i;
-        cout<< "time: " << graph.obs_times[graph.obs_curr_index] << "\t";
+        //cout<< "time: " << graph.obs_times[graph.obs_curr_index] << "\t";
         
         graph.update_density_implicit_all();
         graph.normalize_density();
         
-        graph.best_path.push_back(get_mean(graph));
+        graph.best_path.push_back(get_mean(graph, false));
     }
+#endif
 #endif
 
 #if 0
@@ -245,9 +252,9 @@ int do_incremental(int tot_vert)
     cout<<"time: "<< get_msec() - start << " [ms]" << endl;
 
 #if 1 
-    double bpe, kfe;
-    get_sq_error(graph, bpe, kfe);
-    cout<<"bpe: "<< bpe <<" kfe: "<< kfe << endl;
+    double bpe, kfe, pfe;
+    get_sq_error(graph, bpe, kfe, pfe);
+    cout<<"bpe: "<< bpe <<" kfe: "<< kfe << " pfe: "<< pfe << endl;
 #endif
     
     return 0;
@@ -262,8 +269,8 @@ int do_error_plot()
     Graph g1(sys);
     g1.propagate_system();
     g1.get_kalman_path();
-    double bpe1, kfe1;
-    get_sq_error(g1, bpe1, kfe1);
+    double bpe1, kfe1, pfe1;
+    get_sq_error(g1, bpe1, kfe1, pfe1);
     //cout<<"bpe1: "<<bpe1<<" " << " kfe1: "<< kfe1 << endl;
     
     for(int tot_vert=1000; tot_vert < 10000; tot_vert+= 1000)
@@ -332,8 +339,8 @@ int do_error_plot()
 
             //graph.plot_trajectory();
 
-            double bpe, kfe;
-            get_sq_error(graph, bpe, kfe);
+            double bpe, kfe, pfe;
+            get_sq_error(graph, bpe, kfe, pfe);
 
             average_time += toc();
             average_bpe += bpe;
@@ -509,17 +516,18 @@ int do_movie(int tot_vert)
 
 int main(int argc, char* argv[])
 {
+    //srand(time(NULL));
     cout.precision(5);
-    
-    int tot_vert = 1000;
+        
+    int tot_vert = 0;
     if (argc > 1)
         tot_vert = atoi(argv[1]);
 
     //do_batch(tot_vert);
-    //do_incremental(25000);
+    do_incremental(tot_vert);
     
     //do_timing_plot();
-    do_movie(tot_vert);
+    //do_movie(tot_vert);
 
     return 0;
 }
