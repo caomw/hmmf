@@ -1,8 +1,8 @@
-#ifndef __hmmf_h__
-#define __hmmf_h__
+#ifndef __decode_h__
+#define __decode_h__
 
 #include "utils/common.h"
-#include "systems/vanderpol.h"
+#include "systems/singleint.h"
 
 class Edge;
 class Vertex;
@@ -16,20 +16,13 @@ class Vertex
         
         // prob of best path that ends up here incorporating obs
         double prob_best_path;
-        double prob_best_path_buffer;
-        double obs_update_time;
          
-        double holding_time;
-        double holding_time_delta;
-
         // parent of the best path
         Vertex *prev;
 
         list<Edge *> edges_in;
         list<Edge *> edges_out;
         
-        double self_transition_prob;
-
         Vertex(State& st);
         ~Vertex(){};
         
@@ -46,7 +39,6 @@ class Edge{
         list<Edge*>::iterator to_iter;
         list<Edge*>::iterator elist_iter;
 
-        double transition_prob_delta;
         double transition_prob;
         double transition_time;
         
@@ -66,14 +58,19 @@ class Graph{
 
     public:
         
-        int obs_interval;
-        double max_obs_time;
+        // times
+        double sim_delta;
+        double expt_time;
+        
         double delta;
         double min_holding_time;
-        bool seeding_finished;
+        
 
+        // sampling
+        bool seeding_finished;
         double gamma, gamma_t;
         struct kdtree *state_tree;
+        struct kdtree *time_tree;
        
         System* system;
 
@@ -84,10 +81,12 @@ class Graph{
         list<Edge *> elist;
         
         unsigned int num_vert;
+        
         list<State> truth;
         int obs_curr_index;
         vector<double> obs_times;
         vector<State> obs;
+        
         list<State> best_path;
         list<State> kalman_path;
         list<State> pf_path;
@@ -138,37 +137,21 @@ class Graph{
         
         void put_init_samples(int howmany);
        
-        void average_density(Vertex* v);
-        void approximate_density(Vertex* v);
         void normalize_density();
-        void propagate_density(Vertex* v);
-        void update_density_explicit(Vertex* v);
-        void update_density_explicit_no_obs(Vertex* v);
-        
-        void update_density_implicit_no_obs(Vertex* v);
-        void update_density_implicit_no_obs_all();
-        void update_density_implicit(Vertex* v);
-        void update_density_implicit_all();
-        void buffer_prob_copy();
        
-        int calculate_delta();
-        int calculate_probabilities_delta(Vertex* v);
-        int calculate_probabilities_delta_all();
-        double make_holding_time_constant();
-
+        double get_obs_prob_vertex(Vertex* v);
         void propagate_viterbi(Vertex* v);
         void update_viterbi(Vertex* v);
         void update_viterbi_neighbors(Vertex* v);
         
         void update_observation_prob(State& yt);
        
-
+        void get_best_path();
         void get_kalman_path();
         void get_pf_path();
         
         bool is_everything_normalized();
-        int simulate_trajectory_explicit();
-        int simulate_trajectory_implicit();
+        int simulate_trajectory();
         
         friend class System;
 };

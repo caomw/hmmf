@@ -1,4 +1,4 @@
-#include "hmmf.h"
+#include "filter.h"
 
 State get_mean(Graph& graph, bool is_cout=true)
 {
@@ -26,7 +26,7 @@ State get_mean(Graph& graph, bool is_cout=true)
         {
             cout<<"found a nan: " << mstate.x[j]<<" "<<totprob << endl;
         }
-        
+
         if(is_cout)
             cout<< mstate.x[j] << " ";
     }
@@ -52,7 +52,7 @@ void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
         State& s2 = (*bpiter);
         State& s3 = (*kfiter);
         State& s4 = (*pfiter);
-        
+
         bpe += graph.dist(s1,s2)*graph.dist(s1,s2);
         kfe += graph.dist(s1,s3)*graph.dist(s1,s3);
         pfe += graph.dist(s1,s4)*graph.dist(s1,s4);
@@ -67,9 +67,9 @@ int do_batch(int tot_vert)
 {
     System sys;
     Graph graph(sys);
-    
+
     double start = get_msec();
-   
+
 #if 1
     tic();
     for(int i=0; i< 100; i++)
@@ -85,8 +85,8 @@ int do_batch(int tot_vert)
         graph.connect_edges_approx(v);
         if(i %1000 == 0)
         {
-           cout<<"i: "<< i << endl;
-           toc();
+            cout<<"i: "<< i << endl;
+            toc();
         }
     }
 
@@ -105,7 +105,7 @@ int do_batch(int tot_vert)
 
     graph.propagate_system();
     graph.get_kalman_path();
-    
+
     get_mean(graph);
 
 #if 1
@@ -116,7 +116,7 @@ int do_batch(int tot_vert)
     {
         graph.obs_curr_index = i;
         cout<< "time: " << graph.obs_times[graph.obs_curr_index] << " ";
-       
+
         for(unsigned int j = 0; j< graph.num_vert; j++)
         {
             Vertex* v = graph.vlist[j];
@@ -128,7 +128,7 @@ int do_batch(int tot_vert)
             v->prob_best_path = v->prob_best_path_buffer;
         }
         graph.normalize_density();
-        
+
         cout<<i <<": ";
         graph.best_path.push_back(get_mean(graph));
     }
@@ -154,7 +154,7 @@ int do_incremental(int tot_vert)
 {
     System sys;
     Graph graph(sys);
-    
+
     double start = get_msec();
 
     graph.propagate_system();
@@ -177,11 +177,11 @@ int do_incremental(int tot_vert)
         graph.reconnect_edges_neighbors(v);
         if(i %1000 == 0)
         {
-           //cout<<"i: "<< i << endl;
-           toc();
+            //cout<<"i: "<< i << endl;
+            toc();
         }
     }
-    
+
     for(unsigned int i=0; i< graph.num_vert; i++)
     {
         Vertex* v = graph.vlist[i];
@@ -190,7 +190,7 @@ int do_incremental(int tot_vert)
     }
     graph.normalize_density();
     graph.seeding_finished = true;
-   
+
 #if 0
     // checking approximation
     cout<<"starting----" << endl;
@@ -199,12 +199,12 @@ int do_incremental(int tot_vert)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
-        
+
         graph.reconnect_edges_neighbors(v);
-        
+
         graph.approximate_density(v);
         graph.normalize_density();
-        
+
         get_mean(graph);
     }
 #endif
@@ -221,18 +221,18 @@ int do_incremental(int tot_vert)
         {
             Vertex* v = graph.add_sample();
             graph.connect_edges_approx(v);
-            
+
             graph.reconnect_edges_neighbors(v);
-            
+
             graph.approximate_density(v);
         }
-        
+
         graph.obs_curr_index = i;
         //cout<< "time: " << graph.obs_times[graph.obs_curr_index] << "\t";
-        
+
         graph.update_density_implicit_all();
         graph.normalize_density();
-        
+
         graph.best_path.push_back(get_mean(graph, false));
     }
 #endif
@@ -256,7 +256,7 @@ int do_incremental(int tot_vert)
     get_sq_error(graph, bpe, kfe, pfe);
     cout<<"bpe: "<< bpe <<" kfe: "<< kfe << " pfe: "<< pfe << endl;
 #endif
-    
+
     return 0;
 }
 
@@ -265,20 +265,20 @@ int do_error_plot()
     int max_runs = 1;
 
     System sys;
-    
+
     Graph g1(sys);
     g1.propagate_system();
     g1.get_kalman_path();
     double bpe1, kfe1, pfe1;
     get_sq_error(g1, bpe1, kfe1, pfe1);
     //cout<<"bpe1: "<<bpe1<<" " << " kfe1: "<< kfe1 << endl;
-    
+
     for(int tot_vert=1000; tot_vert < 10000; tot_vert+= 1000)
     {
         double average_time = 0;
         double average_bpe = 0;
         double average_kfe = 0;
-        
+
         for(int how_many=0; how_many < max_runs; how_many++)
         {
             Graph graph(sys);
@@ -381,7 +381,7 @@ int do_timing_plot()
         Vertex* v = graph.vlist[i];
         graph.connect_edges_approx(v);
         timing_out<<i<<"\t"<<toc()<<endl;
-        
+
         if(i%1000 == 0)
             cout<<i<<"\t"<<toc()<<endl;
     }
@@ -404,14 +404,14 @@ int do_timing_plot()
         graph.reconnect_edges_neighbors(v);
     }
     /*
-    for(unsigned int i=0; i< graph.num_vert; i++)
-    {
-        Vertex* v = graph.vlist[i];
-        v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
-                v->s.x, NUM_DIM);
-    }
-    graph.normalize_density();
-    */
+       for(unsigned int i=0; i< graph.num_vert; i++)
+       {
+       Vertex* v = graph.vlist[i];
+       v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
+       v->s.x, NUM_DIM);
+       }
+       graph.normalize_density();
+       */
     graph.seeding_finished = true;
 
     timing_out<<graph.num_vert<<"\t"<<toc()<<endl;
@@ -483,7 +483,7 @@ int do_movie(int tot_vert)
                 v->s.x, NUM_DIM);
     }
     graph.normalize_density();
-    
+
 #if 0
     graph.best_path.clear(); 
     //graph.best_path.push_back(get_mean(graph));
@@ -491,10 +491,10 @@ int do_movie(int tot_vert)
     {
         graph.obs_curr_index = i;
         //cout<< "time: " << graph.obs_times[graph.obs_curr_index] << "\t";
-        
+
         graph.update_density_implicit_no_obs_all();
         graph.normalize_density();
-        
+
         graph.best_path.push_back(get_mean(graph, false));
     }
 #endif
@@ -503,7 +503,7 @@ int do_movie(int tot_vert)
     {
         graph.simulate_trajectory_implicit();
     }
-    graph.plot_monte_carlo_density("data/density.dat");
+    graph.plot_monte_carlo_density((char*)"data/density.dat");
 #endif
 #endif
 
@@ -518,16 +518,17 @@ int main(int argc, char* argv[])
 {
     //srand(time(NULL));
     cout.precision(5);
-        
+
     int tot_vert = 0;
     if (argc > 1)
         tot_vert = atoi(argv[1]);
 
     //do_batch(tot_vert);
     do_incremental(tot_vert);
-    
+
     //do_timing_plot();
     //do_movie(tot_vert);
+
 
     return 0;
 }
