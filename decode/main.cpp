@@ -36,6 +36,7 @@ State get_mean(Graph& graph, bool is_cout=true)
 
     return mstate;
 }
+#endif
 
 void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
 {
@@ -64,6 +65,7 @@ void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
     }
 }
 
+#if 0
 int do_batch(int tot_vert)
 {
     System sys;
@@ -195,6 +197,11 @@ int do_incremental(int tot_vert)
     }
     
     graph.get_best_path();
+
+    double kfe, bpe, pfe;
+    get_sq_error(graph, bpe, kfe, pfe);
+    cout<<"bpe: "<< bpe<<" kfe: " << kfe << endl;
+
 #if 0
     // checking approximation
     cout<<"starting----" << endl;

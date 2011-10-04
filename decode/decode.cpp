@@ -624,12 +624,14 @@ void Graph::get_best_path()
     }
     double curr_time = best_vertex->s.x[0];
     best_path.clear();
-    while(curr_time > (system->min_states[0] + 0.001))
+    while(curr_time > (system->min_states[0]))
     {
         best_path.push_back(best_vertex->s);
         best_vertex = best_vertex->prev;
+        //cout<<"bv: "<< best_vertex->s.x[0]<<"\t"<<best_vertex->s.x[1]<<"\t"<<best_vertex->s.x[2]<<endl;
         curr_time = best_vertex->s.x[0];
     }
+    best_path.push_back(best_vertex->s);
     cout<<"Finished best_path" << endl;
 }
 
