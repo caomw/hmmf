@@ -44,11 +44,9 @@ State System::sample()
     State s;
     double border = RANDF;
     double which_time = 0;
-    if(border < 0.02)
+    if(border < 0.05)
     {
         which_time = max_states[0];
-        if(border < 0.01)
-            which_time = min_states[0];
     }
     while(1)
     {
@@ -56,7 +54,7 @@ State System::sample()
         {
             s.x[i] = min_states[i] + RANDF*( max_states[i] - min_states[i]);
         }
-        if(border < 0.02)
+        if(border < 0.05)
             s.x[0] = which_time;
 
         if( is_free(s) )

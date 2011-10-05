@@ -227,10 +227,10 @@ def plot_sim_trajs():
                 if( len(to_plot) > 0):
                     
                     figure(1)    
-                    for i in range(NUM_DIM):
-                        subplot(NUM_DIM,1,i+1, aspect='auto')
+                    for i in range(NUM_DIM-1):
+                        subplot(NUM_DIM-1,1,i+1, aspect='auto')
                         grid()
-                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=0.1)
+                        plot(to_plot_time[:], to_plot[:,i+1], 'm-', alpha=last_prob)
                    
                     """
                     figure(2)
@@ -333,12 +333,12 @@ def plot_density(fname):
 if __name__ == "__main__":
 
     plot_trajs()
-    #plot_sim_trajs()
+    plot_sim_trajs()
     #draw_obstacles()    
     
     #do_timing_plot()
 
-    plot_graph(save_name)
+    #plot_graph(save_name)
     #plot_density(save_name)
 
     #legend()

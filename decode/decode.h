@@ -139,6 +139,7 @@ class Graph{
        
         void normalize_density();
        
+        double get_obs_prob_edge(Edge* etmp);
         double get_obs_prob_vertex(Vertex* v);
         void propagate_viterbi(Vertex* v);
         void update_viterbi(Vertex* v);

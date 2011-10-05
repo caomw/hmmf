@@ -50,8 +50,8 @@ double normal_val(double *mean, double *var, double *tocalci, int dim)
     top = exp(-0.5*top);
     double to_ret = (top/pow(2*M_PI, dim/2.0))/ sqrt( det );
    
-    if ( to_ret < 1e-30)
-        to_ret = 1e-30;
+    if ( to_ret < 1e-50)
+        to_ret = 1e-50;
 
     return to_ret;
 }

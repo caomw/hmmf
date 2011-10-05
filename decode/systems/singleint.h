@@ -107,9 +107,10 @@ class System
         // functions
         double get_holding_time(State& s, double gamma, int num_vert)
         {
-            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)(NUM_DIM-1));
             double num = h*h;
-            for(int i=0; i<NUM_DIM; i++)
+            
+            for(int i=1; i<NUM_DIM; i++)
                 num = num*(max_states[i] - min_states[i]);
 
             double sqnum = sqrt(num);
@@ -124,9 +125,9 @@ class System
         
         double get_min_holding_time(double gamma, int num_vert)
         {
-            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)(NUM_DIM-1));
             double num = h*h;
-            for(int i=0; i<NUM_DIM; i++)
+            for(int i=1; i<NUM_DIM; i++)
                 num = num*(max_states[i] - min_states[i]);
 
             double sqnum = sqrt(num);

@@ -5,7 +5,7 @@ Vertex::Vertex(State& st)
     s = st;
 
     prev = NULL;
-    prob_best_path = -1;
+    prob_best_path = -100;
 
     edges_in.clear();
     edges_out.clear();
@@ -45,7 +45,7 @@ Graph::Graph(System& sys) {
         factor = 0.5*M_PI*M_PI;
     else if(NUM_DIM == 5)
         factor = 8*M_PI*M_PI/15;
-
+    
     gamma = 2.1*pow( (1+1/(double)NUM_DIM), 1/(double)NUM_DIM) *pow(factor, -1/(double)NUM_DIM);
 };
 
@@ -83,6 +83,18 @@ int Graph::vertex_delete_edges(Vertex* v)
         delete etmp;
     }
     v->edges_out.clear();
+    
+#if 0
+    for(list<Edge *>::reverse_iterator i = v->edges_in.rbegin(); i != v->edges_in.rend(); i++)
+    {
+        Edge* etmp = (*i);
+        elist.erase(etmp->elist_iter);
+        etmp->from->edges_out.erase(etmp->from_iter);
+        delete etmp;
+    }
+    v->edges_in.clear();
+#endif
+
     return 0;
 }
 
@@ -306,6 +318,11 @@ double Graph::get_obs_prob_vertex(Vertex* v)
     return normal_val( &(closest_obs.x[1]), system->obs_noise, &(gx.x[1]), NUM_DIM_OBS-1);
 }
 
+double Graph::get_obs_prob_edge(Edge* etmp)
+{
+    return 0;
+}
+
 void Graph::update_viterbi(Vertex* v)
 {
 #if 1
@@ -313,20 +330,22 @@ void Graph::update_viterbi(Vertex* v)
     double tmp;
     
     double obs_prob = get_obs_prob_vertex(v);    
+    //cout<<"obs_prob_vertex: "<< obs_prob << endl;
+
     for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
     {
         Edge* etmp = *i;
 
         tmp = (etmp->from->prob_best_path)*(etmp->transition_prob)*obs_prob;
 
-        if(tmp > max_prob)
+        if( (tmp > max_prob) && (tmp > 0))
         {
             max_prob = tmp;
             v->prev = etmp->from;
             v->prob_best_path = max_prob;
-            v->prev = etmp->from;
         }
     }
+    //cout<<"update_viterbi- max_prob: "<< max_prob << endl;
 #endif
 }
 
@@ -360,13 +379,14 @@ void Graph::propagate_viterbi(Vertex* v)
             Vertex* vto = etmp->to;
             
             double tmp = (vtmp->prob_best_path)*(etmp->transition_prob)*get_obs_prob_vertex(vto);
-            
-            // add to queue if not updated with latest observation
+#if 1 
+            // add to queue if its probability is less than the current one
             if( vto->prob_best_path < tmp )
             {
                 myq.push_back(etmp->to);
                 myq_size++;
             }
+#endif
         }
         if( myq_size > max_size)
             max_size = myq_size;
@@ -446,7 +466,7 @@ Vertex* Graph::add_sample(bool is_seed)
     vlist.push_back(v);
     num_vert++;
     insert_into_kdtree(v);
-
+    
     return v;
 }
 
@@ -457,7 +477,7 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    double bowlr = gamma/10 * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+    double bowlr = gamma/2 * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
 
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
@@ -508,8 +528,8 @@ int Graph::connect_edges_approx(Vertex* v)
     double *next_state = new double[NUM_DIM];
     double *sys_var = new double[NUM_DIM-1];
 
-    double holding_time = system->get_holding_time(v->s, gamma, num_vert);
-    double sum_prob = 0;
+    //double holding_time = system->get_holding_time(v->s, gamma, num_vert);
+
     double pos[NUM_DIM] = {0};
     while( !kd_res_end(res) )
     {
@@ -518,21 +538,21 @@ int Graph::connect_edges_approx(Vertex* v)
         if(v1 != v)
         {
             double delta_t = v1->s.x[0] - v->s.x[0];
-            if(delta_t > 0)
+            if(delta_t > 1e-5)
             {
-                system->get_fdt(v->s, holding_time, next_state);
-                system->get_variance(v->s, holding_time, sys_var);
+                system->get_fdt(v->s, delta_t, next_state);
+                system->get_variance(v->s, delta_t, sys_var);
 
                 double prob_tmp = normal_val(&(next_state[1]), sys_var, &(v1->s.x[1]), NUM_DIM-1);
-                
+
                 if(prob_tmp > 0)
                 {
-                    Edge *e1 = new Edge(v, v1, prob_tmp, holding_time);
+                    Edge *e1 = new Edge(v, v1, prob_tmp, delta_t);
+                    
+                    get_obs_prob_edge(e1);
 
                     if(1)
                     {
-                        sum_prob += prob_tmp;
-
                         elist.push_back(e1);
                         v->edges_out.push_back(e1);
                         v1->edges_in.push_back(e1);
@@ -545,20 +565,20 @@ int Graph::connect_edges_approx(Vertex* v)
                         delete e1;
                 }
             }
-            else
+            else if(delta_t < -1e5)
             {
-                system->get_fdt(v1->s, holding_time, next_state);
-                system->get_variance(v1->s, holding_time, sys_var);
+                system->get_fdt(v1->s, delta_t, next_state);
+                system->get_variance(v1->s, delta_t, sys_var);
 
                 double prob_tmp = normal_val(&(next_state[1]), sys_var, &(v->s.x[1]), NUM_DIM-1);
                 if(prob_tmp > 0)
                 {
-                    Edge *e2 = new Edge(v1, v, prob_tmp, holding_time);
+                    Edge *e2 = new Edge(v1, v, prob_tmp, delta_t);
+                    
+                    get_obs_prob_edge(e2);
 
                     if(1)
                     {
-                        sum_prob += prob_tmp;
-
                         elist.push_back(e2);
                         v1->edges_out.push_back(e2);
                         v->edges_in.push_back(e2);
@@ -579,9 +599,11 @@ int Graph::connect_edges_approx(Vertex* v)
 
     normalize_edges(v);
 
-    update_viterbi(v);
-    propagate_viterbi(v);
-
+    if(seeding_finished)
+    {
+        update_viterbi(v);
+        propagate_viterbi(v);
+    }
     delete[] next_state;
     delete[] sys_var;
 
@@ -614,6 +636,7 @@ void Graph::get_best_path()
         kd_res_next(res);
     }
     kd_res_free(res);
+    cout<<"Found best_vertex with prob: "<< max_prob << endl;
 
     // 2. follow best_vertex till min_states[0]
     
@@ -742,7 +765,7 @@ int Graph::simulate_trajectory()
     list<double> seq_times;
 
     State stmp = system->init_state;
-    multivar_normal(&(system->init_state.x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
+    //multivar_normal(&(system->init_state.x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
 
     bool can_go_forward = false;
 
@@ -780,7 +803,7 @@ int Graph::simulate_trajectory()
         if(vcurr->edges_out.size() == 0)
         {
             can_go_forward = false;
-            //cout<<"break line 684 size: " << seq.size() << endl;
+            cout<<"break line 684 size: " << seq.size() << endl;
             break;
         }
 
@@ -793,7 +816,7 @@ int Graph::simulate_trajectory()
             curr_time += which_edge->transition_time;
             if(curr_time > max_time)
             {
-                //cout<<"finished one sim" << endl;
+                cout<<"finished one sim" << endl;
                 break;
             }
         }

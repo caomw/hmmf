@@ -161,7 +161,7 @@ int do_incremental(int tot_vert)
 
     double start = get_msec();
     
-    graph.vlist.reserve(tot_vert+1000);
+    graph.vlist.reserve(tot_vert);
     graph.propagate_system();
     graph.get_kalman_path();
     graph.get_pf_path();
@@ -182,51 +182,37 @@ int do_incremental(int tot_vert)
     }
     graph.normalize_density();
     graph.seeding_finished = true;
-    
+
+
+#if 1
     for(int i=0; i< tot_vert-100; i++)
     {
         Vertex* v = graph.add_sample();
         graph.connect_edges_approx(v);
         graph.reconnect_edges_neighbors(v);
     
-        if(i%1000 == 0)
+        if(i%100 == 0)
         {
             cout<<i<<endl;
             toc();
         }
     }
-    
-    graph.get_best_path();
+
+    //graph.get_best_path();
 
     double kfe, bpe, pfe;
     get_sq_error(graph, bpe, kfe, pfe);
     cout<<"bpe: "<< bpe<<" kfe: " << kfe << endl;
-
-#if 0
-    // checking approximation
-    cout<<"starting----" << endl;
-    get_mean(graph);
-    for(int j=0; j< 500; j++)
-    {
-        Vertex* v = graph.add_sample();
-        graph.connect_edges_approx(v);
-
-        graph.reconnect_edges_neighbors(v);
-
-        graph.approximate_density(v);
-        graph.normalize_density();
-
-        get_mean(graph);
-    }
 #endif
 
 #endif
-
-#if 0
+     
+#if 1
+    graph.is_everything_normalized();
     cout<<"starting simulation of trajectories" << endl;
-    for(int i=0; i< 100; i++)
+    for(int i=0; i< 10; i++)
     {
-        graph.simulate_trajectory_implicit();
+        graph.simulate_trajectory();
     }
     graph.plot_monte_carlo_trajectories();
 #endif
