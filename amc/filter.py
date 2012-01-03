@@ -14,10 +14,8 @@ except:
     import pickle
 
 NUM_DIM=1
-zmin = [-1]
-zmax = [1]
-umin = [-0.1]
-umax = [0.1]
+zmin = [0.0]
+zmax = [0.6]
 init_state = [0.5]
 init_var = array(diag([0.001]))
 consant_holding_time = 0
@@ -120,6 +118,8 @@ class Graph:
             n1 = self.nodes[i]
             n1.density = normal_val(n1.x, array(init_state), init_var)
         
+        self.normalize_density()
+
         self.points = [self.key(mynode.x) for mynode in self.nodes]
         self.tree = kdtree.KDTree(self.points)
         
@@ -259,9 +259,10 @@ class Graph:
             transition_prob = 0
             for n2 in self.mydict[n1]:
                 if n2 != n1:
-                    transition_prob = transition_prob + n2.density*n1.edge_probs[0][self.mydict[n1].index(n2)]
-
-        n1.density = transition_prob*n1.pself*normal_val(n1.x, array(curr_observation), array(diag(get_observation_var())))
+                    transition_prob = transition_prob + n2.density*n2.edge_probs[0][self.mydict[n2].index(n1)]
+        
+            transition_prob = transition_prob + n1.density
+            n1.density = transition_prob*n1.pself*normal_val(n1.x, array(curr_observation), array(diag(get_observation_var())))
         
     def normalize_density(self):
         tot_prob = 0
@@ -281,7 +282,7 @@ class Graph:
     def run_filter(self):
         max_time = 1
         curr_time = 0
-        integration_delta = 1e-3
+        integration_delta = 1e-2
 
         self.truth.append(init_state)
         mean_std = self.get_mean_std()
@@ -300,6 +301,8 @@ class Graph:
             self.observations.append( get_observation(next_state))
 
             self.update_conditional_density(self.observations[-1])
+            self.normalize_density()
+
             mean_std = self.get_mean_std()
             self.estimates.append(mean_std[0][0])
 
@@ -309,6 +312,8 @@ class Graph:
         plot(self.truth, 'ro-')
         plot(self.observations, 'bo-')
         plot(self.estimates, 'go-')
+        for n1 in self.nodes:
+            plot(0.5, n1.x[0],'yo')
         grid()
         show()
 
@@ -336,4 +341,3 @@ if __name__ == "__main__":
 
         # graph.simulate_trajectories()
         graph.run_filter()
-
