@@ -13,35 +13,22 @@ try:
 except:
     import pickle
 
-NUM_DIM=1
-zmin = [-1]
-zmax = [1]
-umin = [-0.1]
-umax = [0.1]
-init_state = [0.5]
-init_var = array(diag([0.001]))
+NUM_DIM=2
+zmin = [0,0]
+zmax = [1,1]
+init_state = array([0, 1])
+init_var = array(diag([10e-2, 10e-2]))
 consant_holding_time = 0
 
-def wstd(arrin, weights_in):
-    arr = array(arrin, ndmin=1, copy=False)
-    weights = array(weights_in, ndmin=1, dtype='f8', copy=False)
-  
-    wtot = weights.sum()
-    wmean = ( weights*arr ).sum()/wtot
-
-    wvar = ( weights*(arr-wmean)**2 ).sum()/wtot
-    wsdev = sqrt(wvar)
-    return wmean,wsdev
-
-def fdt(z, u, dt):
-    return array((-z +u)*dt)
+def wstd(x,w):
+    t = w.sum()
+    return (((w*x**2).sum()*t-(w*x).sum()**2)/(t**2-(w**2).sum()))**.5
+def fdt(x, u, dt):
+    return array(([1, -x[1:]]))*dt
 def get_process_var(dt):
-    return diag(array([0.001*dt]))
-def get_observation_var():
-    return [0.001]
-def get_observation(z):
-    var = get_observation_var()
-    return [z[i] + normal(0, var[i]) for i in range(NUM_DIM)]
+    return diag(array([10e-2*dt, 0.1*dt]))
+def observation_var():
+    return 0.1
 def get_holding_time(z, u, bowlr):
     bowlr = bowlr*(zmax[0]-zmin[0])
     dt = 1
@@ -59,9 +46,9 @@ def normal_val(x, mu, var):
         toret = 1/pow(2*pi,dim/2.0)/det*exp(-0.5*dot(delx,dot(linalg.inv(var),delx)))
         return toret
     else:
-        det = sqrt(var[0])
+        det = sqrt(var[0][0])
         toret = 1/pow(2*pi,dim/2.0)/det*exp(-0.5*dot(delx,delx)/det/det)
-        return toret[0]
+        return toret
 
 
 class Edge:
@@ -83,13 +70,12 @@ class Node:
         self.edge_probs = []
         self.edge_times = []
         self.edge_controls = []
-        self.pself = 1
-
+        
         if is_init == False:
             self.x = array([zmin[i] + random()*(zmax[i]-zmin[i]) for i in range(NUM_DIM)])
         else:
-            self.x = array( [init_state[i] + normal(0, sqrt(init_var[i,i])) for i in range(NUM_DIM)] )
-        # self.density = normal_val(self.x, array(init_state), init_var)
+            self.x = array(init_state)
+        # self.density = normal_val(self.x, array(init_state), array(init_var))
         # print self.x
     
 class Graph:
@@ -108,21 +94,12 @@ class Graph:
         self.tree = []
         self.mydict = []
 
-        self.truth = []
-        self.observations = []
-        self.estimates = []
-
-        for i in range(self.num_vert):
+        self.nodes.append(Node(True))
+        for i in range(self.num_vert-1):
             self.nodes.append(Node())
-        
-        # initial variance
-        for i in range(self.num_vert):
-            n1 = self.nodes[i]
-            n1.density = normal_val(n1.x, array(init_state), init_var)
-        
         self.points = [self.key(mynode.x) for mynode in self.nodes]
         self.tree = kdtree.KDTree(self.points)
-        
+
     def draw_edges(self, n1):
         # clear old edges
         n1.edge_probs = []
@@ -131,35 +108,26 @@ class Graph:
         # n1 is the key of mydict
         probs = []
         holding_time = get_holding_time(n1.x, 0, self.bowlr)
-        pself = holding_time/(holding_time + self.delta)
-        n1.pself = pself
-
         for n2 in self.mydict[n1]:
-                mu = n1.x + fdt(n1.x, 0, holding_time)
-                curr_prob = normal_val(n2.x, mu, 
-                                    get_process_var(holding_time))
-                probs.append(curr_prob)
- 
+            mu = n1.x + fdt(n1.x, 0, holding_time)
+            curr_prob = normal_val(n2.x, mu, 
+                                   get_process_var(holding_time))
+            probs.append(curr_prob)
+            
         tot_prob = sum(probs)
-        probs = probs/tot_prob*(1 - pself)
+        probs = probs/tot_prob
         probs = list(probs)
-        probs.append(pself)
 
-        all_neighbors = self.mydict[n1]
-        all_neighbors.append(n1)
-        self.mydict[n1] = all_neighbors
         n1.edge_probs.append(probs)
-
-        transition_times = [holding_time*self.delta/(holding_time + self.delta) for i in range(len(probs))]
-        # transition_times.append(self.delta)
-        n1.edge_times.append(transition_times)
+        n1.edge_times.append([holding_time for i in range(len(probs))])
 
     def connect(self):
         for n1 in self.nodes:
             neighbors = []
             neighbors_index = self.tree.query_ball_point(self.key(n1.x), self.bowlr)
             for n2_index in neighbors_index:
-                    if n1 != self.nodes[n2_index]:
+                if n1 != self.nodes[n2_index]:
+                    if self.nodes[n2_index].x[0] > n1.x[0]:
                         neighbors.append( self.nodes[n2_index])
             self.mydict.append((n1, neighbors))
         
@@ -173,11 +141,13 @@ class Graph:
         
     def print_graph(self):
 
+        print self.controls
         for n1 in self.mydict.keys():
             print n1.x
             count = 0
             for n2 in self.mydict[n1]:
-                print "\t", n2.x,'\t', n1.edge_times[0][self.mydict[n1].index(n2)], " ", n1.edge_probs[0][self.mydict[n1].index(n2)]
+                print "\t", n2.x
+                print "\t\t ", n1.edge_times[self.mydict[n1].index(n2)], " ", n1.edge_probs[self.mydict[n1].index(n2)]
                 count = count + 1
             raw_input()
 
@@ -186,26 +156,27 @@ class Graph:
         return tmp.index(min(tmp))
 
     def simulate_trajectories(self):
-        # utraj is a array of (t, u)
         fig = figure(1)
         trajs = []
         traj_probs = []
         traj_times = []
-        max_time = 2
+        max_time = zmax[0]
         for traj_index in range(5000):
             traj_curr = []
             curr_time = 0
             traj_time = []
             node_curr = self.nodes[0]
-            traj_prob = normal_val(node_curr.x, array(init_state), init_var)
+            traj_prob = normal_val(node_curr.x, array(init_state), array(init_var))
                 
             traj_curr.append(list(node_curr.x))
             traj_time.append(curr_time)
             # print "changed node to: ", node_curr.x, " time to: ", curr_time
 
             while curr_time < max_time:
-                
+                 
                 tmp_probs = node_curr.edge_probs[0]
+                if len(tmp_probs) == 0:
+                    break
 
                 cum_probs = cumsum(tmp_probs)
                 coin_toss = random()
@@ -218,14 +189,14 @@ class Graph:
                 
                 #print len(self.mydict[node_curr]), next_index
                 traj_prob = traj_prob * node_curr.edge_probs[0][next_index]
-                curr_time = curr_time + node_curr.edge_times[0][next_index]
                 node_curr = self.mydict[node_curr][next_index]
+                curr_time = node_curr.x[0]
                 # print "changed node to: ", node_curr.x, " time to: ", curr_time
 
                 traj_curr.append(list(node_curr.x))
                 traj_time.append(curr_time)
 
-            to_put = [item for sublist in traj_curr for item in sublist]
+            to_put = [sublist[1] for sublist in traj_curr]
             while len(to_put) < 100:
                 to_put.append(to_put[-1])
                 traj_time.append(traj_time[-1])
@@ -237,8 +208,6 @@ class Graph:
             #plot(traj_time, to_put,'bo-')
             #plot(traj_times,traj_controls,'r--')
         
-        #print traj_probs
-        #print traj_times
         trajs = array(trajs)
         traj_probs = array(traj_probs)
         traj_avg = average(trajs, axis=0, weights=traj_probs)
@@ -252,64 +221,6 @@ class Graph:
         xlabel('t [s]')
         ylabel( 'x(t), xd(t)')
         #plot(u_traj[:,0], u_traj[:,1], 'r-')
-        show()
-
-    def update_conditional_density(self, curr_observation):
-        for n1 in self.nodes:
-            transition_prob = 0
-            for n2 in self.mydict[n1]:
-                if n2 != n1:
-                    transition_prob = transition_prob + n2.density*n1.edge_probs[0][self.mydict[n1].index(n2)]
-
-        n1.density = transition_prob*n1.pself*normal_val(n1.x, array(curr_observation), array(diag(get_observation_var())))
-        
-    def normalize_density(self):
-        tot_prob = 0
-        for i in range(self.num_vert):
-            tot_prob = tot_prob + self.nodes[i].density
-        for i in range(self.num_vert):
-            self.nodes[i].density = self.nodes[i].density/tot_prob
-   
-    def get_mean_std(self):
-        mean_std = []
-        weights = array([n1.density for n1 in self.nodes])
-        for i in range(NUM_DIM):
-            xdim = array([n1.x[i] for n1 in self.nodes])
-            mean_std.append(wstd(xdim, weights))
-        return mean_std
-
-    def run_filter(self):
-        max_time = 1
-        curr_time = 0
-        integration_delta = 1e-3
-
-        self.truth.append(init_state)
-        mean_std = self.get_mean_std()
-        self.estimates.append(mean_std[0][0])
-        self.observations.append( get_observation(init_state))
-        while curr_time < max_time:
-            curr_state = self.truth[-1]
-            next_state = curr_state
-
-            runner_time = 0
-            while runner_time < self.delta:
-                next_state = [next_state[i] + (-next_state[i]*integration_delta + normal(0, sqrt(get_process_var(integration_delta))[0]) ) for i in range(NUM_DIM)]
-                runner_time = runner_time + integration_delta
-
-            self.truth.append(next_state)
-            self.observations.append( get_observation(next_state))
-
-            self.update_conditional_density(self.observations[-1])
-            mean_std = self.get_mean_std()
-            self.estimates.append(mean_std[0][0])
-
-            curr_time = curr_time + self.delta
-
-
-        plot(self.truth, 'ro-')
-        plot(self.observations, 'bo-')
-        plot(self.estimates, 'go-')
-        grid()
         show()
 
 if __name__ == "__main__":
@@ -327,13 +238,9 @@ if __name__ == "__main__":
             
             # graph.print_graph()
             pickle.dump(graph, open('graph.pkl','wb'))
+
             print clock() - tic, '[s]'
-
-            # graph.print_graph()
-
     else:
         graph = pickle.load(open('graph.pkl','rb'))
 
-        # graph.simulate_trajectories()
-        graph.run_filter()
-
+        graph.simulate_trajectories()

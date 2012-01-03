@@ -3,8 +3,8 @@
 
 // dim 1 is time
 #include "../utils/common.h"
-#define NUM_DIM         (3)
-#define NUM_DIM_OBS     (3)
+#define NUM_DIM         (2)
+#define NUM_DIM_OBS     (2)
 
 class State
 {
@@ -107,38 +107,31 @@ class System
         // functions
         double get_holding_time(State& s, double gamma, int num_vert)
         {
+            State stmp = s;
+            stmp.x[0] = 0;
+
             double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)(NUM_DIM-1));
             double num = h*h;
             
-            for(int i=1; i<NUM_DIM; i++)
-                num = num*(max_states[i] - min_states[i]);
+            num = num*sq(max_states[0] - min_states[0]);
 
             double sqnum = sqrt(num);
             double den = 0;
-            for(int i=0; i< NUM_DIM-1; i++)
+            for(int i=1; i< NUM_DIM; i++)
                 den += process_noise[i];
             
-            den += (sqnum*3*s.norm());
+            den += (sqnum*3*stmp.norm());
             
             return num/(den);
         }
         
         double get_min_holding_time(double gamma, int num_vert)
         {
-            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)(NUM_DIM-1));
-            double num = h*h;
-            for(int i=1; i<NUM_DIM; i++)
-                num = num*(max_states[i] - min_states[i]);
+            State stmp;
+            for(int i=0; i<NUM_DIM; i++)
+                stmp.x[i] = max_states[i];
 
-            double sqnum = sqrt(num);
-
-            double den = 0;
-            for(int i=0; i< NUM_DIM-1; i++)
-                den += process_noise[i];
-            
-            den += (sqnum*3*max_states[0]);
-            
-            return num/(den);
+            return get_holding_time(stmp, gamma, num_vert);
         }
 
         int get_key(State& s, double *key);

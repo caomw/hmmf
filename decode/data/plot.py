@@ -8,7 +8,7 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolor
 
 times = []
-NUM_DIM = 3
+NUM_DIM = 2
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -171,7 +171,7 @@ def plot_trajs():
             #plot( tobs[:], obs[:,i+1], 'bx', label='obs')
         
         if len(bp) != 0:
-            plot( tbp[:], bp[:,i+1], 'g-', label='hmm', lw=1.5)
+            plot( tbp[:], bp[:,i+1], 'go-', label='hmm', lw=1.5)
         if len(kf) != 0:
             plot( tkf[:], kf[:,i+1], 'c-', label='kf', lw=1.5)
         if len(pf) != 0:
@@ -333,12 +333,12 @@ def plot_density(fname):
 if __name__ == "__main__":
 
     plot_trajs()
-    plot_sim_trajs()
+    #plot_graph(save_name)
+    #plot_sim_trajs()
     #draw_obstacles()    
     
     #do_timing_plot()
 
-    #plot_graph(save_name)
     #plot_density(save_name)
 
     #legend()

@@ -4,14 +4,16 @@ from numpy import *
 from numpy.random import *
 from pylab import *
 
-sigma_process = 1
-sigma_obs = .5
+which_noise = 0
+sigma_obs = 1
 def system(x):
-    return x/2.0 + 5*x/(1 + x*x) + 1.2*cos(x)
-    #return x/(1 + pow(x, 2))
+    if which_noise == 0:
+        return 1 + sin(1*pi*x) + x/2 + 0.01*normal(1*fabs(x), 1*x*x)
+    else:
+        return 1 + sin(1*pi*x) + x/2 + 0.01*gamma(1,fabs(x))
 
 def normal_prob(predict, reading, sigma):
-    return (1 /sqrt(sigma*2*pi))* exp((-(reading-predict)**2)/2/sigma)
+    return (1 /sqrt(sigma*sigma*2*pi))* exp((-(reading-predict)**2)/2/sigma/sigma)
 
 def resample(x, w):
     N = len(x)
@@ -59,26 +61,44 @@ def particle_filter(y, N, init):
 
     return xhat
 
-if __name__=="__main__":
+
+def run_pf():
+    global which_noise
 
     t = 50
-    seed(0)
+    # seed(0)
     x = zeros(t, float)
     x[0] = 1.0
     y = zeros(t, float)
     y[0] = 1.0
-
+    
+    which_noise = 1
     for i in range(len(x) - 1):
         x[i+1] = system(x[i])
         tmp = x[i+1]
-        y[i+1] = tmp*tmp/2 + random()
-
-    xhat = particle_filter(y, 200, 1.0)
+        y[i+1] = tmp + normal(0, sigma_obs)
     
+    which_noise = 0
+    xhat = particle_filter(y, 200, 1.0)
+    print "normal -- mean: ", mean(x-xhat), " stddev: ", std(x-xhat)
+    
+    which_noise = 1
+    xhat = particle_filter(y, 200, 1.0)
+    print "gamma -- mean: ", mean(x-xhat), " stddev: ", std(x-xhat)
+    
+    print "max x: ", max(x)
+
+if __name__=="__main__":
+    
+    for i in range(10):
+        run_pf()
+        print
+
+    """
     plot(x, 'r-')
-    plot(y, 'b-')
+    #plot(y, 'b-')
     plot(xhat, 'g-')
-    legend( ('System', 'Obs', 'Filtered'), loc='best')
+    #legend( ('System', 'Obs', 'Filtered'), loc='best')
     grid()
     show()
-
+    """

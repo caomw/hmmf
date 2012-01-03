@@ -5,27 +5,29 @@ System::System()
     min_states = new double[NUM_DIM];
     max_states = new double[NUM_DIM];
     obs_noise = new double[NUM_DIM_OBS-1];
-    process_noise = new double[NUM_DIM-1];
+    process_noise = new double[NUM_DIM];
     init_var = new double[NUM_DIM-1];
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = -2;
-        max_states[i] = 2;
-        init_state.x[i] = 1;
+        min_states[i] = 0;
+        max_states[i] = 1;
+        init_state.x[i] = 0.9;
     }
     max_states[0] = 1.0;
     min_states[0] = 0;
     init_state.x[0] = 0;
 
-    for(int i=0; i< NUM_DIM-1; i++)
+    for(int i=1; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-2;
-        init_var[i] = 1e-2;
+        process_noise[i] = 1e-3;
+        init_var[i-1] = 1e-3;
     }
+    process_noise[0] = 1e-3;
+
     for(int i=0; i< NUM_DIM_OBS-1; i++)
     {
-        obs_noise[i] = 1e-2;
+        obs_noise[i] = 1e-3;
     }
     sim_time_delta = 0.01;
 }
@@ -43,19 +45,15 @@ State System::sample()
 {
     State s;
     double border = RANDF;
-    double which_time = 0;
-    if(border < 0.05)
-    {
-        which_time = max_states[0];
-    }
+
     while(1)
     {
         for(int i=0; i< NUM_DIM; i++)
         {
             s.x[i] = min_states[i] + RANDF*( max_states[i] - min_states[i]);
         }
-        if(border < 0.05)
-            s.x[0] = which_time;
+        if(border < 0.02)
+            s.x[0] = max_states[0];
 
         if( is_free(s) )
             break;
@@ -93,7 +91,7 @@ State System::integrate(State& s, double duration, bool is_clean)
 
     for(int i=0; i<NUM_DIM-1; i++)
     {   
-        var[i] = process_noise[i]/6*( exp(6*duration) -1);
+        var[i] = process_noise[i+1]/6*( exp(6*duration) -1);
         tmp[i] = 0;
         mean[i] = 0;
     }
@@ -115,16 +113,16 @@ State System::integrate(State& s, double duration, bool is_clean)
 
 void System::get_fdt(State& s, double duration, double* next)
 {
-    for(int i=1; i < NUM_DIM; i++)
+    for(int i=0; i < NUM_DIM; i++)
     {
         next[i] = -3*s.x[i]*duration;
     }
-    next[0] = s.x[0] + duration;
+    next[0] = duration;
 }
 
 void System::get_variance(State& s, double duration, double* var)
 {
-    for(int i=0; i<NUM_DIM-1; i++)
+    for(int i=0; i<NUM_DIM; i++)
     {   
         var[i] = process_noise[i]/6*( exp(6*duration) -1);
     } 
@@ -151,7 +149,8 @@ State System::observation(State& s, bool is_clean)
         for(int i=0; i<NUM_DIM_OBS-1; i++)
             tmp[i] = 0;
     }
-
+    
+    t.x[0] = s.x[0];
     for(int i=1; i<NUM_DIM_OBS; i++)
         t.x[i] = s.x[i] + tmp[i-1];
 

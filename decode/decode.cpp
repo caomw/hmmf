@@ -46,6 +46,7 @@ Graph::Graph(System& sys) {
     else if(NUM_DIM == 5)
         factor = 8*M_PI*M_PI/15;
     
+    factor = 1;
     gamma = 2.1*pow( (1+1/(double)NUM_DIM), 1/(double)NUM_DIM) *pow(factor, -1/(double)NUM_DIM);
 };
 
@@ -329,14 +330,11 @@ void Graph::update_viterbi(Vertex* v)
     double max_prob = -1;
     double tmp;
     
-    double obs_prob = get_obs_prob_vertex(v);    
-    //cout<<"obs_prob_vertex: "<< obs_prob << endl;
-
     for(list<Edge*>::iterator i = v->edges_in.begin(); i!= v->edges_in.end(); i++)
     {
         Edge* etmp = *i;
 
-        tmp = (etmp->from->prob_best_path)*(etmp->transition_prob)*obs_prob;
+        tmp = (etmp->from->prob_best_path)*(etmp->transition_prob);
 
         if( (tmp > max_prob) && (tmp > 0))
         {
@@ -526,7 +524,7 @@ int Graph::connect_edges_approx(Vertex* v)
     //int pr = kd_res_size(res);
    
     double *next_state = new double[NUM_DIM];
-    double *sys_var = new double[NUM_DIM-1];
+    double *sys_var = new double[NUM_DIM];
 
     //double holding_time = system->get_holding_time(v->s, gamma, num_vert);
 
@@ -543,14 +541,12 @@ int Graph::connect_edges_approx(Vertex* v)
                 system->get_fdt(v->s, delta_t, next_state);
                 system->get_variance(v->s, delta_t, sys_var);
 
-                double prob_tmp = normal_val(&(next_state[1]), sys_var, &(v1->s.x[1]), NUM_DIM-1);
+                double prob_tmp = normal_val(next_state, sys_var, v1->s.x, NUM_DIM)*get_obs_prob_vertex(v1);
 
                 if(prob_tmp > 0)
                 {
                     Edge *e1 = new Edge(v, v1, prob_tmp, delta_t);
                     
-                    get_obs_prob_edge(e1);
-
                     if(1)
                     {
                         elist.push_back(e1);
@@ -565,7 +561,7 @@ int Graph::connect_edges_approx(Vertex* v)
                         delete e1;
                 }
             }
-            else if(delta_t < -1e5)
+            else if(0)
             {
                 system->get_fdt(v1->s, delta_t, next_state);
                 system->get_variance(v1->s, delta_t, sys_var);
@@ -575,8 +571,6 @@ int Graph::connect_edges_approx(Vertex* v)
                 {
                     Edge *e2 = new Edge(v1, v, prob_tmp, delta_t);
                     
-                    get_obs_prob_edge(e2);
-
                     if(1)
                     {
                         elist.push_back(e2);
@@ -599,11 +593,6 @@ int Graph::connect_edges_approx(Vertex* v)
 
     normalize_edges(v);
 
-    if(seeding_finished)
-    {
-        update_viterbi(v);
-        propagate_viterbi(v);
-    }
     delete[] next_state;
     delete[] sys_var;
 
@@ -611,51 +600,56 @@ int Graph::connect_edges_approx(Vertex* v)
 }
 
 
+bool compare_vlist_times_pair(pair<double, Vertex*> p1, pair<double, Vertex*> p2)
+{
+    if(p1.first < p2.first)
+        return true;
+    else
+        return false;
+}
+
 void Graph::get_best_path()
 {
-    // 1. query nodes within epsilon on max_states[0]
-    
-    double key = 1.0;
-    kdres *res;
-    res = kd_nearest_range(time_tree, &key, 0.01);
-    //int pr = kd_res_size(res);
-    cout<<"found "<<kd_res_size(res)<<" nodes on right border" << endl;
-
+    list< pair<double, Vertex*> > vlist_times;
+    for(unsigned int i=0; i< vlist.size(); i++)
+    {
+        Vertex* vcurr = vlist[i];
+        vlist_times.push_back( make_pair(vcurr->s.x[0],vcurr));
+    }
+    vlist_times.sort(compare_vlist_times_pair);
+     
+    list< pair<double, Vertex*> >::iterator runner = vlist_times.begin();
+    Vertex* best_end_vertex = NULL;
     double max_prob = -1;
-    Vertex* best_vertex = NULL;
-    double pos[NUM_DIM] = {0};
-    while( !kd_res_end(res) )
-    {
-        Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
-        
-        if(v1->prob_best_path > max_prob)
-        {
-            max_prob = v1->prob_best_path;
-            best_vertex = v1;
-        }
-        kd_res_next(res);
-    }
-    kd_res_free(res);
-    cout<<"Found best_vertex with prob: "<< max_prob << endl;
 
-    // 2. follow best_vertex till min_states[0]
+    while(runner != vlist_times.end())
+    {
+        Vertex* vcurr = (*runner).second;
     
-    if(best_vertex == NULL)
-    {
-        cout<<"best_vertex is NULL"<<endl;
-        exit(0);
+        if( (vcurr->s.x[0] - system->min_states[0]) > 1e-5)
+        {
+            update_viterbi(vcurr);
+        }
+        
+        if( (system->max_states[0] - vcurr->s.x[0]) < 1e-5)
+        {
+            if(vcurr->prob_best_path > max_prob)
+            {
+                max_prob = vcurr->prob_best_path;
+                best_end_vertex = vcurr;
+            }
+        }
+        //cout<< vcurr->s.x[0] << " " << vcurr->prob_best_path << endl; 
+        runner++;
     }
-    double curr_time = best_vertex->s.x[0];
+    //cout<<"Found best_vertex: "<< best_end_vertex->prob_best_path << endl;
+
     best_path.clear();
-    while(curr_time > (system->min_states[0]))
+    while(best_end_vertex != NULL)
     {
-        best_path.push_back(best_vertex->s);
-        best_vertex = best_vertex->prev;
-        //cout<<"bv: "<< best_vertex->s.x[0]<<"\t"<<best_vertex->s.x[1]<<"\t"<<best_vertex->s.x[2]<<endl;
-        curr_time = best_vertex->s.x[0];
+        best_path.push_back(best_end_vertex->s);
+        best_end_vertex = best_end_vertex->prev;
     }
-    best_path.push_back(best_vertex->s);
-    cout<<"Finished best_path" << endl;
 }
 
 void Graph::get_kalman_path()
