@@ -1,0 +1,9 @@
+*.dat
+*.o
+*/deps*
+*.pkl
+*.png
+*.out
+main
+*.txt
+*.*.swp

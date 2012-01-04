@@ -156,13 +156,8 @@ class Graph{
         int calculate_probabilities_delta_all();
         double make_holding_time_constant();
 
-        void propagate_viterbi(Vertex* v);
-        void update_viterbi(Vertex* v);
-        void update_viterbi_neighbors(Vertex* v);
-        
         void update_observation_prob(State& yt);
        
-
         void get_kalman_path();
         void get_pf_path(int nparticles);
         
