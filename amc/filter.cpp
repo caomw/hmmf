@@ -635,7 +635,7 @@ void Graph::update_density_implicit_no_obs_all()
 
 void Graph::update_density_implicit_all()
 {
-    bool to_normalize = false;
+    bool to_normalize = true;
     for(unsigned int j = 0; j< num_vert; j++)
     {
         Vertex* v = vlist[j];
