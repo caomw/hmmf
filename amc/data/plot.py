@@ -7,8 +7,9 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mcolor
 
+
 times = []
-NUM_DIM = 2
+NUM_DIM = 1
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -257,7 +258,7 @@ def plot_sim_trajs():
 def do_timing_plot():
 
     ep = open("err_vanderpol.txt", "r")
-    tp = open("timing_inc.dat", "r")
+    tp = open("timing_out.dat", "r")
 
     times=[]
     vert=[]
@@ -294,15 +295,21 @@ def do_timing_plot():
             
             n = float(s[0])
             vert.append(n)
-            times.append( float(s[1])/n/pow(log(n),4))
+            # times.append( float(s[1]))
+            times.append( float(s[1])/n/pow(log(n),4.0))
 
         vert = array(vert)
         times = array(times)
         
         figure(3)
+        # gca().yaxis.set_major_formatter(FormatStrFormatter("%sci"))
         grid()
         plot(vert[:], times[:], 'b-', lw=1.5)
-
+        """
+        xlabel('No. of samples [n]')
+        ylabel('t/(n log(n)^2)')
+        savefig('inc_timing.pdf', bbox_inches='tight')
+        """
 def plot_density(fname):
     
     denp = []
@@ -337,12 +344,33 @@ def plot_density(fname):
     #colorbar()
     fig.savefig(fname)
 
+def do_err_plot():
+
+    data = np.loadtxt("err_out.dat", delimiter='\t')
+    nsamples = data[:,0]
+    thmm = data[:,1]
+    tpf = data[:,2]
+    ehmm = data[:,3]
+    ekf = data[:,4]
+    epf = data[:,5]
+
+    figure(4)
+    plot(nsamples, thmm, 'b-')
+    plot(nsamples, tpf, 'r-')
+    grid()
+    
+    figure(5)
+    plot(nsamples, fabs(ehmm-ekf), 'b-')
+    plot(nsamples, fabs(epf-ekf), 'r-')
+    grid()
+
 if __name__ == "__main__":
 
-    plot_trajs()
+    #plot_trajs()
     #plot_sim_trajs()
     #draw_obstacles()    
     
+    do_err_plot()
     #do_timing_plot()
 
     #plot_graph(save_name)

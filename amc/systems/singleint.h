@@ -2,8 +2,8 @@
 #define __singleint_h__
 
 #include "../utils/common.h"
-#define NUM_DIM         (2)
-#define NUM_DIM_OBS     (2)
+#define NUM_DIM         (1)
+#define NUM_DIM_OBS     (1)
 // no time in this algorithm
 
 class State
@@ -152,7 +152,7 @@ class System
         State observation(State& s, bool is_clean);
 
         void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar);
-        void get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path);
+        void get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path, int nparticles);
 };
 
 

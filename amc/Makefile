@@ -12,8 +12,8 @@ OBJS = $(C_OBJS) $(CPP_OBJS)
 INCS = -I./ -I systems/ -I utils/ -I /home/pratik/apps/eigen/
 LIBS = -L./
 
-CFLAGS = -Wall -g -pg -O3
-LDFLAGS = -g -pg
+CFLAGS = -Wall -O3
+LDFLAGS = 
 
 all: $(BIN)
 	touch data/monte_carlo.dat data/rrg.dat data/rrgp.dat data/traj.dat
