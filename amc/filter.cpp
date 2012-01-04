@@ -74,7 +74,7 @@ Graph::~Graph()
 
 int Graph::vertex_delete_edges(Vertex* v)
 {
-    for(list<Edge *>::reverse_iterator i = v->edges_out.rbegin(); i != v->edges_out.rend(); i++)
+    for(list<Edge *>::iterator i = v->edges_out.begin(); i != v->edges_out.end(); i++)
     {
         Edge* etmp = (*i);
         elist.erase(etmp->elist_iter);
@@ -261,7 +261,7 @@ void Graph::normalize_edges(Vertex *from)
         Edge *etmp = from->edges_out.front();
         etmp->transition_prob = 1.0; 
     }
-    else
+    else if(nedges > 0)
     {
         double totprob = 0;
         for(list<Edge *>::iterator i = from->edges_out.begin(); i != from->edges_out.end(); i++)
@@ -370,7 +370,7 @@ void Graph::update_density_explicit_no_obs(Vertex* v)
     v->prob_best_path_buffer = sum;
 }
 
-void Graph::update_density_implicit(Vertex* v)
+bool Graph::update_density_implicit(Vertex* v)
 {
     State gx = system->observation(v->s, true);
     double *obs_var = new double[NUM_DIM_OBS];
@@ -397,6 +397,11 @@ void Graph::update_density_implicit(Vertex* v)
     v->obs_update_time = obs_times[obs_curr_index];
     
     delete[] obs_var;
+    
+    if(v->prob_best_path_buffer > 100)
+        return true;
+    
+    return false;
 }
 
 void Graph::average_density(Vertex* v)
@@ -461,7 +466,7 @@ double Graph::make_holding_time_constant()
             min_holding_time = v->holding_time;
     } 
 
-    cout<<"min_hold: "<< min_holding_time << endl;
+    //cout<<"min_hold: "<< min_holding_time << endl;
 
     for(unsigned int i=0; i< num_vert; i++)
     {
@@ -630,12 +635,17 @@ void Graph::update_density_implicit_no_obs_all()
 
 void Graph::update_density_implicit_all()
 {
+    bool to_normalize = false;
     for(unsigned int j = 0; j< num_vert; j++)
     {
         Vertex* v = vlist[j];
-        update_density_implicit(v);
+        bool retval = update_density_implicit(v);
+        to_normalize |= retval;
     }
     buffer_prob_copy();
+    
+    if(to_normalize)
+        normalize_density();
 }
 
 void Graph::buffer_prob_copy()
@@ -768,7 +778,6 @@ void Graph::approximate_density(Vertex* v)
 int Graph::reconnect_edges_neighbors(Vertex* v)
 {
 #if 1
-    
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
@@ -837,6 +846,7 @@ int Graph::connect_edges_approx(Vertex* v)
         if(v1 != v)
         {
             double prob_tmp = normal_val(stmp.x, sys_var, v1->s.x, NUM_DIM);
+            
             if(prob_tmp > 0)
             {
                 Edge *e1 = new Edge(v, v1, prob_tmp, holding_time);
@@ -876,9 +886,9 @@ void Graph::get_kalman_path()
     return;
 }
 
-void Graph::get_pf_path()
+void Graph::get_pf_path(int nparticles)
 {
-    system->get_pf_path(obs, obs_times, pf_path);
+    system->get_pf_path(obs, obs_times, pf_path, nparticles);
     return;
 }
 

@@ -2,7 +2,7 @@
 #define __filter_h__
 
 #include "utils/common.h"
-#include "systems/vanderpol.h"
+#include "systems/singleint.h"
 
 class Edge;
 class Vertex;
@@ -147,7 +147,7 @@ class Graph{
         
         void update_density_implicit_no_obs(Vertex* v);
         void update_density_implicit_no_obs_all();
-        void update_density_implicit(Vertex* v);
+        bool update_density_implicit(Vertex* v);
         void update_density_implicit_all();
         void buffer_prob_copy();
        
@@ -164,7 +164,7 @@ class Graph{
        
 
         void get_kalman_path();
-        void get_pf_path();
+        void get_pf_path(int nparticles);
         
         bool is_everything_normalized();
         int simulate_trajectory_explicit();
