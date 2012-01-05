@@ -344,30 +344,35 @@ class Graph:
 
 def do_convergence_error_plot():
 
-    if 1:
-        num_nodes = linspace(10, 1000, 25)
+    if 0:
+        num_trials = 5
+        num_nodes = linspace(2000, 5000, 10)
         state_mean = 0*num_nodes
         state_std = 0*num_nodes
         for i in range(len(num_nodes)):
             tmp_mean = 0
             tmp_std = 0
-            for trials in range(10):
+            for trials in range(num_trials):
                 graph = Graph(int(num_nodes[i]))
                 graph.connect()
                 t1, t2 = graph.simulate_trajectories()
                 tmp_mean = tmp_mean + t1
                 tmp_std = tmp_std + t2
+                print i+trials/float(num_trials)
             
-            state_mean[i], state_std[i] = tmp_mean/10.0, tmp_std/10.0
-            print i
+            state_mean[i], state_std[i] = tmp_mean/float(num_trials), tmp_std/float(num_trials)
         pickle.dump([num_nodes, state_mean,state_std], open('err_convergence.pkl','wb'))
     else:
-        [num_nodes, state_mean, state_std] = pickle.load(open('err_convergence.pkl','rb'))
+        [num_nodes, state_mean, state_std] = pickle.load(open('err_convergence_2000.pkl','rb'))
         cont_mean = init_state[0]*exp(-0.5)*ones(state_mean.shape)
-        cont_std = 0.001*ones(state_std.shape)
-        plot(num_nodes, fabs(state_mean-cont_mean), 'r-', label='mean')
-        plot(num_nodes, fabs(state_std-cont_std), 'r--')
+        cont_std = sqrt(0.001/2*(1+exp(-1)))
+        figure(1)
+        plot(num_nodes, fabs(state_mean-cont_mean), 'r-', label='err. mean')
+        plot(num_nodes, fabs(state_std-cont_std), 'r--', label='err. std')
+        legend()
         grid()
+        xlabel('No. of samples')
+        savefig('err_convergence_samples.pdf', bbox_inches='tight')
         show()
 
 if __name__ == "__main__":
