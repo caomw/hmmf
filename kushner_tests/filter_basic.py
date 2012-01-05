@@ -13,12 +13,15 @@ try:
 except:
     import pickle
 
+def find_closest_index(mylist, myvar):
+    tmp = [ abs(mylist[i] - myvar) for i in range(len(mylist))]
+    return tmp.index(min(tmp))
 def normal_val(x, mu, var):
     return 1/sqrt(2*pi*var)*exp((-0.5*(x-mu)**2)/var)
 
-init_state = 0.7
-sigma = 0.1
-process_var = 0.01
+init_state = 0.0
+init_var = 0.001
+process_var = 0.001
 observation_var = 0.001
 h = 0.01
 delta = 0.001
@@ -28,14 +31,17 @@ states = linspace(zmin, zmax+h, (zmax-zmin)/h)
 edge_times = []
 edge_probs = []     # (left, self, right)
 state_density = []
+def drift(s):
+    return cos(2*pi*s)
+
 for s in states:
-    c = sigma*sigma + h*s
+    c = process_var*process_var + h*drift(s)
     htime = h*h/c
     pself = htime/(htime+delta)
-    state_density.append( normal_val(s, init_state, 0.01) )
+    state_density.append( normal_val(s, init_state, init_var) )
     edge_times.append(htime*delta/(htime+delta))
     if (s < zmax) and (s > zmin):
-        edge_probs.append([(sigma*sigma/2 + h*s)/c*(1-pself), pself, sigma*sigma/2/c*(1-pself)])
+        edge_probs.append([(process_var*process_var/2 + h*drift(s))/c*(1-pself), pself, process_var*process_var/2/c*(1-pself)])
     elif (s >= zmax):
         edge_probs.append([(1-pself), pself, 0.])
     elif (s <= zmin):
@@ -61,12 +67,13 @@ def simulate_trajectories():
     trajs = []
     traj_times = []
     traj_probs = []
+    traj_states = []
     max_time = 1
     for i in range(10):
         traj_state = []
         traj_time = []
         prob = 1
-        curr_index = len(states)-1
+        curr_index = find_closest_index(list(states),init_state)
         curr_time = 0
         traj_state.append(states[curr_index])
         traj_time.append(curr_time)
@@ -74,19 +81,33 @@ def simulate_trajectories():
         while curr_time < max_time:
             cointoss = random()
             curr_time = curr_time + edge_times[curr_index]
-            if cointoss < edge_probs[curr_index][0]:
+            prob_sum = cumsum(edge_probs[curr_index])
+            if (cointoss < prob_sum[0]):
                 prob = prob*edge_probs[curr_index][0]
                 curr_index = curr_index - 1
-            else:
+            elif (cointoss < prob_sum[1]):
                 prob = prob*edge_probs[curr_index][1]
-                curr_index = curr_index + 1
+                curr_index = curr_index
+            else:
+                prob = prob*edge_probs[curr_index][2]
+                curr_index = curr_index +1
 
             traj_state.append(states[curr_index])
             traj_time.append(curr_time)
-
-        plot(traj_time, traj_state, 'b--')
-
-    plot(linspace(0,max_time,1000), exp(-linspace(0,max_time,1000)), 'r-', label='cont. mean')
+        
+        traj_probs.append(prob)
+        traj_states.append(traj_state)
+        traj_times.append(traj_time)
+        # plot(traj_time, traj_state, 'b--')
+    
+    traj_states = array(traj_states)
+    
+    traj_state_avg = array([wstd(traj_states[:,i],traj_probs)[0] for i in range(len(traj_states[0,:]))])
+    traj_state_std = array([wstd(traj_states[:,i],traj_probs)[1] for i in range(len(traj_states[0,:]))])
+    plot(traj_times[0], traj_state_avg, 'b-')
+    plot(traj_times[0], traj_state_avg+traj_state_std, 'b--')
+    plot(traj_times[0], traj_state_avg-traj_state_std, 'b--')
+    plot(linspace(0,max_time,1000), init_state*exp(-linspace(0,max_time,1000)), 'r-', label='cont. mean')
     grid()
     show()
 
@@ -96,12 +117,13 @@ def update_conditional_density(curr_observation):
     for i in range(len(states)):
         tprob = 0
         if (i!=0) and (i!= (len(states)-1)):
-            tprob = state_density[i-1]*edge_probs[i-1][2] + state_density[i]*edge_probs[i][1] + state_density[i+1]*edge_probs[i+1][0]
+            tprob = state_density[i-1]*edge_probs[i-1][2] + state_density[i+1]*edge_probs[i+1][0]
         elif (i==0):
-            tprob = state_density[i]*edge_probs[i][1] + state_density[i+1]*edge_probs[i+1][0]
+            tprob = state_density[i+1]*edge_probs[i+1][0]
         else:
-            tprob = state_density[i-1]*edge_probs[i-1][2] + state_density[i]*edge_probs[i][1]
+            tprob = state_density[i-1]*edge_probs[i-1][2]
         
+        tprob = tprob + (state_density[i])*edge_probs[i][1]
         state_density[i] = tprob*normal_val(states[i], curr_observation, observation_var)
 
     normalize_density()
@@ -125,7 +147,7 @@ def run_filter():
 
         runner_time = 0
         while runner_time < delta:
-            next_state = next_state + (-next_state*integration_delta + normal(0, sqrt(process_var*integration_delta)) )
+            next_state = next_state + (drift(next_state)*integration_delta + normal(0, sqrt(process_var*integration_delta)) )
             runner_time = runner_time + integration_delta
 
         truth.append(next_state)
@@ -140,7 +162,7 @@ def run_filter():
 
     figure(1)
     plot(truth, 'r-')
-    plot(observations, 'b-')
+    # plot(observations, 'b-')
     plot(estimates, 'g-')
     grid()
     show()

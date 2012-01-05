@@ -142,8 +142,6 @@ class Graph{
         void approximate_density(Vertex* v);
         void normalize_density();
         void propagate_density(Vertex* v);
-        void update_density_explicit(Vertex* v);
-        void update_density_explicit_no_obs(Vertex* v);
         
         void update_density_implicit_no_obs(Vertex* v);
         void update_density_implicit_no_obs_all();
@@ -154,7 +152,7 @@ class Graph{
         int calculate_delta();
         int calculate_probabilities_delta(Vertex* v);
         int calculate_probabilities_delta_all();
-        double make_holding_time_constant();
+        double make_chain_implicit();
 
         void update_observation_prob(State& yt);
        
@@ -162,7 +160,6 @@ class Graph{
         void get_pf_path(int nparticles);
         
         bool is_everything_normalized();
-        int simulate_trajectory_explicit();
         int simulate_trajectory_implicit();
         
         friend class System;

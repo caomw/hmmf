@@ -1,4 +1,4 @@
-#include "vanderpol.h"
+#include "parameter.h"
 
 System::System()
 {
@@ -10,17 +10,17 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = -6;
-        max_states[i] = 6;
+        min_states[i] = 0;
+        max_states[i] = 1;
     }
     init_state.x[0] = 0;
-    init_state.x[1] = 1.0;
+    init_state.x[1] = 0.5;
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-1;
-        obs_noise[i] = 1e-1;
-        init_var[i] = 1e-1;
+        process_noise[i] = 1e-3;
+        obs_noise[i] = 1e-3;
+        init_var[i] = 1e-3;
     }
     
     sim_time_delta = 0.01;
@@ -74,7 +74,7 @@ State System::integrate(State& s, double duration, bool is_clean)
     double *mean = new double[NUM_DIM];
     double *tmp = new double[NUM_DIM];
     
-    double delta_t = min(duration, 0.005);
+    double delta_t = min(duration, 0.001);
 
     for(int i=0; i<NUM_DIM; i++)
     {
@@ -91,12 +91,15 @@ State System::integrate(State& s, double duration, bool is_clean)
     double curr_time = 0;
     while(curr_time < duration)
     {
+        double phi = t.x[1];
         if( !is_clean)
             multivar_normal( mean, var, tmp, NUM_DIM);
+        else
+            phi = 0.5;
         
         double f1dt=0, f2dt = 0;
-        f1dt = t.x[1]*delta_t;
-        f2dt = (-t.x[0] + 2.0*t.x[1]*(1 - t.x[0]*t.x[0]) )*delta_t;
+        f1dt = (cos(2*M_PI*phi*t.x[0]))*delta_t;
+        f2dt = 0*delta_t;
     
         t.x[0] = t.x[0] + f1dt + tmp[0];
         t.x[1] = t.x[1] + f2dt + tmp[1];
@@ -177,7 +180,7 @@ State System::observation(State& s, bool is_clean)
 void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar)
 {
 
-#if 1
+#if 0
     kalman_path.clear();
 
     kalman_path.push_back(init_state);
@@ -210,7 +213,9 @@ void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, lis
         State clean_obs = observation(next_state, true);
         
         Matrix2d Ad;
-        Ad(0,0) = 0; Ad(0,1) = 1; Ad(1,0) = -1 -4*stmp1.x[0]*stmp1.x[1]; Ad(1,1) = 2*(1-stmp1.x[0]*stmp1.x[0]);
+        Ad(0,0) = (2*M_PI*stmp1.x[1])*(-sin(2*M_PI*stmp1.x[1]*stmp1.x[0]));
+        Ad(0,1) = (2*M_PI*stmp1.x[0])*(-sin(2*M_PI*stmp1.x[1]*stmp1.x[0]));
+        Ad(1,0) = 0; Ad(1,1) = 0;
         Matrix2d Wk;
         Wk(0,0) = process_noise[0]*delta_t; Wk(0,1) = 0;
         Wk(1,1) = process_noise[1]*delta_t; Wk(1,0) = 0;
@@ -260,7 +265,7 @@ int pfilter_resample(State* parts, double *weights, int num_particles)
     }
 
     State* newparts = new State[num_particles];
-#if 1
+#if 0
     double u = RANDF/(double)num_particles;
     int i = 0;
     for(int j=0; j<num_particles; j++)
@@ -299,6 +304,7 @@ void System::get_pf_path( vector<State>& obs, vector<double>& obs_times, list<St
     //cout<<"stime: "<< stime<<" transition_time: "<< e->transition_time << " etime: "<< etime << endl;
 
     double curr_time = 0;
+    pf_path.push_back(init_state);
     for(int obs_iter=0; obs_iter<obs_size; obs_iter++)
     {
         double delta_t = obs_times[obs_iter] - curr_time;           // for how much time to propagate

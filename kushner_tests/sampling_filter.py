@@ -13,33 +13,36 @@ try:
 except:
     import pickle
 
-NUM_DIM=1
-zmin = [0.0]
-zmax = [1.0]
-init_state = [0.5]
-init_var = array(diag([0.001]))
+NUM_DIM=2
+NUM_DIM_OBS=1
+zmin = [0.0, 0.0]
+zmax = [1.0, 1.0]
+init_state = [0.0, 0.5]
+init_var = array(diag([0.001, 0.001]))
 consant_holding_time = 0
 
 def wstd(arrin, weights_in):
     arr = array(arrin, ndmin=1, copy=False)
     weights = array(weights_in, ndmin=1, dtype='f8', copy=False)
-  
     wtot = weights.sum()
     wmean = ( weights*arr ).sum()/wtot
-
     wvar = ( weights*(arr-wmean)**2 ).sum()/wtot
     wsdev = sqrt(wvar)
     return wmean,wsdev
-
+def drift(z, dim):
+    if dim == 0:
+        return cos(2*pi*z[0]*z[1])
+    elif dim==1:
+        return 0
 def fdt(z, u, dt):
-    return array((-z +u)*dt)
+    return dt*array([cos(2*pi*z[0]*z[1]), 0])
 def get_process_var(dt):
-    return diag(array([0.001*dt]))
+    return diag(dt*array([0.001, 0.001]))
 def get_observation_var():
     return [0.001]
 def get_observation(z):
     var = get_observation_var()
-    return [z[i] + normal(0, var[i]) for i in range(NUM_DIM)]
+    return [z[i] + normal(0, var[i]) for i in range(NUM_DIM_OBS)]
 def get_holding_time(z, u, bowlr):
     bowlr = bowlr*(zmax[0]-zmin[0])
     dt = 1
@@ -98,7 +101,7 @@ class Graph:
     def __init__(self, vert):
         self.num_vert = vert
         self.bowlr = 2.1*pow(log(self.num_vert)/float(self.num_vert),1/float(NUM_DIM))
-        self.delta = 0.1
+        self.delta = 0.001
 
         self.nodes = []
         self.point = []
@@ -200,8 +203,8 @@ class Graph:
         trajs = []
         traj_probs = []
         traj_times = []
-        max_time = 0.5
-        for traj_index in range(1000):
+        max_time = 2
+        for traj_index in range(2000):
             
             #if traj_index%100 == 0:
             #    print traj_index
@@ -255,29 +258,29 @@ class Graph:
         #traj_avg = average(trajs, axis=0, weights=traj_probs)
         traj_avg = array([wstd(trajs[:,i], traj_probs)[0] for i in range(len(trajs[0,:]))])
         traj_std = array([wstd(trajs[:,i], traj_probs)[1] for i in range(len(trajs[0,:]))])
-        
-        return traj_avg[-1], traj_std[-1]
 
-        """
-        fig = figure(1)
-        grid()
-        plot(traj_times[0], traj_avg, 'b-', label='mean')
-        plot(traj_times[0], traj_avg-traj_std, 'b--', label='+/- std')
-        plot(traj_times[0], traj_avg+traj_std, 'b--')
+        if 0:
+            return traj_avg[-1], traj_std[-1]
+        else:
+            fig = figure(1)
+            grid()
+            plot(traj_times[0], traj_avg, 'b-', label='mean')
+            plot(traj_times[0], traj_avg-traj_std, 'b--', label='+/- std')
+            plot(traj_times[0], traj_avg+traj_std, 'b--')
 
-        cont_time = linspace(0,max_time,1000)
-        cont_mean = init_state[0]*exp(-linspace(0,max_time,1000))
-        cont_std = sqrt(array([0.001/2 + 0.001/2*exp(-2*curr_time) for curr_time in cont_time]))
-        plot(cont_time, cont_mean, 'r-', label='cont. mean')
-        plot(cont_time, cont_mean+cont_std, 'r--', label='cont. +/- std')
-        plot(cont_time, cont_mean-cont_std, 'r--')
-        axis('tight')
-        xlabel('t [s]')
-        ylabel( 'x(t)')
-        legend()
-        show()
-        #fig.savefig('singleint_mc_convergence.pdf', bbox_inches='tight') 
-        """
+            cont_time = linspace(0,max_time,1000)
+            cont_mean = init_state[0]*exp(-linspace(0,max_time,1000))
+            cont_std = sqrt(array([0.001/2 + 0.001/2*exp(-2*curr_time) for curr_time in cont_time]))
+            plot(cont_time, cont_mean, 'r-', label='cont. mean')
+            plot(cont_time, cont_mean+cont_std, 'r--', label='cont. +/- std')
+            plot(cont_time, cont_mean-cont_std, 'r--')
+            axis('tight')
+            xlabel('t [s]')
+            ylabel( 'x(t)')
+            legend()
+            show()
+            #fig.savefig('singleint_mc_convergence.pdf', bbox_inches='tight') 
+
 
     def update_conditional_density(self, curr_observation):
         for n1 in self.nodes:
@@ -286,8 +289,10 @@ class Graph:
                 if n2 != n1:
                     transition_prob = transition_prob + n2.density*n2.edge_probs[0][self.mydict[n2].index(n1)]
         
-            transition_prob = transition_prob + n1.density
-            n1.density = transition_prob*n1.pself*normal_val(n1.x, array(curr_observation), array(diag(get_observation_var())))
+            transition_prob = transition_prob + n1.density*n1.pself
+            n1.density = transition_prob*normal_val(array([n1.x[0]]), array(curr_observation),
+                                                             array(diag(get_observation_var())))
+        self.normalize_density()
         
     def normalize_density(self):
         tot_prob = 0
@@ -319,26 +324,25 @@ class Graph:
 
             runner_time = 0
             while runner_time < self.delta:
-                next_state = [next_state[i] + (-next_state[i]*integration_delta + normal(0, sqrt(get_process_var(integration_delta))[0]) ) for i in range(NUM_DIM)]
+                next_state = [next_state[i] + (drift(next_state,i)*integration_delta + normal(0, sqrt(get_process_var(integration_delta)[i,i])) ) for i in range(NUM_DIM)]
                 runner_time = runner_time + integration_delta
 
             self.truth.append(next_state)
-            self.observations.append( get_observation(next_state))
+            self.observations.append(get_observation(next_state))
 
             self.update_conditional_density(self.observations[-1])
-            self.normalize_density()
 
             mean_std = self.get_mean_std()
-            self.estimates.append(mean_std[0][0])
+            self.estimates.append([mean_std[i][0] for i in range(NUM_DIM)])
 
             curr_time = curr_time + self.delta
 
 
-        plot(self.truth, 'ro-')
-        plot(self.observations, 'bo-')
-        plot(self.estimates, 'go-')
-        for n1 in self.nodes:
-            plot(0.5, n1.x[0],'yo')
+        plot(self.truth, 'r-')
+        plot(self.observations, 'b-')
+        plot(self.estimates, 'g-')
+        #for n1 in self.nodes:
+        #    plot(0.5, n1.x[0],'yo')
         grid()
         show()
 
@@ -395,9 +399,9 @@ if __name__ == "__main__":
             # graph.print_graph()
 
     else:
-        # graph = pickle.load(open('graph.pkl','rb'))
+        graph = pickle.load(open('graph.pkl','rb'))
 
         # graph.simulate_trajectories()
-        # graph.run_filter()
-        do_convergence_error_plot()
+        graph.run_filter()
+        # do_convergence_error_plot()
 

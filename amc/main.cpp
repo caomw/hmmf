@@ -53,9 +53,9 @@ void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
         State& s3 = (*kfiter);
         State& s4 = (*pfiter);
 
-        bpe += graph.dist(s1,s2)*graph.dist(s1,s2);
-        kfe += graph.dist(s1,s3)*graph.dist(s1,s3);
-        pfe += graph.dist(s1,s4)*graph.dist(s1,s4);
+        bpe = bpe + graph.dist(s1,s2)*graph.dist(s1,s2);
+        kfe = kfe + graph.dist(s1,s3)*graph.dist(s1,s3);
+        pfe = pfe + graph.dist(s1,s4)*graph.dist(s1,s4);
 
         bpiter++;
         kfiter++;
@@ -68,31 +68,28 @@ int do_batch(int tot_vert)
     System sys;
     Graph graph(sys);
 
+    graph.propagate_system();
+    graph.get_kalman_path();
+    tic();
+    graph.get_pf_path(tot_vert);
+    cout<<"pf time: "<< toc() << endl;
+
 #if 1
     tic();
-    for(int i=0; i< 100; i++)
-        graph.add_sample(true);
-
-    for(int i=0; i < tot_vert-100; i++)
+    for(int i=0; i < tot_vert; i++)
     {
-        graph.add_sample();
+        graph.add_sample(false);
     }
     for(unsigned int i=0; i < graph.num_vert; i++)
     {
         Vertex* v = graph.vlist[i];
         graph.connect_edges_approx(v);
-        /*
         if(i %1000 == 0)
         {
             cout<<"i: "<< i << endl;
             toc();
         }
-        */
     }
-
-    graph.make_holding_time_constant();
-    graph.system->sim_time_delta = graph.min_holding_time;
-
     for(unsigned int i=0; i< graph.num_vert; i++)
     {
         Vertex* v = graph.vlist[i];
@@ -101,16 +98,13 @@ int do_batch(int tot_vert)
     }
     graph.normalize_density();
     graph.seeding_finished = true;
+
+    graph.make_chain_implicit();
+     
 #endif
-    cout<<"init time: "<< toc() << endl;
-
-    graph.propagate_system();
-    graph.get_kalman_path();
-    tic();
-    graph.get_pf_path(1000);
-    cout<<"pf time: "<< toc() << endl;
-
-#if 0
+    
+#if 1
+    cout<<"start filter"<<endl;
     tic();
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph, false));
@@ -118,32 +112,21 @@ int do_batch(int tot_vert)
     {
         graph.obs_curr_index = i;
         // cout<< "time: " << graph.obs_times[graph.obs_curr_index] << " ";
-
-        for(unsigned int j = 0; j< graph.num_vert; j++)
-        {
-            Vertex* v = graph.vlist[j];
-            graph.update_density_explicit(v);
-        }
-        for(unsigned int j = 0; j< graph.num_vert; j++)
-        {
-            Vertex* v = graph.vlist[j];
-            v->prob_best_path = v->prob_best_path_buffer;
-        }
-        graph.normalize_density();
-
-        //cout<<i <<": ";
+        graph.update_density_implicit_all(); 
+        if(i%10 == 0)
+            cout<<i<<endl;
         graph.best_path.push_back(get_mean(graph, false));
     }
     cout<<"filter time: "<< toc() << endl;
 #endif
 
-#if 1
+#if 0
     cout<<"starting simulation of trajectories" << endl;
-    for(int i=0; i< 10000; i++)
+    for(int i=0; i< 100; i++)
     {
         if((i%1000) == 0)
             cout<<i<<endl;
-        graph.simulate_trajectory_explicit();
+        graph.simulate_trajectory_implicit();
     }
     graph.plot_monte_carlo_trajectories();
 #endif
@@ -272,11 +255,11 @@ int do_incremental(int tot_vert)
 int do_error_plot()
 {
     ofstream err_out("data/err_out.dat");
-    int max_runs = 1;
+    int max_runs = 10;
 
     System sys;
 
-    for(int tot_vert=1000; tot_vert < 20000; tot_vert+= 1000)
+    for(int tot_vert=10; tot_vert < 200; tot_vert+= 10)
     {
         double average_time_hmm = 0;
         double average_time_pf = 0;
@@ -284,10 +267,11 @@ int do_error_plot()
         double average_kfe = 0;
         double average_pfe = 0;
 
+        Graph graph(sys);
+        graph.propagate_system();
+
         for(int how_many=0; how_many < max_runs; how_many++)
         {
-            Graph graph(sys);
-            
             tic();
             for(int i=0; i < tot_vert; i++)
                 graph.add_sample();
@@ -296,11 +280,8 @@ int do_error_plot()
                 Vertex* v = graph.vlist[i];
                 graph.connect_edges_approx(v);
             }
-            graph.make_holding_time_constant();
-            graph.system->sim_time_delta = graph.min_holding_time;
             //average_time_hmm += toc();
 
-            graph.propagate_system();
             graph.get_kalman_path();
             tic();
             graph.get_pf_path(tot_vert);
@@ -321,9 +302,7 @@ int do_error_plot()
             for(unsigned int i=0; i < graph.obs.size(); i++)
             {
                 graph.obs_curr_index = i;
-
                 graph.update_density_implicit_all();
-
                 graph.best_path.push_back(get_mean(graph, false));
             }
             average_time_hmm += toc();
@@ -492,8 +471,8 @@ int main(int argc, char* argv[])
     if (argc > 1)
         tot_vert = atoi(argv[1]);
 
-    // do_error_plot();
-    do_batch(tot_vert);
+    do_error_plot();
+    // do_batch(tot_vert);
     // do_incremental(tot_vert);
 
     // do_timing_plot();
