@@ -1,5 +1,5 @@
-#ifndef __vanderpol_h__
-#define __vanderpol_h__
+#ifndef __parameter_h__
+#define __parameter_h__
 
 #include "../utils/common.h"
 #define NUM_DIM         (2)
@@ -119,8 +119,8 @@ class System
                 den += process_noise[i];
            
             State f;
-            f.x[0] = s.x[1];
-            f.x[1] = -s.x[0] + 2.0*s.x[1]*(1 - s.x[0]*s.x[0]);
+            f.x[0] = cos(2*M_PI*s.x[1]*s.x[0]);
+            f.x[1] = 0;
             den += (sqnum*f.norm());
             
             return num/(den);
@@ -128,21 +128,7 @@ class System
         
         double get_min_holding_time(double gamma, int num_vert)
         {
-            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
-            double num = h*h;
-            num = num*sq(max_states[0] - min_states[0]);
-            
-            double sqnum = sqrt(num);
-
-            double den = 0;
-            for(int i=0; i< NUM_DIM; i++)
-            {
-                den += process_noise[i];
-            }
-            double max_abs_f = 6;
-            den += (sqnum*max_abs_f);
-            
-            return num/(den);
+            return -1;
         }
 
 
@@ -156,7 +142,7 @@ class System
         State observation(State& s, bool is_clean);
 
         void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar);
-        void get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path, int num_particles);
+        void get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path, int nparticles);
         
         double dist(State s1, State s2)
         {

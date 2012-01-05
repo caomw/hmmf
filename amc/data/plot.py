@@ -168,8 +168,31 @@ def plot_trajs():
     times = tobs
 
     figure(1)    
+    plot( tsys[:], sys[:,0], 'r-', label='sys', lw=1.5)
+    plot( tbp[:], bp[:,0], 'g-', label='hmm', lw=1.5)
+    plot( tkf[:], kf[:,0], 'c-', label='kf', lw=0.5)
+    plot( tpf[:], pf[:,0], 'y-', label='pf', lw=1.5)
+    axis('tight')
+    legend(loc=4)
+    grid()
+    xlabel('t [s]')
+    title('x(t)')
+    #savefig('vanderpol_x.pdf', bbox_inches='tight')
+    """
+    figure(2)    
+    plot( tsys[:], sys[:,1], 'r-', label='sys', lw=1.5)
+    plot( tbp[:], bp[:,1], 'g-', label='hmm', lw=1.5)
+    # plot( tkf[:], kf[:,1], 'c-', label='kf', lw=0.5)
+    plot( tpf[:], pf[:,1], 'y-', label='pf', lw=1.5)
+    axis('tight')
+    legend()
+    grid()
+    xlabel('t [s]')
+    title('x_dot(t)')
+    savefig('vanderpol_x_dot.pdf', bbox_inches='tight')
+    """
+    """
     for i in range(NUM_DIM):
-        
         ax1 = subplot(NUM_DIM,1,i+1, aspect='auto')
         grid()
 
@@ -184,8 +207,9 @@ def plot_trajs():
             plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
         if len(pf) != 0:
             plot( tpf[:], pf[:,i], 'y-', label='pf', lw=1.5)
-        
-        """
+    
+        #print norm(sys[:,i] - bp[:,i]), norm( sys[:,i] - pf[:,i])
+
         ax2 = ax1.twinx()
         if len(kf_covar) != 0:
             upper = [ kf[x,i] + sqrt(kf_covar[x,i]) for x in range(len(kf_covar))]
@@ -197,7 +221,7 @@ def plot_trajs():
 
             plot( tkf_covar[:], upper, 'm-', label='kf_covar1', lw=1.5)
             plot( tkf_covar[:], lower, 'm-', label='kf_covar2', lw=1.5)
-        """
+    """
     """
     figure(2)
     if len(sys) != 0:
@@ -211,14 +235,26 @@ def plot_trajs():
     grid()
     """
 
+def wstd(arrin, weights_in):
+    arr = array(arrin, ndmin=1, copy=False)
+    weights = array(weights_in, ndmin=1, dtype='f8', copy=False)
+    wtot = weights.sum()
+    wmean = ( weights*arr ).sum()/wtot
+    wvar = ( weights*(arr-wmean)**2 ).sum()/wtot
+    wsdev = sqrt(wvar)
+    return wmean,wsdev
+
 def plot_sim_trajs():
 
     mc = open("monte_carlo.dat", 'r')
     
-    probs = []
+    traj_probs = []
+    traj_states = []
+    traj_times = []
     curr_traj = []
     curr_times = []
 
+    fig = figure(1)
     if mc:
         lines = mc.readlines()
         curr_prob = 1
@@ -226,17 +262,49 @@ def plot_sim_trajs():
             s = l.split('\t')
             if(len(s) == 6):
                 curr_times.append( float(s[0]) )
-                to_put = [float(s[i+1]) for i in range(NUM_DIM)]
+                to_put = float(s[1]) # [float(s[i+1]) for i in range(NUM_DIM)]
                 curr_traj.append( to_put )
+                if(float(s[0]) < 0.1) and (float(s[1]) < 0.1):
+                    print lines.index(l)
             elif(len(s) ==3):
-                curr_prob = float(s[1])
-                to_plot = array(curr_traj)
-                to_plot_time = array(curr_times)
-                
+                traj_states.append(curr_traj)
+                traj_times.append(curr_times)
+                traj_probs.append( float(s[1]))
+                # plot(curr_times, curr_traj, 'b--')
+
                 curr_traj = []
                 curr_times = []
 
-        mc.close()
+    mc.close()
+    min_length = min([len(traj_states[i]) for i in range(len(traj_states))])
+    for i in range(len(traj_states)):
+        traj_states[i] = traj_states[i][:min_length]
+        traj_times[i] = traj_times[i][:min_length]
+        
+    traj_states = array(traj_states)
+     
+    traj_avg = array([wstd(traj_states[:,i], traj_probs)[0] for i in range(len(traj_states[0,:]))])
+    traj_std = array([wstd(traj_states[:,i], traj_probs)[1] for i in range(len(traj_states[0,:]))])
+
+    plot(traj_times[0], traj_avg, 'b-', label='mean')
+    plot(traj_times[0], traj_avg-traj_std, 'b--', label='+/- std')
+    plot(traj_times[0], traj_avg+traj_std, 'b--')
+    
+    max_time = max(traj_times[-1])
+    cont_time = linspace(0,max_time,1000)
+    cont_mean = 0.5*exp(-3*linspace(0,max_time,1000))
+    cont_std = sqrt(array([0.001667 + 0.008334*exp(-6*curr_time) for curr_time in cont_time]))
+    plot(cont_time, cont_mean, 'r-', label='cont. mean')
+    plot(cont_time, cont_mean+cont_std, 'r--', label='cont. +/- std')
+    plot(cont_time, cont_mean-cont_std, 'r--')
+    axis('tight')
+    grid()
+    xlabel('t [s]')
+    ylabel( 'x(t)')
+    legend()
+    #fig.savefig('singleint_mc_convergence.pdf', bbox_inches='tight') 
+
+
 
 def do_timing_plot():
 
@@ -338,8 +406,8 @@ def do_err_plot():
     epf = data[:,5]
 
     figure(4)
-    plot(nsamples, thmm/pow(log(nsamples),1)/pow(nsamples,1), 'b-')
-    #plot(nsamples, tpf, 'r-')
+    plot(nsamples, thmm, 'b-')
+    plot(nsamples, tpf, 'r-')
     grid()
     
     figure(5)
@@ -349,11 +417,11 @@ def do_err_plot():
 
 if __name__ == "__main__":
 
-    #plot_trajs()
-    plot_sim_trajs()
+    # plot_trajs()
+    # plot_sim_trajs()
     #draw_obstacles()    
     
-    #do_err_plot()
+    do_err_plot()
     #do_timing_plot()
 
     #plot_graph(save_name)

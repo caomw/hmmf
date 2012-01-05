@@ -338,8 +338,14 @@ class Smoother:
                                                  init_var)*normal_val(graph.nodes[n1_index].x, array(self.observations[0]), array(get_observation_var()))
             self.betas[n1_index,-1] = 1
         
+        runner = 1
         for curr_time in self.time_partitions[1:len(self.time_partitions)-2]:
-            
+            for n in range(graph.num_vert):
+                n1 = graph.nodes[n]
+                 
+
+
+             runner = runner + 1
 
 
 if __name__ == "__main__":

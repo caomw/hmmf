@@ -110,8 +110,7 @@ class System
         {
             double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
             double num = h*h;
-            for(int i=0; i<NUM_DIM; i++)
-                num = num*(max_states[i] - min_states[i]);
+            num = num*sq(max_states[0] - min_states[0]);
 
             double sqnum = sqrt(num);
             double den = 0;
@@ -127,8 +126,7 @@ class System
         {
             double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
             double num = h*h;
-            for(int i=0; i<NUM_DIM; i++)
-                num = num*(max_states[i] - min_states[i]);
+            num = num*sq(max_states[0] - min_states[0]);
 
             double sqnum = sqrt(num);
 

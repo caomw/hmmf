@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <cstdio>
-#include <math.h>
+#include <cmath>
 #include <cfloat>
 #include <list>
 #include <vector>
