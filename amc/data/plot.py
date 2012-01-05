@@ -221,37 +221,20 @@ def plot_sim_trajs():
 
     if mc:
         lines = mc.readlines()
-        last_prob = 1
         curr_prob = 1
         for l in lines:
             s = l.split('\t')
-
-            if(len(s) ==3):
-                last_prob = curr_prob
-                curr_prob = 50*float(s[1])
-                to_plot = array(curr_traj)
-                to_plot_time = array(curr_times)
-
-                if( len(to_plot) > 0):
-                    
-                    figure(1)    
-                    for i in range(NUM_DIM):
-                        subplot(NUM_DIM,1,i+1, aspect='auto')
-                        grid()
-                        plot(to_plot_time[:], to_plot[:,i], 'm-', alpha=0.1)
-                   
-                    """
-                    figure(2)
-                    plot(to_plot[:,0], to_plot[:,1], 'mo-', alpha=0.1)
-                    grid()
-                    """
-
-                curr_traj = []
-                curr_times = []
-            elif(len(s) == 6):
+            if(len(s) == 6):
                 curr_times.append( float(s[0]) )
                 to_put = [float(s[i+1]) for i in range(NUM_DIM)]
                 curr_traj.append( to_put )
+            elif(len(s) ==3):
+                curr_prob = float(s[1])
+                to_plot = array(curr_traj)
+                to_plot_time = array(curr_times)
+                
+                curr_traj = []
+                curr_times = []
 
         mc.close()
 
@@ -355,8 +338,8 @@ def do_err_plot():
     epf = data[:,5]
 
     figure(4)
-    plot(nsamples, thmm, 'b-')
-    plot(nsamples, tpf, 'r-')
+    plot(nsamples, thmm/pow(log(nsamples),1)/pow(nsamples,1), 'b-')
+    #plot(nsamples, tpf, 'r-')
     grid()
     
     figure(5)
@@ -367,10 +350,10 @@ def do_err_plot():
 if __name__ == "__main__":
 
     #plot_trajs()
-    #plot_sim_trajs()
+    plot_sim_trajs()
     #draw_obstacles()    
     
-    do_err_plot()
+    #do_err_plot()
     #do_timing_plot()
 
     #plot_graph(save_name)

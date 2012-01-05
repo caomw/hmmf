@@ -20,7 +20,6 @@ import cPickle as pickle
 
 # without the time
 NUM_DIM=1
-max_time = 1
 zmin = [-2.0]
 zmax = [2.0]
 init_state = [0.5]
@@ -57,9 +56,12 @@ def get_process_var(dt):
     return diag(array([0.01*dt]))
 def get_observation_var():
     return [0.01]
-def get_observation(z):
-    var = get_observation_var()
-    return [z[i] + normal(0, var[i]) for i in range(NUM_DIM)]
+def get_observation(z, is_clean):
+    if not is_clean:
+        var = get_observation_var()
+        return [z[i] + normal(0, var[i]) for i in range(NUM_DIM)]
+    else:
+        return [z[i] for i in range(NUM_DIM)]
 def get_holding_time(z, u, bowlr):
     bowlr = bowlr*(zmax[0]-zmin[0])
     dt = 1
@@ -94,11 +96,6 @@ class Node:
         # self.density = normal_val(self.x, array(init_state), init_var)
         # print self.x
 
-class Smoother:
-    def __init__(self):
-        self.truth = []
-        self.observations = []
-        self.estimates = []
 
 class Graph:
     def key(self, z):
@@ -291,43 +288,59 @@ class Graph:
             mean_std.append(wstd(xdim, weights))
         return mean_std
 
-    def run_filter(self):
-        max_time = 1
-        curr_time = 0
-        integration_delta = 1e-2
+class Smoother:
+    def __init__(self, num_vert):
+        self.max_time = 1
+        self.times = []
+        self.truth = []
+        self.observations = []
+        self.estimates = []
+            
+        self.graph = Graph(num_vert)
+        self.graph.connect()
+        self.propagate_system()
 
+    def propagate_system(self):
+        curr_time = 0
+        integration_delta = 1e-3
         self.truth.append(init_state)
-        mean_std = self.get_mean_std()
-        self.estimates.append(mean_std[0][0])
-        self.observations.append( get_observation(init_state))
-        while curr_time < max_time:
+        self.observations.append( get_observation(init_state, False))
+        self.times.append(curr_time)
+
+        while curr_time < self.max_time:
             curr_state = self.truth[-1]
             next_state = curr_state
-
-            runner_time = 0
-            while runner_time < self.delta:
-                next_state = [next_state[i] + (-next_state[i]*integration_delta + normal(0, sqrt(get_process_var(integration_delta))[0]) ) for i in range(NUM_DIM)]
-                runner_time = runner_time + integration_delta
-
+            next_state = [next_state[i] + (-next_state[i]*integration_delta + 
+                                           normal(0, sqrt(get_process_var(integration_delta))[0]) ) for i in range(NUM_DIM)]
             self.truth.append(next_state)
-            self.observations.append( get_observation(next_state))
+            self.observations.append( get_observation(next_state, False))
+            curr_time = curr_time + integration_delta
+            self.times.append(curr_time)
 
-            self.update_conditional_density(self.observations[-1])
-            self.normalize_density()
-
-            mean_std = self.get_mean_std()
-            self.estimates.append(mean_std[0][0])
-
-            curr_time = curr_time + self.delta
-
-
-        plot(self.truth, 'ro-')
-        plot(self.observations, 'b-')
-        plot(self.estimates, 'g-')
-        for n1 in self.nodes:
-            plot(0.5, n1.x[0],'y')
+        """
+        figure(1)
+        axis('tight')
+        plot(self.times, self.truth, 'r-')
+        plot(self.times, self.observations, 'b-')
+        #plot(self.times, self.estimates, 'g-')
         grid()
         show()
+        """
+
+    def run_smoother(self, num_times):
+        graph = self.graph
+        self.time_partitions = list(linspace(0., self.max_time, num_times))
+        self.alphas = zeros((graph.num_vert, num_times))
+        self.betas = zeros((graph.num_vert, num_times))
+        
+        for n1_index in range(graph.num_vert):
+            self.alphas[n1_index,0] = normal_val(graph.nodes[n1_index].x, array(init_state),
+                                                 init_var)*normal_val(graph.nodes[n1_index].x, array(self.observations[0]), array(get_observation_var()))
+            self.betas[n1_index,-1] = 1
+        
+        for curr_time in self.time_partitions[1:len(self.time_partitions)-2]:
+            
+
 
 if __name__ == "__main__":
         
@@ -338,17 +351,14 @@ if __name__ == "__main__":
 
     if len(sys.argv) >=3:
         if sys.argv[1] == 'w':
+            num_vert = int(sys.argv[2])
             tic = clock()
-            graph = Graph(int(sys.argv[2]))
-            graph.connect()
-            
-            # graph.print_graph()
-            pickle.dump(graph, open('graph.pkl','wb'))
-            print clock() - tic, '[s]'
-            graph.print_graph()
+            smoother = Smoother(num_vert)
+            smoother.run_smoother(100)
 
+            # graph.print_graph()
+            # pickle.dump(graph, open('graph.pkl','wb'))
+            print clock() - tic, '[s]'
     else:
         graph = pickle.load(open('graph.pkl','rb'))
 
-        # graph.simulate_trajectories()
-        graph.run_filter()

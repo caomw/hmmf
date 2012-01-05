@@ -15,7 +15,7 @@ except:
 
 NUM_DIM=1
 zmin = [0.0]
-zmax = [0.6]
+zmax = [1.0]
 init_state = [0.5]
 init_var = array(diag([0.001]))
 consant_holding_time = 0
@@ -46,8 +46,8 @@ def get_holding_time(z, u, bowlr):
     if NUM_DIM >=  2:
         return bowlr*bowlr/(bowlr*linalg.norm(fdt(z,u,dt)) + trace(get_process_var(dt)))
     else:
-        # return bowlr*bowlr/(bowlr*linalg.norm(fdt(0,1,dt)) + get_process_var(dt)[0,0])
-        return bowlr*bowlr/(bowlr*linalg.norm(fdt(z,u,dt)) + get_process_var(dt)[0,0])
+        return bowlr*bowlr/(bowlr*linalg.norm(fdt(1,0,dt)) + get_process_var(dt)[0,0])
+        #return bowlr*bowlr/(bowlr*linalg.norm(fdt(z,u,dt)) + get_process_var(dt)[0,0])
 
 def normal_val(x, mu, var):
     dim = len(mu)
@@ -111,7 +111,7 @@ class Graph:
         self.estimates = []
 
         for i in range(self.num_vert):
-            self.nodes.append(Node())
+            self.nodes.append(Node(False))
         
         # initial variance
         for i in range(self.num_vert):
@@ -151,7 +151,6 @@ class Graph:
         n1.edge_probs.append(probs)
 
         transition_times = [holding_time*self.delta/(holding_time + self.delta) for i in range(len(probs))]
-        # transition_times.append(self.delta)
         n1.edge_times.append(transition_times)
 
     def connect(self):
@@ -165,9 +164,15 @@ class Graph:
         
         self.mydict = dict(self.mydict)
         
+        c = 0
         for n1 in self.mydict.keys():
             self.draw_edges(n1)
-        print "finished connecting"
+            c = c+1
+            """
+            if c%100 == 0:
+                print c
+            """
+        #print "finished connecting"
         count = 0
         count = count+1
         
@@ -185,18 +190,27 @@ class Graph:
         tmp = [ abs(mylist[i] - myvar) for i in range(len(mylist))]
         return tmp.index(min(tmp))
 
+    def find_nearest_node(self, state):
+        key = self.key(state)
+        dist, index = self.tree.query(key, 1)
+        return self.nodes[index]
+
     def simulate_trajectories(self):
         # utraj is a array of (t, u)
-        fig = figure(1)
         trajs = []
         traj_probs = []
         traj_times = []
-        max_time = 2
-        for traj_index in range(5000):
+        max_time = 0.5
+        for traj_index in range(1000):
+            
+            #if traj_index%100 == 0:
+            #    print traj_index
+
             traj_curr = []
             curr_time = 0
             traj_time = []
-            node_curr = self.nodes[0]
+            start_state = normal(init_state, sqrt(init_var[0]))
+            node_curr = self.find_nearest_node(start_state)
             traj_prob = normal_val(node_curr.x, array(init_state), init_var)
                 
             traj_curr.append(list(node_curr.x))
@@ -226,7 +240,7 @@ class Graph:
                 traj_time.append(curr_time)
 
             to_put = [item for sublist in traj_curr for item in sublist]
-            while len(to_put) < 100:
+            while len(to_put) < 300:
                 to_put.append(to_put[-1])
                 traj_time.append(traj_time[-1])
 
@@ -234,25 +248,36 @@ class Graph:
             traj_probs.append(traj_prob)
             traj_times.append(traj_time)
             
-            #plot(traj_time, to_put,'bo-')
-            #plot(traj_times,traj_controls,'r--')
+            #plot(traj_time, to_put,'b--')
         
-        #print traj_probs
-        #print traj_times
         trajs = array(trajs)
         traj_probs = array(traj_probs)
-        traj_avg = average(trajs, axis=0, weights=traj_probs)
-        traj_std = array([wstd(trajs[:,i], traj_probs) for i in range(len(trajs[0,:]))])
+        #traj_avg = average(trajs, axis=0, weights=traj_probs)
+        traj_avg = array([wstd(trajs[:,i], traj_probs)[0] for i in range(len(trajs[0,:]))])
+        traj_std = array([wstd(trajs[:,i], traj_probs)[1] for i in range(len(trajs[0,:]))])
         
+        return traj_avg[-1], traj_std[-1]
+
+        """
+        fig = figure(1)
         grid()
         plot(traj_times[0], traj_avg, 'b-', label='mean')
         plot(traj_times[0], traj_avg-traj_std, 'b--', label='+/- std')
         plot(traj_times[0], traj_avg+traj_std, 'b--')
-        plot(linspace(0,max_time,1000), exp(-linspace(0,max_time,1000)), 'r-', label='cont. mean')
+
+        cont_time = linspace(0,max_time,1000)
+        cont_mean = init_state[0]*exp(-linspace(0,max_time,1000))
+        cont_std = sqrt(array([0.001/2 + 0.001/2*exp(-2*curr_time) for curr_time in cont_time]))
+        plot(cont_time, cont_mean, 'r-', label='cont. mean')
+        plot(cont_time, cont_mean+cont_std, 'r--', label='cont. +/- std')
+        plot(cont_time, cont_mean-cont_std, 'r--')
+        axis('tight')
         xlabel('t [s]')
-        ylabel( 'x(t), xd(t)')
-        #plot(u_traj[:,0], u_traj[:,1], 'r-')
+        ylabel( 'x(t)')
+        legend()
         show()
+        #fig.savefig('singleint_mc_convergence.pdf', bbox_inches='tight') 
+        """
 
     def update_conditional_density(self, curr_observation):
         for n1 in self.nodes:
@@ -317,6 +342,22 @@ class Graph:
         grid()
         show()
 
+def do_convergence_error_plot():
+    num_nodes = linspace(100, 10000, 10)
+    state_mean = 0*num_nodes
+    state_std = 0*num_nodes
+    for i in range(len(num_nodes)):
+        graph = Graph(int(num_nodes[i]))
+        graph.connect()
+        state_mean[i], state_std[i] = graph.simulate_trajectories()
+        print i
+
+    plot(num_nodes, state_mean, 'r-', label='mean')
+    plot(num_nodes, state_mean+state_std, 'r--', label='+/- std')
+    plot(num_nodes, state_mean-state_std, 'r--')
+    grid()
+    show()
+
 if __name__ == "__main__":
         
     # patch kdtree
@@ -337,7 +378,9 @@ if __name__ == "__main__":
             # graph.print_graph()
 
     else:
-        graph = pickle.load(open('graph.pkl','rb'))
+        # graph = pickle.load(open('graph.pkl','rb'))
 
         # graph.simulate_trajectories()
-        graph.run_filter()
+        # graph.run_filter()
+        do_convergence_error_plot()
+

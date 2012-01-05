@@ -1070,7 +1070,6 @@ void Graph::plot_monte_carlo_trajectories()
 
         list<double> time_seq = (*times_iter);
         list<double>::iterator time_seq_iter = time_seq.begin();
-        mout<<count<<"\t"<< curr_prob <<"\t"<<endl;
         for(list<State>::iterator j = curr_traj.begin(); j != curr_traj.end(); j++)
         {
             mout<< (*time_seq_iter) <<"\t";
@@ -1087,6 +1086,7 @@ void Graph::plot_monte_carlo_trajectories()
             mout<<endl;
             time_seq_iter++;
         }
+        mout<<count<<"\t"<< curr_prob <<"\t"<<endl;
 
         prob_iter++;
         times_iter++;

@@ -110,7 +110,7 @@ int do_batch(int tot_vert)
     graph.get_pf_path(1000);
     cout<<"pf time: "<< toc() << endl;
 
-#if 1
+#if 0
     tic();
     graph.best_path.clear();
     graph.best_path.push_back(get_mean(graph, false));
@@ -137,10 +137,12 @@ int do_batch(int tot_vert)
     cout<<"filter time: "<< toc() << endl;
 #endif
 
-#if 0
+#if 1
     cout<<"starting simulation of trajectories" << endl;
-    for(int i=0; i< 10; i++)
+    for(int i=0; i< 10000; i++)
     {
+        if((i%1000) == 0)
+            cout<<i<<endl;
         graph.simulate_trajectory_explicit();
     }
     graph.plot_monte_carlo_trajectories();
@@ -151,7 +153,7 @@ int do_batch(int tot_vert)
     cout<<"bpe: "<< bpe <<" kfe: "<< kfe << " pfe: "<< pfe << endl;
     
     graph.plot_trajectory();
-    graph.plot_graph();
+    //graph.plot_graph();
 
     return 0;
 }
@@ -270,11 +272,11 @@ int do_incremental(int tot_vert)
 int do_error_plot()
 {
     ofstream err_out("data/err_out.dat");
-    int max_runs = 10;
+    int max_runs = 1;
 
     System sys;
 
-    for(int tot_vert=1000; tot_vert < 2000; tot_vert+= 1000)
+    for(int tot_vert=1000; tot_vert < 20000; tot_vert+= 1000)
     {
         double average_time_hmm = 0;
         double average_time_pf = 0;
@@ -490,8 +492,8 @@ int main(int argc, char* argv[])
     if (argc > 1)
         tot_vert = atoi(argv[1]);
 
-    do_error_plot();
-    // do_batch(tot_vert);
+    // do_error_plot();
+    do_batch(tot_vert);
     // do_incremental(tot_vert);
 
     // do_timing_plot();
