@@ -17,9 +17,9 @@ System::System()
     
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-2;
-        obs_noise[i] = 1e-2;
-        init_var[i] = 1e-2;
+        process_noise[i] = 1e-3;
+        obs_noise[i] = 1e-3;
+        init_var[i] = 1e-3;
     }
     sim_time_delta = 0.01;
 }
@@ -55,13 +55,6 @@ bool System::is_free(State &s)
 
     bool free_state = 1;
 
-    // obs 1
-    if( (s[0] <= 0.7) && (s[0] >= 0.56) )
-    {
-        if( (s[1] <= 0.6) && (s[1] >= 0.4) )
-            free_state = 0;
-    }
-    
     return free_state;
 }
 
@@ -90,7 +83,7 @@ State System::integrate(State& s, double duration, bool is_clean)
 
     for(int i=0; i<NUM_DIM; i++)
     {   
-        var[i] = process_noise[i]/6*( exp(6*duration) -1);
+        var[i] = process_noise[i]/2*( exp(2*duration) -1);
         tmp[i] = 0;
         mean[i] = 0;
     }
@@ -98,7 +91,7 @@ State System::integrate(State& s, double duration, bool is_clean)
         multivar_normal( mean, var, tmp, NUM_DIM);
 
     for(int i=0; i<NUM_DIM; i++)
-        t.x[i] = exp(-3*duration)*t.x[i] + tmp[i];
+        t.x[i] = exp(-1*duration)*t.x[i] + tmp[i];
 
     delete[] mean;
     delete[] tmp;
@@ -111,7 +104,7 @@ void System::get_variance(State& s, double duration, double* var)
 {
     for(int i=0; i<NUM_DIM; i++)
     {   
-        var[i] = process_noise[i]/6*( exp(6*duration) -1);
+        var[i] = process_noise[i]/2*( exp(2*duration) -1);
     } 
 }
 void System::get_obs_variance(State& s, double* var)
@@ -169,7 +162,7 @@ void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, lis
 
         for(int j=0; j < NUM_DIM; j++)
         {
-            Q[j] = exp(-6*delta_t)*Q[j] + process_noise[j]/6*( exp(6*delta_t) -1);
+            Q[j] = exp(-2*delta_t)*Q[j] + process_noise[j]/2*( exp(2*delta_t) -1);
             double S = next_obs.x[j] - clean_obs.x[j];
             double L = Q[j]/(Q[j] + obs_noise[j]);
 

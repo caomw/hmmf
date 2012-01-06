@@ -117,7 +117,7 @@ class System
             for(int i=0; i< NUM_DIM; i++)
                 den += process_noise[i];
             
-            den += (sqnum*3*s.norm());
+            den += (sqnum*s.norm());
             
             return num/(den);
         }
@@ -134,7 +134,7 @@ class System
             for(int i=0; i< NUM_DIM; i++)
                 den += process_noise[i];
             
-            den += (sqnum*3*max_states[0]);
+            den += (sqnum*max_states[0]);
             
             return num/(den);
         }

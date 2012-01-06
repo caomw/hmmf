@@ -16,6 +16,9 @@ if len(argv) > 1:
 else:
     save_name = "none"
 
+def find_closest_index(mylist, myvar):
+    tmp = [ abs(mylist[i] - myvar) for i in range(len(mylist))]
+    return tmp.index(min(tmp))
 
 def draw_obstacles():
     fig = figure(2)
@@ -276,24 +279,26 @@ def plot_sim_trajs():
                 curr_times = []
 
     mc.close()
-    min_length = min([len(traj_states[i]) for i in range(len(traj_states))])
-    for i in range(len(traj_states)):
-        traj_states[i] = traj_states[i][:min_length]
-        traj_times[i] = traj_times[i][:min_length]
-        
-    traj_states = array(traj_states)
-     
-    traj_avg = array([wstd(traj_states[:,i], traj_probs)[0] for i in range(len(traj_states[0,:]))])
-    traj_std = array([wstd(traj_states[:,i], traj_probs)[1] for i in range(len(traj_states[0,:]))])
-
-    plot(traj_times[0], traj_avg, 'b-', label='mean')
-    plot(traj_times[0], traj_avg-traj_std, 'b--', label='+/- std')
-    plot(traj_times[0], traj_avg+traj_std, 'b--')
     
-    max_time = max(traj_times[-1])
+    max_time = 1
+    time_array = linspace(0,max_time,1000)
+    state_array = zeros((len(traj_states), len(time_array)))
+    for ti in range(len(time_array)):
+        t = time_array[ti]
+        for si in range(len(traj_states)):
+            state_index = find_closest_index(traj_times[si], t)
+            state_array[si,ti] = traj_states[si][state_index]
+
+    traj_avg = array([wstd(state_array[:,i], traj_probs)[0] for i in range(len(state_array[0,:]))])
+    traj_std = array([wstd(state_array[:,i], traj_probs)[1] for i in range(len(state_array[0,:]))])
+
+    plot(time_array, traj_avg, 'b-', label='mean')
+    plot(time_array, traj_avg-traj_std, 'b--', label='+/- std')
+    plot(time_array, traj_avg+traj_std, 'b--')
+    
     cont_time = linspace(0,max_time,1000)
-    cont_mean = 0.5*exp(-3*linspace(0,max_time,1000))
-    cont_std = sqrt(array([0.001667 + 0.008334*exp(-6*curr_time) for curr_time in cont_time]))
+    cont_mean = 0.5*exp(-linspace(0,max_time,1000))
+    cont_std = sqrt(array([0.0005 + 0.0004*exp(-2*curr_time) for curr_time in cont_time]))
     plot(cont_time, cont_mean, 'r-', label='cont. mean')
     plot(cont_time, cont_mean+cont_std, 'r--', label='cont. +/- std')
     plot(cont_time, cont_mean-cont_std, 'r--')
@@ -303,8 +308,6 @@ def plot_sim_trajs():
     ylabel( 'x(t)')
     legend()
     #fig.savefig('singleint_mc_convergence.pdf', bbox_inches='tight') 
-
-
 
 def do_timing_plot():
 
@@ -417,11 +420,11 @@ def do_err_plot():
 
 if __name__ == "__main__":
 
-    # plot_trajs()
+    plot_trajs()
     # plot_sim_trajs()
-    #draw_obstacles()    
+    # draw_obstacles()    
     
-    do_err_plot()
+    # do_err_plot()
     #do_timing_plot()
 
     #plot_graph(save_name)

@@ -63,6 +63,37 @@ void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
     }
 }
 
+int do_err_convergence()
+{
+    System sys;
+    for (int n=10; n<5000; n=n+10)
+    {
+        srand(0);
+        Graph graph(sys);
+        for(int i=0; i < n; i++)
+        {
+            graph.add_sample(false);
+        }
+        for(unsigned int i=0; i < graph.num_vert; i++)
+        {
+            Vertex* v = graph.vlist[i];
+            graph.connect_edges_approx(v);
+        }
+        for(unsigned int i=0; i< graph.num_vert; i++)
+        {
+            Vertex* v = graph.vlist[i];
+            v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
+                    v->s.x, NUM_DIM);
+        }
+        graph.normalize_density();
+        for(int i=0; i< 5000; i++)
+            graph.simulate_trajectory_implicit();
+        
+        graph.analyse_monte_carlo_trajectories();
+    }
+    return 0;
+}
+
 int do_batch(int tot_vert)
 {
     System sys;
@@ -76,7 +107,11 @@ int do_batch(int tot_vert)
 
 #if 1
     tic();
-    for(int i=0; i < tot_vert; i++)
+    for(int i=0; i < 100; i++)
+    {
+        graph.add_sample(true);
+    }
+    for(int i=0; i < tot_vert-100; i++)
     {
         graph.add_sample(false);
     }
@@ -99,11 +134,9 @@ int do_batch(int tot_vert)
     graph.normalize_density();
     graph.seeding_finished = true;
 
-    graph.make_chain_implicit();
-     
 #endif
     
-#if 1
+#if 0
     cout<<"start filter"<<endl;
     tic();
     graph.best_path.clear();
@@ -120,15 +153,16 @@ int do_batch(int tot_vert)
     cout<<"filter time: "<< toc() << endl;
 #endif
 
-#if 0
+#if 1
     cout<<"starting simulation of trajectories" << endl;
-    for(int i=0; i< 100; i++)
+    for(int i=1; i< 1001; i++)
     {
         if((i%1000) == 0)
             cout<<i<<endl;
         graph.simulate_trajectory_implicit();
     }
-    graph.plot_monte_carlo_trajectories();
+    graph.analyse_monte_carlo_trajectories();
+    //graph.plot_monte_carlo_trajectories();
 #endif
 
     double bpe, kfe, pfe;
@@ -136,7 +170,7 @@ int do_batch(int tot_vert)
     cout<<"bpe: "<< bpe <<" kfe: "<< kfe << " pfe: "<< pfe << endl;
     
     graph.plot_trajectory();
-    //graph.plot_graph();
+    graph.plot_graph();
 
     return 0;
 }
@@ -255,11 +289,11 @@ int do_incremental(int tot_vert)
 int do_error_plot()
 {
     ofstream err_out("data/err_out.dat");
-    int max_runs = 10;
+    int max_runs = 1;
 
     System sys;
 
-    for(int tot_vert=10; tot_vert < 200; tot_vert+= 10)
+    for(int tot_vert=10; tot_vert < 2000; tot_vert+= 100)
     {
         double average_time_hmm = 0;
         double average_time_pf = 0;
@@ -464,14 +498,14 @@ int do_movie(int tot_vert)
 
 int main(int argc, char* argv[])
 {
-    //srand(time(NULL));
     cout.precision(5);
 
     int tot_vert = 1000;
     if (argc > 1)
         tot_vert = atoi(argv[1]);
 
-    do_error_plot();
+    do_err_convergence();
+    // do_error_plot();
     // do_batch(tot_vert);
     // do_incremental(tot_vert);
 

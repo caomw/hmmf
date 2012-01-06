@@ -30,7 +30,7 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 1.0;
+    max_obs_time = 0.2;
     delta = system->sim_time_delta;
 
     min_holding_time = delta;
@@ -413,32 +413,18 @@ int Graph::calculate_probabilities_delta_all()
 int Graph::calculate_probabilities_delta(Vertex* v)
 {
     double holding_time = v->holding_time;
+    double pself = holding_time/(holding_time + delta);
+    // double pself = 0;
     for(list<Edge*>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
     {
         Edge* etmp = (*j);
-        etmp->transition_prob_delta = (etmp->transition_prob)*(1 - holding_time/(holding_time + delta));
+        etmp->transition_prob_delta = (etmp->transition_prob)*(1-pself);
     }
 
-    v->self_transition_prob = holding_time/(holding_time + delta);
-    v->holding_time_delta = delta*holding_time/(holding_time + delta);
+    v->self_transition_prob = pself;
+    v->holding_time_delta = holding_time*(1-pself);
 
     return 0;
-}
-
-double Graph::make_chain_implicit()
-{
-    for(unsigned int i=0; i< num_vert; i++)
-    {
-        Vertex* v = vlist[i];
-
-        for(list<Edge*>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
-        {
-            Edge* etmp = *j;
-            etmp->transition_prob = (etmp->transition_prob)*(1 - v->self_transition_prob);
-            etmp->transition_time = v->holding_time_delta;
-        }
-    }
-    return min_holding_time;
 }
 
 void Graph::normalize_density()
@@ -853,8 +839,8 @@ int Graph::simulate_trajectory_implicit()
         cout<<"vcurr has zero edges" << endl;
 
     double traj_prob = normal_val(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
-    if( (stmp.x[1]<0.1) && (stmp.x[0] <0.1))
-        cout<<"bad_traj: "<< traj_prob<<endl;
+    //if( (stmp.x[1]<0.1) && (stmp.x[0] <0.1))
+    //    cout<<"bad_traj: "<< traj_prob<<endl;
 
     double curr_time = 0;
     double max_time = max_obs_time;
@@ -904,6 +890,32 @@ int Graph::simulate_trajectory_implicit()
     return 1;
 }
 
+void Graph::analyse_monte_carlo_trajectories()
+{
+    list< list<State> >::iterator traj_num = monte_carlo_trajectories.begin();
+    double totprob = 0;
+    int num_trajs = 0;
+    double traj_m1 = 0;
+    double traj_m2 = 0;
+    for(list<double>::iterator i = monte_carlo_probabilities.begin(); \
+            i!= monte_carlo_probabilities.end(); i++)
+    {
+        totprob += (*i);
+        num_trajs += 1;
+        
+        State& last_state = (*traj_num).back();
+        traj_m1 = traj_m1 + last_state.x[0]*(*i);
+        traj_m2 = traj_m2 + sq(last_state.x[0])*(*i);
+
+        traj_num++;
+    }
+    traj_m1 = traj_m1/totprob;
+    traj_m2 = traj_m2/totprob;
+    
+    double eq_m1 = system->init_state[0]*exp(-1*max_obs_time);
+    double eq_m2 = system->init_var[0]/2*(1 + exp(-2*max_obs_time)) + eq_m1*eq_m1;
+    cout<<num_vert<<" "<< fabs(traj_m1 - eq_m1) << " " << fabs(traj_m2 - eq_m2) << endl;
+}
 
 void Graph::plot_monte_carlo_trajectories()
 {

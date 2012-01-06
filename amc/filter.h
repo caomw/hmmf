@@ -122,6 +122,7 @@ class Graph{
         void plot_graph();
         void plot_trajectory();
         void plot_monte_carlo_trajectories(); 
+        void analyse_monte_carlo_trajectories();
         void plot_monte_carlo_density(char* filename);
 
         // algorithm functions
@@ -152,7 +153,6 @@ class Graph{
         int calculate_delta();
         int calculate_probabilities_delta(Vertex* v);
         int calculate_probabilities_delta_all();
-        double make_chain_implicit();
 
         void update_observation_prob(State& yt);
        
