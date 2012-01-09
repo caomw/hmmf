@@ -66,8 +66,12 @@ void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
 int do_err_convergence()
 {
     System sys;
-    for (int n=10; n<5000; n=n+10)
+    int inc = 1000;
+    for (int n=50; n< 50000; n=n+inc)
     {
+        if (n > 10000)
+            inc = 2000;
+        
         srand(0);
         Graph graph(sys);
         for(int i=0; i < n; i++)
@@ -79,14 +83,7 @@ int do_err_convergence()
             Vertex* v = graph.vlist[i];
             graph.connect_edges_approx(v);
         }
-        for(unsigned int i=0; i< graph.num_vert; i++)
-        {
-            Vertex* v = graph.vlist[i];
-            v->prob_best_path = normal_val(graph.system->init_state.x, graph.system->init_var,\
-                    v->s.x, NUM_DIM);
-        }
-        graph.normalize_density();
-        for(int i=0; i< 5000; i++)
+        for(int i=0; i< 50000; i++)
             graph.simulate_trajectory_implicit();
         
         graph.analyse_monte_carlo_trajectories();

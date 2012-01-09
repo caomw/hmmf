@@ -68,6 +68,16 @@ int System::get_key(State& s, double *key)
     return 0;
 }
 
+State System::get_fdt(State& s, double duration)
+{
+    State stmp;
+    for(int i=0; i<NUM_DIM; i++)
+    {
+        stmp.x[i] = 1*(-s.x[i]*duration);
+    }
+    return stmp;
+}
+
 State System::integrate(State& s, double duration, bool is_clean)
 {
     State t;
@@ -83,7 +93,7 @@ State System::integrate(State& s, double duration, bool is_clean)
 
     for(int i=0; i<NUM_DIM; i++)
     {   
-        var[i] = process_noise[i]/2*( exp(2*duration) -1);
+        var[i] = process_noise[i]*duration;
         tmp[i] = 0;
         mean[i] = 0;
     }
@@ -91,7 +101,7 @@ State System::integrate(State& s, double duration, bool is_clean)
         multivar_normal( mean, var, tmp, NUM_DIM);
 
     for(int i=0; i<NUM_DIM; i++)
-        t.x[i] = exp(-1*duration)*t.x[i] + tmp[i];
+        t.x[i] = t.x[i]*exp(-1*duration) + tmp[i];
 
     delete[] mean;
     delete[] tmp;
@@ -104,7 +114,7 @@ void System::get_variance(State& s, double duration, double* var)
 {
     for(int i=0; i<NUM_DIM; i++)
     {   
-        var[i] = process_noise[i]/2*( exp(2*duration) -1);
+        var[i] = process_noise[i]*duration;
     } 
 }
 void System::get_obs_variance(State& s, double* var)

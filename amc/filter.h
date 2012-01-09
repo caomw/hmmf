@@ -95,6 +95,7 @@ class Graph{
         
         // graph sanity check
         list< list<State> > monte_carlo_trajectories;
+        list< list<State> > actual_trajectories;
         list<double> monte_carlo_probabilities;
         list< list<double> > monte_carlo_times;
 

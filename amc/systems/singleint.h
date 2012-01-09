@@ -109,17 +109,21 @@ class System
         double get_holding_time(State& s, double gamma, int num_vert)
         {
             double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+            h = h*(max_states[0] - min_states[0]);
+            
             double num = h*h;
-            num = num*sq(max_states[0] - min_states[0]);
 
             double sqnum = sqrt(num);
-            double den = 0;
-            for(int i=0; i< NUM_DIM; i++)
-                den += process_noise[i];
+            double den = process_noise[0];
             
-            den += (sqnum*s.norm());
-            
+            State absf = get_fdt(s, 1.0);
+            den += (1*sqnum*absf.norm());
             return num/(den);
+            
+            /*
+            return (sqrt(process_noise[0])*sqrt(4*s.norm() + process_noise[0]) + 
+                    process_noise[0] + 2*h*s.norm())/2.0/s.norm2();
+            */
         }
         
         double get_min_holding_time(double gamma, int num_vert)
@@ -143,6 +147,7 @@ class System
         int get_key(State& s, double *key);
         bool is_free(State &s);
         State sample();
+        State get_fdt(State& s, double duration);
         State integrate(State& s, double duration, bool is_clean);
         void get_obs_variance(State& s, double* var);
         void get_variance(State& s, double duration, double* var);

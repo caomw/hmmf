@@ -9,7 +9,7 @@ Vertex::Vertex(State& st)
     prob_best_path_buffer = -1;
     obs_update_time = 0;
 
-    self_transition_prob = -1;
+    self_transition_prob = 0;
 
     edges_in.clear();
     edges_out.clear();
@@ -46,8 +46,8 @@ Graph::Graph(System& sys) {
     else if(NUM_DIM == 4)
         factor = 0.5*M_PI*M_PI;
     
-    factor = 1;
-    gamma = 2.1*pow( (1+1/(double)NUM_DIM), 1/(double)NUM_DIM) *pow(factor, -1/(double)NUM_DIM);
+    //factor = 1;
+    gamma = 2.3; // *pow( (1+1/(double)NUM_DIM), 1/(double)NUM_DIM) *pow(factor, -1/(double)NUM_DIM);
 };
 
 Graph::~Graph()
@@ -69,6 +69,11 @@ Graph::~Graph()
     kalman_path.clear();
     pf_path.clear();
     best_path.clear();
+
+    monte_carlo_trajectories.clear();
+    monte_carlo_probabilities.clear();
+    monte_carlo_times.clear();
+    actual_trajectories.clear();
 
     kd_free(state_tree);
 }
@@ -413,8 +418,8 @@ int Graph::calculate_probabilities_delta_all()
 int Graph::calculate_probabilities_delta(Vertex* v)
 {
     double holding_time = v->holding_time;
-    double pself = holding_time/(holding_time + delta);
-    // double pself = 0;
+    // double pself = holding_time/(holding_time + delta);
+    double pself = 0;
     for(list<Edge*>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
     {
         Edge* etmp = (*j);
@@ -666,7 +671,10 @@ int Graph::connect_edges_approx(Vertex* v)
     //int pr = kd_res_size(res);
 
     double *sys_var = new double[NUM_DIM];
-    State stmp = system->integrate(v->s, holding_time, true);
+    State stmp;
+    State fdt = system->get_fdt(v->s, holding_time);
+    for(int i=0; i<NUM_DIM; i++)
+        stmp.x[i] = v->s.x[i] + fdt.x[i];
     system->get_variance(v->s, holding_time, sys_var);
 
     double sum_prob = 0;
@@ -824,10 +832,11 @@ bool Graph::is_everything_normalized()
 int Graph::simulate_trajectory_implicit()
 {
     list<State> seq;
+    list<State> actual_seq;
     list<double> seq_times;
 
     State stmp = system->init_state;
-    multivar_normal(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
+    //multivar_normal(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
 
     bool can_go_forward = false;
 
@@ -846,10 +855,18 @@ int Graph::simulate_trajectory_implicit()
     double max_time = max_obs_time;
 
     seq.push_back(vcurr->s);
+    actual_seq.push_back(vcurr->s);
+
     seq_times.push_back(curr_time);
 
     while(curr_time < max_time)
     {
+        State next_actual_state = system->integrate(vcurr->s, vcurr->holding_time_delta, false);
+        if(next_actual_state.x[0] > system->max_states[0])
+            next_actual_state.x[0] = system->max_states[0];
+        else if(next_actual_state.x[0] < system->min_states[0])
+            next_actual_state.x[0] = system->min_states[0];
+
         curr_time += (vcurr->holding_time_delta);
         double rand_tmp = RANDF - vcurr->self_transition_prob;
         if(rand_tmp < 0)
@@ -871,6 +888,7 @@ int Graph::simulate_trajectory_implicit()
         }
 
         seq.push_back(vcurr->s);
+        actual_seq.push_back(next_actual_state);
         seq_times.push_back(curr_time);
         if(curr_time > max_time)
         {
@@ -884,6 +902,7 @@ int Graph::simulate_trajectory_implicit()
         //cout<<"traj_prob: "<<traj_prob << endl;
         monte_carlo_times.push_back(seq_times);
         monte_carlo_trajectories.push_back( seq);
+        actual_trajectories.push_back(actual_seq);
         monte_carlo_probabilities.push_back(traj_prob);
         return 0;
     }
@@ -892,29 +911,39 @@ int Graph::simulate_trajectory_implicit()
 
 void Graph::analyse_monte_carlo_trajectories()
 {
-    list< list<State> >::iterator traj_num = monte_carlo_trajectories.begin();
+    list< list<State> >::iterator traj_iter = monte_carlo_trajectories.begin();
+    list< list<State> >::iterator actual_traj_iter = actual_trajectories.begin();
     double totprob = 0;
     int num_trajs = 0;
-    double traj_m1 = 0;
-    double traj_m2 = 0;
+    double traj_m1_1 = 0;
+    double actual_m1_1 = 0;
+    double traj_m2_1 = 0;
+    double actual_m2_1 = 0;
     for(list<double>::iterator i = monte_carlo_probabilities.begin(); \
             i!= monte_carlo_probabilities.end(); i++)
     {
         totprob += (*i);
         num_trajs += 1;
         
-        State& last_state = (*traj_num).back();
-        traj_m1 = traj_m1 + last_state.x[0]*(*i);
-        traj_m2 = traj_m2 + sq(last_state.x[0])*(*i);
+        State& last_state = (*traj_iter).back();
+        State& actual_last_state = (*actual_traj_iter).back();
+        traj_m1_1 = traj_m1_1 + last_state.x[0]; // *(*i);
+        actual_m1_1 = actual_m1_1 + actual_last_state.x[0];
+        
+        traj_m2_1 = traj_m2_1 + sq(last_state.x[0]); //*(*i);
+        actual_m2_1 = actual_m2_1 + sq(actual_last_state.x[0]); //*(*i);
 
-        traj_num++;
+        traj_iter++;
+        actual_traj_iter++;
     }
-    traj_m1 = traj_m1/totprob;
-    traj_m2 = traj_m2/totprob;
+    traj_m1_1 = traj_m1_1/(float)num_trajs;
+    actual_m1_1 = actual_m1_1/(float)num_trajs;
+    traj_m2_1 = traj_m2_1/(float)num_trajs;
+    actual_m2_1 = actual_m2_1/(float)num_trajs;
     
     double eq_m1 = system->init_state[0]*exp(-1*max_obs_time);
     double eq_m2 = system->init_var[0]/2*(1 + exp(-2*max_obs_time)) + eq_m1*eq_m1;
-    cout<<num_vert<<" "<< fabs(traj_m1 - eq_m1) << " " << fabs(traj_m2 - eq_m2) << endl;
+    cout<<num_vert<<" "<< fabs(traj_m1_1 - actual_m1_1) << " " << fabs(traj_m2_1 - actual_m2_1) << endl;
 }
 
 void Graph::plot_monte_carlo_trajectories()

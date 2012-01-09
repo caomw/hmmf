@@ -76,7 +76,7 @@ class Approximate_chain:
         traj_probs = []
         traj_states = []
         max_time = 0.1
-        for i in range(1000):
+        for i in range(5000):
             traj_state = []
             traj_time = []
             start_state = normal(init_state, sqrt(init_var))
@@ -125,7 +125,8 @@ class Approximate_chain:
             for si in range(len(traj_states)):
                 state_index = find_closest_index(traj_times[si], t)
                 state_array[si,ti] = traj_states[si][state_index]
-
+        
+        traj_probs = [1/float(len(state_array[:,0])) for i in range(len(state_array[:,0]))]
         state_array_avg = array([calci_moment(state_array[:,i],traj_probs,1) for i in range(len(state_array[0,:]))])
         state_array_m2 = array([calci_moment(state_array[:,i],traj_probs,2) for i in range(len(state_array[0,:]))])
         cont_avg = init_state*exp(-self.k*time_array)
