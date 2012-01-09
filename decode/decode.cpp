@@ -334,7 +334,7 @@ void Graph::update_viterbi(Vertex* v)
     {
         Edge* etmp = *i;
 
-        tmp = (etmp->from->prob_best_path)*(etmp->transition_prob);
+        tmp = (etmp->from->prob_best_path)*(etmp->transition_prob)*get_obs_prob_vertex(v);
 
         if( (tmp > max_prob) && (tmp > 0))
         {
@@ -541,7 +541,7 @@ int Graph::connect_edges_approx(Vertex* v)
                 system->get_fdt(v->s, delta_t, next_state);
                 system->get_variance(v->s, delta_t, sys_var);
 
-                double prob_tmp = normal_val(next_state, sys_var, v1->s.x, NUM_DIM)*get_obs_prob_vertex(v1);
+                double prob_tmp = normal_val(next_state, sys_var, v1->s.x, NUM_DIM);
 
                 if(prob_tmp > 0)
                 {
@@ -560,31 +560,6 @@ int Graph::connect_edges_approx(Vertex* v)
                     else
                         delete e1;
                 }
-            }
-            else if(0)
-            {
-                system->get_fdt(v1->s, delta_t, next_state);
-                system->get_variance(v1->s, delta_t, sys_var);
-
-                double prob_tmp = normal_val(&(next_state[1]), sys_var, &(v->s.x[1]), NUM_DIM-1);
-                if(prob_tmp > 0)
-                {
-                    Edge *e2 = new Edge(v1, v, prob_tmp, delta_t);
-                    
-                    if(1)
-                    {
-                        elist.push_back(e2);
-                        v1->edges_out.push_back(e2);
-                        v->edges_in.push_back(e2);
-
-                        e2->elist_iter = elist.end();   e2->elist_iter--;
-                        e2->from_iter = v1->edges_out.end(); e2->from_iter--;
-                        e2->to_iter = v->edges_in.end();   e2->to_iter--;
-                    }
-                    else
-                        delete e2;
-                }
-
             }
         }
         kd_res_next(res);

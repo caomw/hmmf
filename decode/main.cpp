@@ -103,8 +103,7 @@ int do_batch(int tot_vert)
     {
         Vertex* v = graph.vlist[i];
         graph.connect_edges_approx(v);
-    
-        if(i%500 == 0)
+        if(i%(graph.vlist.size()/10) == 0)
         {
             cout<<i<<endl;
             toc();
