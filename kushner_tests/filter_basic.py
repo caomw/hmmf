@@ -1,17 +1,22 @@
 #!/usr/bin/python
 
 import sys
-from time import *
-from numpy import *
-from random import *
 from math import *
-from scipy.spatial import kdtree
+import numpy as np
 from pylab import *
 
-try:
-    import cPickle as pickle
-except:
-    import pickle
+init_state = 0.5
+init_var = 0.001
+process_var = 0.001
+observation_var = 0.001
+h = -1
+zmin = 0.2
+zmax = 1
+states = []
+edge_times = []
+edge_probs = []     # (left, self, right)
+state_density = []
+Phdelta = []
 
 def find_closest_index(mylist, myvar):
     tmp = [ abs(mylist[i] - myvar) for i in range(len(mylist))]
@@ -19,188 +24,204 @@ def find_closest_index(mylist, myvar):
 def normal_val(x, mu, var):
     return 1/sqrt(2*pi*var)*exp((-0.5*(x-mu)**2)/var)
 def calci_moment(arrin, weights_in, m):
-    arr = array(arrin, ndmin=1, copy=False)
-    weights = array(weights_in, ndmin=1, dtype='f8', copy=False)
+    arr = np.array(arrin, ndmin=1, copy=False)
+    weights = np.array(weights_in, ndmin=1, dtype='f8', copy=False)
     nweights = weights/weights.sum()
     return ( nweights*(arr**m) ).sum()
 def normalize_density():
     global state_density
-    state_density = state_density/sum(array(state_density))
-
-init_state = 0.7
-init_var = 0.001
-process_var = 0.001
-observation_var = 0.001
-h = -1
-zmin = 0.2
-zmax = 1
-states = linspace(zmin, zmax, (zmax-zmin)/h)
-edge_times = []
-edge_probs = []     # (left, self, right)
-state_density = []
+    state_density = state_density/sum(np.array(state_density))
 
 class Approximate_chain:
     tot_vert = 0 
-    k = 3.0
     def drift(self,s):
-        #return cos(2*pi*s)
-        return -self.k*s
+        k = 1
+        return -k*s
     def get_observation(self,x):
-        return x + normal(0, sqrt(observation_var))
+        y = x + np.random.normal(0, sqrt(observation_var))
+        if y > zmax:
+            return zmax
+        elif y< zmin:
+            return zmin
+        else:
+            return y
     def __init__(self, num):
-        global h, edge_times, edge_probs, state_density, states
-        states, state_density, edge_probs, edge_times = [],[],[], []
+        global h, edge_times, edge_probs, state_density, states, Phdelta
+        states, state_density, edge_probs, edge_times, Phdelta = [],[],[],[],[]
         
-        self.tot_vert = num
         h = (zmax-zmin)/float(num)
-        states = linspace(zmin, zmax, (num+1))
-        delta = h*h/(h*fabs(self.drift(zmin)) + process_var)
+        self.tot_vert = num+1
+        states = np.linspace(zmin, zmax, self.tot_vert)
         for s in states:
-            c = process_var + h*fabs(self.drift(s))
+            c = process_var + h*np.fabs(self.drift(s))
             htime = h*h/c
-            # print "htime: ", htime
-            pself = 0*htime/delta
+            edge_times.append(htime)
             state_density.append( normal_val(s, init_state, init_var) )
-            edge_times.append(htime*(1-pself))
-            if (s < zmax) and (s > zmin):
-                edge_probs.append([(process_var/2 + h*fabs(self.drift(s)))/c*(1-pself), pself, process_var/2/c*(1-pself)])
-            elif (s >= zmax):
-                edge_probs.append([(1-pself), pself, 0.])
-            elif (s <= zmin):
-                edge_probs.append([0., pself, 1-pself])
-    
+        for i in range(self.tot_vert):
+            s = states[i]
+            c = process_var + h*np.fabs(self.drift(s))
+            if (i != 0) and (i != self.tot_vert-1):
+                edge_probs.append([(process_var/2 + h*np.fabs(self.drift(s)))/c, process_var/2/c])
+            elif (i == self.tot_vert -1):
+                edge_probs.append([1.0, 0.])
+            elif (i == 0):
+                edge_probs.append([0., 1.0])
+        
+        """ 
+        # get filtering one_step transition probabilities using matrices
+        self.delta = min(edge_times)*0.999
+        P1 = np.zeros((self.tot_vert, self.tot_vert))
+        P0 = np.zeros((self.tot_vert, self.tot_vert))
+        for i in range(self.tot_vert):
+            pt = edge_times[i]/(self.delta + edge_times[i])
+            if( (i!=0) and (i!=self.tot_vert-1)):
+                P1[i,i-1] = edge_probs[i][0]*pt
+                P1[i,i+1] = edge_probs[i][1]*pt
+                P0[i,i-1] = edge_probs[i][0]*(1-pt)
+                P0[i,i+1] = edge_probs[i][1]*(1-pt)
+            elif(i ==0):
+                P1[i,i+1] = edge_probs[i][1]*pt
+                P0[i,i+1] = edge_probs[i][1]*(1-pt)
+            else:
+                P1[i,i-1] = edge_probs[i][0]*pt
+                P0[i,i-1] = edge_probs[i][0]*(1-pt)
+        Phdelta = np.linalg.inv(eye(self.tot_vert) - P0)*P1
+        """
+         
+        self.delta = min(edge_times)*0.999
+        #self.delta = 0.0001
+        #print 'min_htime: ', min(edge_times),' delta: ', self.delta
+        if(min(edge_times) < self.delta):
+            print "Add less nodes"
+            sys.exit(0)
+        # explicit method
+        Phdelta = np.zeros((self.tot_vert, self.tot_vert))
+        for i in range(self.tot_vert):
+            ps = 1 - self.delta/edge_times[i]
+            Phdelta[i,i] = ps 
+            if( (i!=0) and (i!=self.tot_vert-1)):
+                Phdelta[i,i+1] = edge_probs[i][1]*(1- ps)
+                Phdelta[i,i-1] = edge_probs[i][0]*(1- ps)
+            elif(i ==0):
+                Phdelta[i,i+1] = edge_probs[i][1]*(1- ps)
+            else:
+                Phdelta[i,i-1] = edge_probs[i][0]*(1- ps)
+        
+
     def simulate_trajectories(self):
         figure(1)
-        trajs = []
-        traj_times = []
-        traj_probs = []
-        traj_states = []
-        max_time = 0.1
-        for i in range(5000):
-            traj_state = []
-            traj_time = []
-            start_state = normal(init_state, sqrt(init_var))
+        mc_states = []
+        actual_states = []
+        max_time = 1.0
+        for i in range(50000):
+            start_state = init_state #np.random.normal(init_state, sqrt(init_var))
+            actual_state = init_state
             curr_index = find_closest_index(list(states), start_state)
-            prob = normal_val(init_state, init_var, states[curr_index]) 
             curr_time = 0
-            traj_state.append(states[curr_index])
-            traj_time.append(curr_time)
-
             while curr_time < max_time:
-                cointoss = random()
+                cointoss = np.random.rand()
+                actual_state = actual_state + self.drift(actual_state)*edge_times[curr_index] + normal(0, sqrt(process_var*edge_times[curr_index]))
+                if(actual_state > zmax):
+                    actual_state = zmax
+                elif(actual_state < zmin):
+                    actual_state = zmin
                 curr_time = curr_time + edge_times[curr_index]
                 prob_sum = cumsum(edge_probs[curr_index])
                 #print prob_sum
                 if (cointoss < prob_sum[0]):
-                    prob = prob*edge_probs[curr_index][0]
                     curr_index = curr_index - 1
-                elif (cointoss < prob_sum[1]):
-                    prob = prob*edge_probs[curr_index][1]
-                    curr_index = curr_index
                 else:
-                    prob = prob*edge_probs[curr_index][2]
                     curr_index = curr_index +1
 
-                #print prob
-                traj_state.append(states[curr_index])
-                traj_time.append(curr_time)
+            mc_states.append(states[curr_index])
+            actual_states.append(actual_state)
 
-            if prob < 10e-300:
-                print prob
+        print self.tot_vert, np.fabs(np.mean(mc_states) - np.mean(actual_states))
 
-            traj_probs.append(prob)
-            traj_states.append(traj_state)
-            traj_times.append(traj_time)
-            #plot(traj_time, traj_state, 'b--')
-
-            #if (i+1)%1000 == 0:
-            #    print i
-    
-        # print traj_probs
-        refine = max_time/10 # min(edge_times)
-        time_array = linspace(0,max_time,(max_time+refine)/refine)
-        state_array = zeros((len(traj_states), len(time_array)))
-        for ti in range(len(time_array)):
-            t = time_array[ti]
-            for si in range(len(traj_states)):
-                state_index = find_closest_index(traj_times[si], t)
-                state_array[si,ti] = traj_states[si][state_index]
-        
-        traj_probs = [1/float(len(state_array[:,0])) for i in range(len(state_array[:,0]))]
-        state_array_avg = array([calci_moment(state_array[:,i],traj_probs,1) for i in range(len(state_array[0,:]))])
-        state_array_m2 = array([calci_moment(state_array[:,i],traj_probs,2) for i in range(len(state_array[0,:]))])
-        cont_avg = init_state*exp(-self.k*time_array)
-        cont_m2 = init_var/self.k*(1.0 + (self.k-1)*exp(-self.k*time_array)) + cont_avg**2
-
-        """
-        plot(time_array, state_array_avg, 'b-')
-        plot(time_array, state_array_avg+state_array_std, 'b--')
-        plot(time_array, state_array_avg-state_array_std, 'b--')
-        plot(time_array, init_state*exp(-k*time_array), 'r-', label='cont. mean')
-        grid()
-        show()
-        """
-        print self.tot_vert, fabs(cont_avg[-1] - state_array_avg[-1]), fabs(cont_m2[-1] - state_array_m2[-1])
-
-    def update_conditional_density(self,curr_observation):
-        global state_density
+    def update_conditional_density(self, obs_delta, obs_curr):
+        global state_density, Phdelta
         for i in range(len(states)):
             tprob = 0
             if (i!=0) and (i!= (len(states)-1)):
-                tprob = state_density[i-1]*edge_probs[i-1][2] + state_density[i+1]*edge_probs[i+1][0]
+                tprob = state_density[i-1]*Phdelta[i-1,i] + state_density[i+1]*Phdelta[i+1,i] + state_density[i]*Phdelta[i,i]
             elif (i==0):
-                tprob = state_density[i+1]*edge_probs[i+1][0]
+                tprob = state_density[i+1]*Phdelta[i+1,i] + state_density[i]*Phdelta[i,i]
             else:
-                tprob = state_density[i-1]*edge_probs[i-1][2]
-            tprob = tprob + (state_density[i])*edge_probs[i][1]
-            state_density[i] = tprob*normal_val(states[i], curr_observation, observation_var)
+                tprob = state_density[i-1]*Phdelta[i-1,i] + state_density[i]*Phdelta[i,i]
+            
+            rep = exp(states[i]*obs_delta/observation_var - 0.5*states[i]*states[i]*self.delta/observation_var)
+            #rep = normal_val(states[i], obs_curr, observation_var)
+            state_density[i] = tprob*rep
         normalize_density()
 
     def run_filter(self):
-        global state_density
+        global state_density, Phdelta
         normalize_density()
         truth, observations, estimates = [], [], []
-        max_time = 0.5
+        max_time = 0.01
         curr_time = 0
-        integration_delta = 1e-3
-
+        integration_delta = self.delta/2.0
+        
+        np.random.seed(10)
         truth.append(init_state)
-        mean_std = wstd(states, state_density)
-        estimates.append(mean_std[0])
-        observations.append( get_observation(self,init_state))
+        mean = calci_moment(states, state_density,1)
+        estimates.append(mean)
+        observations.append( self.get_observation(init_state))
         while curr_time < max_time:
-            curr_state = truth[-1]
-            next_state = curr_state
+            next_state = truth[-1]
+            next_obs_state = observations[-1]
             runner_time = 0
-            while runner_time < delta:
-                next_state = next_state + (self.drift(next_state)*integration_delta + normal(0, sqrt(process_var*integration_delta)) )
+            while np.fabs(runner_time - self.delta) > integration_delta/2.0:
+                next_state = next_state + (self.drift(next_state)*integration_delta + np.random.normal(0, sqrt(process_var*integration_delta)) )
+                if(next_state > zmax):
+                    next_state = zmax
+                elif(next_state < zmin):
+                    next_state = zmin
+                next_obs_state = next_obs_state + (next_state*integration_delta + np.random.normal(0, sqrt(observation_var*integration_delta)) )
                 runner_time = runner_time + integration_delta
             truth.append(next_state)
-            observations.append( get_observation(self,next_state))
-            update_conditional_density(observations[-1])
-            mean_std = wstd(states, state_density)
-            estimates.append(mean_std[0])
-            curr_time = curr_time + delta
-        return norm(array(truth)-array(estimates))
-
+            observations.append( next_obs_state)
+            self.update_conditional_density(observations[-1] - observations[-2], observations[-1])
+            mean = calci_moment(states, state_density,1)
+            estimates.append(mean)
+            curr_time = curr_time + self.delta
+        
         """
         figure(1)
         plot(truth, 'r-')
-        # plot(observations, 'b-')
+        #plot(observations, 'b-')
         plot(estimates, 'g-')
         grid()
         show()
         """
+        return np.linalg.norm(np.array(truth)-np.array(estimates))**2
 
 
 if __name__ == "__main__":
     
+    """
     d = 10
     nodes = linspace(d,100,(100)/d)
     #nodes = [800]
     for n in nodes:
-        amc = Approximate_chain(n)
+        amc = Approximate_chain(int(n))
         amc.simulate_trajectories()
+    """
+
     
-    #err = array([run_filter() for i in range(10)])
-    #print mean(err)
+    np.random.seed(10)
+    first, last, step = 1000, 1001, 1
+    if(len(sys.argv) > 1):
+        first = int(sys.argv[1])
+        last = int(sys.argv[2])
+        step = int(sys.argv[3])
+    nodes = np.arange(first, last, step)
+    for n in nodes:
+        err = []
+        for tries in range(1):
+            amc = Approximate_chain(n)
+            cerr = amc.run_filter()
+            #print n,cerr
+            err.append(cerr)
+        print n, np.mean(err)
+    
