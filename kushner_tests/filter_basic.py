@@ -7,11 +7,11 @@ from pylab import *
 
 init_state = 0.5
 init_var = 0.001
-process_var = 0.001
-observation_var = 0.001
+process_var = 0.0001
+observation_var = 0.0001
 h = -1
-zmin = 0.2
-zmax = 1
+zmin = 0.48
+zmax = 0.52
 states = []
 edge_times = []
 edge_probs = []     # (left, self, right)
@@ -87,7 +87,7 @@ class Approximate_chain:
                 P0[i,i-1] = edge_probs[i][0]*(1-pt)
         Phdelta = np.linalg.inv(eye(self.tot_vert) - P0)*P1
         """
-         
+
         self.delta = min(edge_times)*0.999
         #self.delta = 0.0001
         #print 'min_htime: ', min(edge_times),' delta: ', self.delta
@@ -106,7 +106,6 @@ class Approximate_chain:
                 Phdelta[i,i+1] = edge_probs[i][1]*(1- ps)
             else:
                 Phdelta[i,i-1] = edge_probs[i][0]*(1- ps)
-        
 
     def simulate_trajectories(self):
         figure(1)
@@ -157,16 +156,18 @@ class Approximate_chain:
     def run_filter(self):
         global state_density, Phdelta
         normalize_density()
-        truth, observations, estimates = [], [], []
+        truth, observations, estimates, kfestimates = [], [], [], []
         max_time = 0.01
         curr_time = 0
         integration_delta = self.delta/2.0
         
+        kf_var = init_var
         np.random.seed(10)
         truth.append(init_state)
         mean = calci_moment(states, state_density,1)
         estimates.append(mean)
-        observations.append( self.get_observation(init_state))
+        kfestimates.append(init_state)
+        observations.append(init_state)
         while curr_time < max_time:
             next_state = truth[-1]
             next_obs_state = observations[-1]
@@ -178,23 +179,34 @@ class Approximate_chain:
                 elif(next_state < zmin):
                     next_state = zmin
                 next_obs_state = next_obs_state + (next_state*integration_delta + np.random.normal(0, sqrt(observation_var*integration_delta)) )
+                if(next_obs_state > zmax):
+                    next_obs_state = zmax
+                elif(next_obs_state < zmin):
+                    next_obs_state = zmin    
                 runner_time = runner_time + integration_delta
+            
+            kf_var  = exp(-2*self.delta)*kf_var + process_var*self.delta
+            S = next_obs_state - (observations[-1] + kfestimates[-1]*self.delta)        # this is the next observation, noiseless (ydot = x)
+            gain = kf_var*self.delta/(kf_var*self.delta**2 + observation_var*self.delta)
+            kfestimates.append( kfestimates[-1] + self.drift(kfestimates[-1])*self.delta + gain*S)
+            kf_var = (1-gain*self.delta)*kf_var
+
             truth.append(next_state)
             observations.append( next_obs_state)
             self.update_conditional_density(observations[-1] - observations[-2], observations[-1])
             mean = calci_moment(states, state_density,1)
             estimates.append(mean)
             curr_time = curr_time + self.delta
-        
         """
         figure(1)
         plot(truth, 'r-')
-        #plot(observations, 'b-')
+        plot(observations, 'b-')
         plot(estimates, 'g-')
+        plot(kfestimates, 'c-')
         grid()
         show()
         """
-        return np.linalg.norm(np.array(truth)-np.array(estimates))**2
+        return fabs(np.linalg.norm(np.array(truth)-np.array(estimates))**2 - np.linalg.norm(np.array(truth)-np.array(kfestimates))**2)
 
 
 if __name__ == "__main__":
