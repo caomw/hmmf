@@ -1,10 +1,10 @@
 #ifndef __vanderpol_h__
 #define __vanderpol_h__
 
+// dim 1 is time
 #include "../utils/common.h"
-#define NUM_DIM         (2)
-#define NUM_DIM_OBS     (1)
-// no time in this algorithm
+#define NUM_DIM         (3)
+#define NUM_DIM_OBS     (2)
 
 class State
 {
@@ -110,20 +110,17 @@ class System
         
         double get_holding_time(State& s, double gamma, int num_vert)
         {
-            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)(NUM_DIM-0));
             double num = h*h;
-
-            //for(int i=0; i< NUM_DIM; i++)
-            //    num = num*(max_states[i] - min_states[i]);
+            num = num*(max_states[1] - min_states[1]);
             
             double sqnum = sqrt(num);
-            double den = 0;
-            for(int i=0; i< NUM_DIM; i++)
-                den += process_noise[i];
+            double den = process_noise[1];
            
             State f;
-            f.x[0] = s.x[1];
-            f.x[1] = -s.x[0] + 2.0*s.x[1]*(1 - s.x[0]*s.x[0]);
+            f.x[0] = 1;
+            f.x[1] = s.x[1];
+            f.x[2] = -s.x[0] + 2.0*s.x[1]*(1 - s.x[0]*s.x[0]);
             den += (sqnum*f.norm());
             
             return num/(den);
@@ -153,6 +150,7 @@ class System
         int get_key(State& s, double *key);
         bool is_free(State &s);
         State sample();
+        void get_fdt(State& s, double duration, double* next);
         State integrate(State& s, double duration, bool is_clean);
         void get_variance(State& s, double duration, double* var);
         void get_obs_variance(State& s, double* var);

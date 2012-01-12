@@ -107,20 +107,18 @@ class System
         // functions
         double get_holding_time(State& s, double gamma, int num_vert)
         {
-            State stmp = s;
-            stmp.x[0] = 0;
-
-            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)(NUM_DIM-1));
+            double h = gamma * pow( log(num_vert)/(num_vert), 1.0/(double)(NUM_DIM-0));
             double num = h*h;
             
             num = num*sq(max_states[0] - min_states[0]);
 
             double sqnum = sqrt(num);
-            double den = 0;
-            for(int i=1; i< NUM_DIM; i++)
-                den += process_noise[i];
+            double den = process_noise[1];
             
-            den += (sqnum*3*stmp.norm());
+            State f;
+            f.x[0] = 1;
+            f.x[1] = -3*s.x[1];
+            den += (sqnum*f.norm());
             
             return num/(den);
         }

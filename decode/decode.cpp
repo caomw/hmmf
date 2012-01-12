@@ -47,7 +47,7 @@ Graph::Graph(System& sys) {
         factor = 8*M_PI*M_PI/15;
     
     factor = 1;
-    gamma = 2.1*pow( (1+1/(double)NUM_DIM), 1/(double)NUM_DIM) *pow(factor, -1/(double)NUM_DIM);
+    gamma = 2.2*pow( (1+1/(double)NUM_DIM), 1/(double)NUM_DIM) *pow(factor, -1/(double)NUM_DIM);
 };
 
 Graph::~Graph()
@@ -316,7 +316,9 @@ double Graph::get_obs_prob_vertex(Vertex* v)
 {
     State gx = system->observation(v->s, true);
     State closest_obs = obs[(int)((v->s.x[0] - system->min_states[0])/sim_delta)];
-    return normal_val( &(closest_obs.x[1]), system->obs_noise, &(gx.x[1]), NUM_DIM_OBS-1);
+    double toret = normal_val( &(closest_obs.x[1]), system->obs_noise, &(gx.x[1]), NUM_DIM_OBS-1);
+    //cout<<toret<<endl;
+    return toret;
 }
 
 double Graph::get_obs_prob_edge(Edge* etmp)
@@ -429,18 +431,28 @@ bool Graph::is_edge_free( Edge *etmp)
     return true;
 }
 
-Vertex* Graph::add_sample(bool is_seed)
+Vertex* Graph::add_sample(int is_seed)
 {
     State stmp;
     
-    if(is_seed)
+    if(is_seed == 0)
+        stmp = system->sample();
+    else if(is_seed == 1)
     {
         multivar_normal(&(system->init_state.x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
         stmp.x[0] = system->min_states[0];
     }
+    else if(is_seed == 2)
+    {
+        multivar_normal(&(truth.back().x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
+        //stmp = system->sample();
+        stmp.x[0] = system->max_states[0];
+    }
     else
-        stmp = system->sample();
-    
+    {
+        cout<<"Random demands from seed"<<endl;
+        exit(0);
+    }
     Vertex *v = new Vertex(stmp);
 
     /*

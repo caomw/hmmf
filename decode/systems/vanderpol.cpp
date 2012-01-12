@@ -4,27 +4,33 @@ System::System()
 {
     min_states = new double[NUM_DIM];
     max_states = new double[NUM_DIM];
-    obs_noise = new double[NUM_DIM];
+    obs_noise = new double[NUM_DIM_OBS-1];
     process_noise = new double[NUM_DIM];
-    init_var = new double[NUM_DIM];
+    init_var = new double[NUM_DIM-1];
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = -6;
-        max_states[i] = 6;
+        min_states[i] = 0;
+        max_states[i] = 3.0;
     }
+    min_states[0] = 0;
+    max_states[0] = 1;
     init_state.x[0] = 0;
-    init_state.x[1] = 1.0;
+    init_state.x[1] = 0.0;
+    init_state.x[2] = 1.0;
 
-    for(int i=0; i< NUM_DIM; i++)
+    for(int i=1; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-1;
-        obs_noise[i] = 1e-1;
-        init_var[i] = 1e-1;
+        process_noise[i] = 1e-2;
+        init_var[i-1] = 1e-2;
     }
-    
+    process_noise[0] = 1e-3;
+    for(int i=0; i< NUM_DIM_OBS-1; i++)
+    {
+        obs_noise[i] = 1e-3;
+    }
+
     sim_time_delta = 0.01;
-    num_particles = 1000;
 }
 
 System::~System()
@@ -71,9 +77,9 @@ State System::integrate(State& s, double duration, bool is_clean)
 {
     State t;
 
-    double *var = new double[NUM_DIM];
-    double *mean = new double[NUM_DIM];
-    double *tmp = new double[NUM_DIM];
+    double *var = new double[NUM_DIM-1];
+    double *mean = new double[NUM_DIM-1];
+    double *tmp = new double[NUM_DIM-1];
     
     double delta_t = min(duration, 0.005);
 
@@ -82,7 +88,7 @@ State System::integrate(State& s, double duration, bool is_clean)
         t.x[i] = s.x[i];
     }
 
-    for(int i=0; i<NUM_DIM; i++)
+    for(int i=0; i<NUM_DIM-1; i++)
     {   
         var[i] = process_noise[i]*delta_t;
         tmp[i] = 0;
@@ -96,20 +102,31 @@ State System::integrate(State& s, double duration, bool is_clean)
             multivar_normal( mean, var, tmp, NUM_DIM);
         
         double f1dt=0, f2dt = 0;
-        f1dt = t.x[1]*delta_t;
-        f2dt = (-t.x[0] + 2.0*t.x[1]*(1 - t.x[0]*t.x[0]) )*delta_t;
+        f1dt = t.x[2]*delta_t;
+        f2dt = (-t.x[1] + 2.0*t.x[2]*(1 - t.x[1]*t.x[1]) )*delta_t;
     
-        t.x[0] = t.x[0] + f1dt + tmp[0];
-        t.x[1] = t.x[1] + f2dt + tmp[1];
+        t.x[1] = t.x[1] + f1dt + tmp[0];
+        t.x[2] = t.x[2] + f2dt + tmp[1];
 
         curr_time += min(delta_t, duration - curr_time);
     }
+    t.x[0] = t.x[0] + duration;
 
     delete[] mean;
     delete[] tmp;
     delete[] var;
 
     return t;
+}
+
+void System::get_fdt(State& s, double duration, double* next)
+{
+    double f1dt=0, f2dt = 0;
+    f1dt = s.x[2]*duration;
+    f2dt = (-s.x[1] + 2.0*s.x[2]*(1 - s.x[1]*s.x[1]) )*duration;
+    next[0] = s.x[0] + duration;
+    next[1] = s.x[1] + f1dt;
+    next[2] = s.x[2] + f2dt;
 }
 
 void System::get_variance(State& s, double duration, double* var)
@@ -122,7 +139,7 @@ void System::get_variance(State& s, double duration, double* var)
 
 void System::get_obs_variance(State& s, double* var)
 {
-    for(int i=0; i<NUM_DIM_OBS; i++)
+    for(int i=0; i<NUM_DIM_OBS-1; i++)
     {   
         var[i] = obs_noise[i];
     } 
@@ -132,45 +149,25 @@ State System::observation(State& s, bool is_clean)
 {
     State t;
 
-    double *tmp1 = new double[NUM_DIM_OBS];
-    double *mean1 = new double[NUM_DIM_OBS];
-    double *tmp2 = new double[NUM_DIM_OBS];
-    double *mean2 = new double[NUM_DIM_OBS];
+    double *tmp = new double[NUM_DIM_OBS-1];
+    double *mean = new double[NUM_DIM_OBS-1];
     
-    for(int i=0; i< NUM_DIM_OBS; i++)
+    for(int i=0; i< NUM_DIM_OBS-1; i++)
     {
-        mean1[i] = 0;
-        mean2[i] = 0;
-        tmp1[i] = 0;
-        tmp2[i] = 0;
+        mean[i] = 0;
+        tmp[i] = 0;
     }
 
     if( !is_clean)
     {
-        multivar_normal( mean1, obs_noise, tmp1, NUM_DIM_OBS);
-        multivar_normal( mean2, obs_noise, tmp2, NUM_DIM_OBS);
-    }
-    else
-    {
-        for(int i=0; i<NUM_DIM_OBS; i++)
-        {
-            tmp1[i] = 0;
-            tmp2[i] = 0;
-        }
+        multivar_normal( mean, obs_noise, tmp, NUM_DIM_OBS-1);
     }
     
-    for(int i=0; i<NUM_DIM_OBS; i++)
-        t.x[i] = 0;
+    t.x[0] = s.x[0];
+    t.x[1] = s.x[1] + tmp[0];
 
-    for(int i=0; i<NUM_DIM_OBS; i++)
-    {
-        t.x[i] = s.x[i] + tmp1[i];
-    }
-
-    delete[] mean1;
-    delete[] tmp1;
-    delete[] mean2;
-    delete[] tmp2;
+    delete[] mean;
+    delete[] tmp;
 
     return t;
 }
@@ -178,7 +175,7 @@ State System::observation(State& s, bool is_clean)
 void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar)
 {
 
-#if 1
+#if 0
     kalman_path.clear();
 
     kalman_path.push_back(init_state);
@@ -285,6 +282,7 @@ int pfilter_resample(State* parts, double *weights, int num_particles)
 
 void System::get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path)
 {
+#if 0
     pf_path.clear();
 
     int obs_size = obs.size();
@@ -345,4 +343,5 @@ void System::get_pf_path( vector<State>& obs, vector<double>& obs_times, list<St
         
         //cout<<"press key: "; getchar(); cout<<endl;
     }
+#endif
 }

@@ -14,8 +14,8 @@ System::System()
         max_states[i] = 1;
         init_state.x[i] = 0.9;
     }
-    max_states[0] = 1.0;
     min_states[0] = 0;
+    max_states[0] = 1.0;
     init_state.x[0] = 0;
 
     for(int i=1; i< NUM_DIM; i++)
@@ -44,16 +44,12 @@ System::~System()
 State System::sample()
 {
     State s;
-    double border = RANDF;
-
     while(1)
     {
         for(int i=0; i< NUM_DIM; i++)
         {
             s.x[i] = min_states[i] + RANDF*( max_states[i] - min_states[i]);
         }
-        if(border < 0.02)
-            s.x[0] = max_states[0];
 
         if( is_free(s) )
             break;
@@ -115,9 +111,9 @@ void System::get_fdt(State& s, double duration, double* next)
 {
     for(int i=0; i < NUM_DIM; i++)
     {
-        next[i] = -3*s.x[i]*duration;
+        next[i] = s.x[i] + -3*s.x[i]*duration;
     }
-    next[0] = duration;
+    next[0] = s.x[0] + duration;
 }
 
 void System::get_variance(State& s, double duration, double* var)

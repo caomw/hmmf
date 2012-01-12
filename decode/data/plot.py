@@ -121,7 +121,7 @@ def plot_trajs():
 
             if len(s) > 1:
                 time = float(s[0])
-                to_put = [ float(s[i+1]) for i in range(NUM_DIM) ]
+                to_put = [ float(s[i+2]) for i in range(NUM_DIM) ]
                 if which == 0:
                     tsys.append(time)
                     sys.append(to_put)
@@ -159,49 +159,25 @@ def plot_trajs():
    
     times = tobs
 
-    figure(1)    
-    for i in range(NUM_DIM-1):
-        
-        ax1 = subplot(NUM_DIM-1,1,i+1, aspect='auto')
-        grid()
-
-        if len(sys) != 0:
-            plot( tsys[:], sys[:,i+1], 'r-', label='sys', lw=1.5)
-        #if len(obs) != 0:
-            #plot( tobs[:], obs[:,i+1], 'bx', label='obs')
-        
-        if len(bp) != 0:
-            plot( tbp[:], bp[:,i+1], 'go-', label='hmm', lw=1.5)
-        if len(kf) != 0:
-            plot( tkf[:], kf[:,i+1], 'c-', label='kf', lw=1.5)
-        if len(pf) != 0:
-            plot( tpf[:], pf[:,i+1], 'y-', label='pf', lw=1.5)
-        
-        """
-        ax2 = ax1.twinx()
-        if len(kf_covar) != 0:
-            upper = [ kf[x,i+1] + sqrt(kf_covar[x,i+1]) for x in range(len(kf_covar))]
-            lower = [ kf[x,i+1] - sqrt(kf_covar[x,i+1]) for x in range(len(kf_covar))]
-            
-            print "kf: ", kf
-            print "kf_covar: ", kf_covar
-            print "upper: ", upper
-
-            plot( tkf_covar[:], upper, 'm-', label='kf_covar1', lw=1.5)
-            plot( tkf_covar[:], lower, 'm-', label='kf_covar2', lw=1.5)
-        """
-    """
-    figure(2)
+    figure(1)
     if len(sys) != 0:
-        plot( sys[:,1], sys[:,2], 'r-', label='sys', lw=1.5)
+        plot( tsys, sys[:,0], 'r-', label='sys', lw=1.5)
     if len(bp) != 0:
-        plot( bp[:,1], bp[:,2], 'g-', label='sys', lw=1.5)
-    if len(kf) != 0:
-        plot( kf[:,1], kf[:,2], 'c-', label='kf', lw=1.5)
+        plot( tbp, bp[:,0], 'go-', label='hmm', lw=1.5)
     #if len(obs) != 0:
-        #plot( obs[:,1], obs[:,2], 'bx', label='obs')
+        #plot( tobs, obs[:,0], 'bx', label='obs')
     grid()
-    """
+    axis('tight')
+
+    if NUM_DIM == 2:
+        figure(2)
+        if len(sys) != 0:
+            plot( tsys, sys[:,1], 'r-', label='sys', lw=1.5)
+        if len(bp) != 0:
+            plot( tbp, bp[:,1], 'go-', label='sys', lw=1.5)
+        #if len(obs) != 0:
+            #plot( tobs, obs[:,1], 'bx', label='obs')
+        grid()
 
 def plot_sim_trajs():
 

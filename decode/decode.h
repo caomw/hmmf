@@ -2,7 +2,7 @@
 #define __decode_h__
 
 #include "utils/common.h"
-#include "systems/singleint.h"
+#include "systems/vanderpol.h"
 
 class Edge;
 class Vertex;
@@ -126,7 +126,7 @@ class Graph{
         // algorithm functions
         
         void iterate();
-        Vertex* add_sample(bool is_seed=false);
+        Vertex* add_sample(int is_seed=0);
         bool is_edge_free( Edge *etmp);
         
         int reconnect_edges_neighbors(Vertex* v);
