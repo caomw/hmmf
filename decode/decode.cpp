@@ -444,13 +444,13 @@ Vertex* Graph::add_sample(int is_seed)
     }
     else if(is_seed == 2)
     {
-        multivar_normal(&(truth.back().x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
-        //stmp = system->sample();
+        //multivar_normal(&(truth.back().x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
+        stmp = system->sample();
         stmp.x[0] = system->max_states[0];
     }
     else
     {
-        cout<<"Random demands from seed"<<endl;
+        cout<<"Random demands for seeding"<<endl;
         exit(0);
     }
     Vertex *v = new Vertex(stmp);

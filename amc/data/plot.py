@@ -2,6 +2,7 @@
 
 from sys import *
 from pylab import *
+from matplotlib import patches
 import mpl_toolkits.mplot3d.axes3d as p3
 import numpy as np
 import matplotlib.cm as cm
@@ -9,7 +10,7 @@ import matplotlib.colors as mcolor
 
 
 times = []
-NUM_DIM = 1
+NUM_DIM = 2
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -176,24 +177,25 @@ def plot_trajs():
     plot( tkf[:], kf[:,0], 'c-', label='kf', lw=0.5)
     plot( tpf[:], pf[:,0], 'y-', label='pf', lw=1.5)
     axis('tight')
-    legend(loc=4)
+    legend(loc=1)
     grid()
     xlabel('t [s]')
     title('x(t)')
     #savefig('vanderpol_x.pdf', bbox_inches='tight')
-    """
-    figure(2)    
-    plot( tsys[:], sys[:,1], 'r-', label='sys', lw=1.5)
-    plot( tbp[:], bp[:,1], 'g-', label='hmm', lw=1.5)
-    # plot( tkf[:], kf[:,1], 'c-', label='kf', lw=0.5)
-    plot( tpf[:], pf[:,1], 'y-', label='pf', lw=1.5)
-    axis('tight')
-    legend()
-    grid()
-    xlabel('t [s]')
-    title('x_dot(t)')
-    savefig('vanderpol_x_dot.pdf', bbox_inches='tight')
-    """
+    
+    if NUM_DIM == 2:
+        figure(2)    
+        plot( tsys[:], sys[:,1], 'r-', label='sys', lw=1.5)
+        plot( tbp[:], bp[:,1], 'g-', label='hmm', lw=1.5)
+        # plot( tkf[:], kf[:,1], 'c-', label='kf', lw=0.5)
+        plot( tpf[:], pf[:,1], 'y-', label='pf', lw=1.5)
+        axis('tight')
+        legend()
+        grid()
+        xlabel('t [s]')
+        title('x_dot(t)')
+        #savefig('vanderpol_x_dot.pdf', bbox_inches='tight')
+
     """
     for i in range(NUM_DIM):
         ax1 = subplot(NUM_DIM,1,i+1, aspect='auto')
@@ -250,14 +252,15 @@ def wstd(arrin, weights_in):
 def plot_sim_trajs():
 
     mc = open("monte_carlo.dat", 'r')
+    ac = open("actual_traj.dat", 'r')
     
     traj_probs = []
     traj_states = []
+    actual_states = []
     traj_times = []
     curr_traj = []
     curr_times = []
 
-    fig = figure(1)
     if mc:
         lines = mc.readlines()
         curr_prob = 1
@@ -265,49 +268,76 @@ def plot_sim_trajs():
             s = l.split('\t')
             if(len(s) == 6):
                 curr_times.append( float(s[0]) )
-                to_put = float(s[1]) # [float(s[i+1]) for i in range(NUM_DIM)]
+                to_put = [float(s[i+1]) for i in range(NUM_DIM)]
                 curr_traj.append( to_put )
-                if(float(s[0]) < 0.1) and (float(s[1]) < 0.1):
-                    print lines.index(l)
             elif(len(s) ==3):
                 traj_states.append(curr_traj)
                 traj_times.append(curr_times)
-                traj_probs.append( float(s[1]))
-                # plot(curr_times, curr_traj, 'b--')
 
                 curr_traj = []
                 curr_times = []
 
     mc.close()
-    
-    max_time = 1
-    time_array = linspace(0,max_time,1000)
-    state_array = zeros((len(traj_states), len(time_array)))
-    for ti in range(len(time_array)):
-        t = time_array[ti]
-        for si in range(len(traj_states)):
-            state_index = find_closest_index(traj_times[si], t)
-            state_array[si,ti] = traj_states[si][state_index]
+   
+    if ac:
+        lines = ac.readlines()
+        curr_prob = 1
+        for l in lines:
+            s = l.split('\t')
+            if(len(s) == 6):
+                to_put = [float(s[i+1]) for i in range(NUM_DIM)]
+                curr_traj.append( to_put )
+            elif(len(s) ==3):
+                actual_states.append(curr_traj)
 
-    traj_avg = array([wstd(state_array[:,i], traj_probs)[0] for i in range(len(state_array[0,:]))])
-    traj_std = array([wstd(state_array[:,i], traj_probs)[1] for i in range(len(state_array[0,:]))])
-
-    plot(time_array, traj_avg, 'b-', label='mean')
-    plot(time_array, traj_avg-traj_std, 'b--', label='+/- std')
-    plot(time_array, traj_avg+traj_std, 'b--')
+                curr_traj = []
+                curr_times = []
+    ac.close()
     
-    cont_time = linspace(0,max_time,1000)
-    cont_mean = 0.5*exp(-linspace(0,max_time,1000))
-    cont_std = sqrt(array([0.0005 + 0.0004*exp(-2*curr_time) for curr_time in cont_time]))
-    plot(cont_time, cont_mean, 'r-', label='cont. mean')
-    plot(cont_time, cont_mean+cont_std, 'r--', label='cont. +/- std')
-    plot(cont_time, cont_mean-cont_std, 'r--')
-    axis('tight')
+
+    fig = figure(1)
+    times_inter = linspace(0.0,2.0,100)
+    a_inter_all = []
+    mc_inter_all = []
+    for ti in range(len(traj_states)):
+        a_inter = zeros((len(times_inter), NUM_DIM))
+        mc_inter = zeros((len(times_inter), NUM_DIM))
+        for dim in range(NUM_DIM):
+            mc_inter[:,dim] = np.interp(times_inter, traj_times[ti], array(traj_states[ti])[:,dim])
+            a_inter[:,dim] = np.interp(times_inter, traj_times[ti], array(actual_states[ti])[:,dim])
+        mc_inter_all.append(mc_inter)
+        a_inter_all.append(a_inter)
+
+    ax = fig.add_subplot(111)
+    times = [1, 15, 30, 50, -1]
+    acl_all = []
+    mcl_all = []
+    for wt in times:
+        mcl1 = [t[wt,0] for t in mc_inter_all]
+        mcl2 = [t[wt,1] for t in mc_inter_all]
+        acl1 = [t[wt,0] for t in a_inter_all]
+        acl2 = [t[wt,1] for t in a_inter_all]
+        acl_all.append([np.average(acl1), np.average(acl2)])
+        mcl_all.append([np.average(mcl1), np.average(mcl2)])
+        acm = 0.8*exp(-times_inter[wt])
+        acstd = sqrt(0.005 - 0.0049*exp(-2*times_inter[wt]))
+        #print acm, acstd
+        #e1 = patches.Ellipse([np.average(acm), np.average(acm)], width=6*np.std(acstd),  height=6*np.std(acstd), alpha=0.5, fc='blue', ec='black')
+        #ax.add_patch(e1)
+        e1 = patches.Ellipse([np.average(acl1), np.average(acl2)], width=6*np.std(acl1),  height=6*np.std(acl2), alpha=0.2, fc='blue', ec='black')
+        ax.add_patch(e1)
+        hexbin(mcl1, mcl2, gridsize=50, bins='log', cmap=cm.get_cmap('Jet'), alpha=0.9, mincnt=1)
+    
+    acl_all = array(acl_all)
+    mcl_all = array(mcl_all)
+    plot(acl_all[:,0], acl_all[:,1], 'b--', lw=1)
+    plot(mcl_all[:,0], mcl_all[:,1], 'r--', lw=1)
+    axis([0.2,0.8,-0.0,0.8])
     grid()
-    xlabel('t [s]')
-    ylabel( 'x(t)')
-    legend()
-    #fig.savefig('singleint_mc_convergence.pdf', bbox_inches='tight') 
+    xlabel('x (t)')
+    ylabel( 'y (t)')
+    #legend()
+    fig.savefig('mc_convg_hexbin.pdf', bbox_inches='tight') 
 
 def do_timing_plot():
 
@@ -420,8 +450,8 @@ def do_err_plot():
 
 if __name__ == "__main__":
 
-    plot_trajs()
-    # plot_sim_trajs()
+    # plot_trajs()
+    plot_sim_trajs()
     # draw_obstacles()    
     
     # do_err_plot()

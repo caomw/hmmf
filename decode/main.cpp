@@ -59,6 +59,7 @@ void get_interpolated_error(Graph& graph, double& bpe)
                 bp_next = bp_last_element;
         }
     }
+    bpe = bpe/(double)graph.truth.size();
 }
 
 int do_batch(int tot_vert)
@@ -70,12 +71,13 @@ int do_batch(int tot_vert)
     
     srand(0);
     graph.vlist.reserve(tot_vert);
-    graph.propagate_system();
 
 #if 1 
     tic();
+    int begin = 1000;
+    int end = 1000;
     // seeding
-    for(int i=0; i< 1000; i++)
+    for(int i=0; i< begin; i++)
         graph.add_sample(1);
     
     for(unsigned int i=0; i< graph.num_vert; i++)
@@ -89,10 +91,10 @@ int do_batch(int tot_vert)
 
 
 #if 1
-    for(int i=0; i< 1000; i++)
+    for(int i=0; i< end; i++)
         graph.add_sample(2);
     
-    for(int i=0; i< tot_vert-200; i++)
+    for(int i=0; i< tot_vert-begin-end; i++)
         graph.add_sample();
     
     for(unsigned int i=0; i< graph.vlist.size(); i++)
@@ -106,18 +108,26 @@ int do_batch(int tot_vert)
             toc();
         }
     }
-
-    graph.get_best_path();
-
-    double kfe=0, bpe=0, pfe=0;
-    get_interpolated_error(graph, bpe);
-    cout<<"bpe: "<< bpe<<" kfe: " << kfe << endl;
+    
+    int tries = 1;
+    double bpe_avg = 0;
+    for(int i=0; i< tries; i++)
+    {
+        srand(0);
+        graph.propagate_system();
+        graph.get_best_path();
+        double bpe=0;
+        get_interpolated_error(graph, bpe);
+        //cout<<bpe<<endl;
+        bpe_avg += bpe;
+    }
+    cout<<"bpe: "<< bpe_avg/(double)tries<< endl;
 #endif
 
 #endif
      
     graph.plot_trajectory();
-    graph.plot_graph();
+    //graph.plot_graph();
     cout<<"time: "<< get_msec() - start << " [ms]" << endl;
 
     return 0;
@@ -203,62 +213,48 @@ int do_error_plot()
 {
     ofstream err_out("data/err.dat");
 
-    int max_runs = 1;
+    int max_runs = 10;
 
-    for(int tot_vert=500; tot_vert < 2000; tot_vert+= 10)
+    for(int tot_vert=20000; tot_vert < 50000; tot_vert+= 5000)
     {
         double average_time = 0;
         double average_bpe = 0;
         double stddev_bpe = 0;
         double average_kfe = 0;
 
+        srand(0);
+        System sys;
+        Graph graph(sys);
+        graph.vlist.reserve(tot_vert);
+
+        for(int i=0; i< 1000; i++)
+            graph.add_sample(1);
+
+        for(unsigned int i=0; i< graph.num_vert; i++)
+        {
+            Vertex* v = graph.vlist[i];
+            v->prob_best_path = normal_val(&(graph.system->init_state.x[1]), graph.system->init_var,\
+                    &(v->s.x[1]), NUM_DIM-1);
+        }
+        graph.normalize_density();
+        graph.seeding_finished = true;
+
+        for(int i=0; i< tot_vert-2000; i++)
+            graph.add_sample();
+        for(int i=0; i<1000; i++)
+            graph.add_sample(2);
+
+        for(unsigned int i=0; i< graph.vlist.size(); i++)
+        {
+            Vertex* v = graph.vlist[i];
+            graph.connect_edges_approx(v);
+        }
+
+        srand(0);
         for(int how_many=0; how_many < max_runs; how_many++)
         {
-            srand(0);
-            System sys;
-            Graph graph(sys);
-            graph.vlist.reserve(tot_vert);
             graph.propagate_system();
-            graph.get_kalman_path();
-            
             tic();
-            for(int i=0; i< 100; i++)
-            {
-                graph.add_sample(1);
-            }
-
-            for(unsigned int i=0; i< graph.num_vert; i++)
-            {
-                Vertex* v = graph.vlist[i];
-                v->prob_best_path = normal_val(&(graph.system->init_state.x[1]), graph.system->init_var,\
-                        &(v->s.x[1]), NUM_DIM-1);
-            }
-            graph.normalize_density();
-            graph.seeding_finished = true;
-
-            for(int i=0; i< tot_vert-200; i++)
-            {
-                graph.add_sample();
-            }
-            for(int i=0; i<100; i++)
-            {
-                graph.add_sample(2);
-            }
-
-            for(unsigned int i=0; i< graph.vlist.size(); i++)
-            {
-                Vertex* v = graph.vlist[i];
-                graph.connect_edges_approx(v);
-                
-                /*
-                if(i%500 == 0)
-                {
-                    cout<<i<<endl;
-                    toc();
-                }
-                */
-            }
-
             graph.get_best_path();
             double kfe=0, bpe=0, pfe=0;
             get_interpolated_error(graph, bpe);
@@ -274,10 +270,9 @@ int do_error_plot()
         average_time = average_time/(double)max_runs;
         average_bpe = average_bpe/(double)max_runs;
         average_kfe = average_kfe/(double)max_runs;
-        
+
         if(max_runs > 1)
             stddev_bpe = (stddev_bpe - max_runs*average_bpe*average_bpe)/(max_runs -1.0);
-
 
         err_out<<tot_vert<<" "<<average_time<<" "<< average_bpe <<" "<< average_kfe << endl;
         cout<<tot_vert<<"\t"<<average_time<<"\t"<< average_bpe <<"\t"<< average_kfe << endl;

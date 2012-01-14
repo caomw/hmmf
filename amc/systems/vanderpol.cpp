@@ -66,6 +66,14 @@ int System::get_key(State& s, double *key)
     return 0;
 }
 
+State System::get_fdt(State& s, double duration)
+{
+    State stmp;
+    stmp.x[0] = s.x[1]*duration;
+    stmp.x[1] = (-s.x[0] + 2.0*s.x[1]*(1 - s.x[0]*s.x[0]) )*duration;
+    return stmp;
+}
+
 State System::integrate(State& s, double duration, bool is_clean)
 {
     State t;

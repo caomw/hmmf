@@ -10,16 +10,16 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = 0;
+        min_states[i] = -0.5;
         max_states[i] = 1;
-        init_state.x[i] = 0.5;
+        init_state.x[i] = 0.8;
     }
     
     for(int i=0; i< NUM_DIM; i++)
     {
         process_noise[i] = 1e-3;
-        obs_noise[i] = 1e-3;
-        init_var[i] = 1e-3;
+        obs_noise[i] = 1e-8;
+        init_var[i] = 1e-4;
     }
     sim_time_delta = 0.01;
 }
@@ -71,10 +71,8 @@ int System::get_key(State& s, double *key)
 State System::get_fdt(State& s, double duration)
 {
     State stmp;
-    for(int i=0; i<NUM_DIM; i++)
-    {
-        stmp.x[i] = 1*(-s.x[i]*duration);
-    }
+    stmp.x[0] = 0.5*(-s.x[0]*duration);
+    stmp.x[1] = 1*(-s.x[1]*duration);
     return stmp;
 }
 
@@ -86,6 +84,8 @@ State System::integrate(State& s, double duration, bool is_clean)
     double *mean = new double[NUM_DIM];
     double *tmp = new double[NUM_DIM];
 
+    double delta_t = min(duration, 0.005);
+    
     for(int i=0; i<NUM_DIM; i++)
     {
         t.x[i] = s.x[i];
@@ -93,16 +93,24 @@ State System::integrate(State& s, double duration, bool is_clean)
 
     for(int i=0; i<NUM_DIM; i++)
     {   
-        var[i] = process_noise[i]*duration;
+        var[i] = process_noise[i]*delta_t;
         tmp[i] = 0;
         mean[i] = 0;
     }
-    if( !is_clean)  
-        multivar_normal( mean, var, tmp, NUM_DIM);
-
-    for(int i=0; i<NUM_DIM; i++)
-        t.x[i] = t.x[i]*exp(-1*duration) + tmp[i];
-
+    
+    double curr_time = 0;
+    while(curr_time < duration)
+    {
+        if( !is_clean)
+            multivar_normal( mean, var, tmp, NUM_DIM);
+        
+        double fdt = -0.5*t.x[0]*delta_t;
+        t.x[0] = t.x[0] + fdt + tmp[0];
+        fdt = -t.x[1]*delta_t;
+        t.x[1] = t.x[1] + fdt + tmp[1];
+        curr_time += min(delta_t, duration - curr_time);
+    }
+    
     delete[] mean;
     delete[] tmp;
     delete[] var;
@@ -231,6 +239,7 @@ int pfilter_resample(State* parts, double *weights, int num_particles)
 void System::get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path, int num_particles)
 {
     pf_path.clear();
+    pf_path.push_back(init_state);
 
     int obs_size = obs.size();
 

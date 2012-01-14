@@ -7,11 +7,11 @@ from pylab import *
 
 init_state = 0.5
 init_var = 0.001
-process_var = 0.0001
-observation_var = 0.0001
+process_var = 0.01
+observation_var = 1e-6
 h = -1
-zmin = 0.48
-zmax = 0.52
+zmin = 0.0
+zmax = 1.0
 states = []
 edge_times = []
 edge_probs = []     # (left, self, right)
@@ -56,7 +56,6 @@ class Approximate_chain:
             c = process_var + h*np.fabs(self.drift(s))
             htime = h*h/c
             edge_times.append(htime)
-            state_density.append( normal_val(s, init_state, init_var) )
         for i in range(self.tot_vert):
             s = states[i]
             c = process_var + h*np.fabs(self.drift(s))
@@ -148,21 +147,28 @@ class Approximate_chain:
             else:
                 tprob = state_density[i-1]*Phdelta[i-1,i] + state_density[i]*Phdelta[i,i]
             
-            rep = exp(states[i]*obs_delta/observation_var - 0.5*states[i]*states[i]*self.delta/observation_var)
-            #rep = normal_val(states[i], obs_curr, observation_var)
+            #rep = exp(states[i]*obs_delta/observation_var - 0.5*states[i]*states[i]*self.delta/observation_var)
+            rep = normal_val(states[i], obs_curr, observation_var)
             state_density[i] = tprob*rep
         normalize_density()
 
     def run_filter(self):
         global state_density, Phdelta
+        state_density = []
+        for s in states:
+            state_density.append( normal_val(s, init_state, init_var) )
         normalize_density()
+        
         truth, observations, estimates, kfestimates = [], [], [], []
-        max_time = 0.01
         curr_time = 0
         integration_delta = self.delta/2.0
+        max_time = 0.1
+        if(max_time < self.delta):
+            print "Increase max_time"
+            sys.exit(0)
         
         kf_var = init_var
-        np.random.seed(10)
+        #np.random.seed(10)
         truth.append(init_state)
         mean = calci_moment(states, state_density,1)
         estimates.append(mean)
@@ -170,34 +176,31 @@ class Approximate_chain:
         observations.append(init_state)
         while curr_time < max_time:
             next_state = truth[-1]
-            next_obs_state = observations[-1]
+            estimate_state = kfestimates[-1]
             runner_time = 0
             while np.fabs(runner_time - self.delta) > integration_delta/2.0:
                 next_state = next_state + (self.drift(next_state)*integration_delta + np.random.normal(0, sqrt(process_var*integration_delta)) )
+                estimate_state = estimate_state + (self.drift(estimate_state)*integration_delta + np.random.normal(0, sqrt(process_var*integration_delta)) )
                 if(next_state > zmax):
                     next_state = zmax
                 elif(next_state < zmin):
                     next_state = zmin
-                next_obs_state = next_obs_state + (next_state*integration_delta + np.random.normal(0, sqrt(observation_var*integration_delta)) )
-                if(next_obs_state > zmax):
-                    next_obs_state = zmax
-                elif(next_obs_state < zmin):
-                    next_obs_state = zmin    
                 runner_time = runner_time + integration_delta
             
+            next_obs_state = next_state + normal(0, sqrt(observation_var))
             kf_var  = exp(-2*self.delta)*kf_var + process_var*self.delta
-            S = next_obs_state - (observations[-1] + kfestimates[-1]*self.delta)        # this is the next observation, noiseless (ydot = x)
-            gain = kf_var*self.delta/(kf_var*self.delta**2 + observation_var*self.delta)
-            kfestimates.append( kfestimates[-1] + self.drift(kfestimates[-1])*self.delta + gain*S)
-            kf_var = (1-gain*self.delta)*kf_var
+            S = next_obs_state - estimate_state
+            gain = kf_var/(kf_var + observation_var)
+            kfestimates.append( estimate_state + gain*S)
+            kf_var = (1-gain)*kf_var
 
             truth.append(next_state)
-            observations.append( next_obs_state)
+            observations.append(next_obs_state)
             self.update_conditional_density(observations[-1] - observations[-2], observations[-1])
             mean = calci_moment(states, state_density,1)
             estimates.append(mean)
             curr_time = curr_time + self.delta
-        """
+        
         figure(1)
         plot(truth, 'r-')
         plot(observations, 'b-')
@@ -205,9 +208,8 @@ class Approximate_chain:
         plot(kfestimates, 'c-')
         grid()
         show()
-        """
-        return fabs(np.linalg.norm(np.array(truth)-np.array(estimates))**2 - np.linalg.norm(np.array(truth)-np.array(kfestimates))**2)
-
+        #return fabs(np.linalg.norm(np.array(truth)-np.array(estimates))**2 - np.linalg.norm(np.array(truth)-np.array(kfestimates))**2)
+        return (np.linalg.norm(np.array(truth)-np.array(estimates))**2)/(max_time/self.delta)
 
 if __name__ == "__main__":
     
@@ -230,8 +232,8 @@ if __name__ == "__main__":
     nodes = np.arange(first, last, step)
     for n in nodes:
         err = []
+        amc = Approximate_chain(n)
         for tries in range(1):
-            amc = Approximate_chain(n)
             cerr = amc.run_filter()
             #print n,cerr
             err.append(cerr)

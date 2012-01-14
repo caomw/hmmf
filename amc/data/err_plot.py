@@ -16,9 +16,9 @@ if len(sys.argv) > 1:
 data = loadtxt('err.dat', delimiter=' ')
 
 figure(1)
-semilogx(data[:,0], data[:,1], 'bo-')
-semilogx(data[:,0], pow(data[0,0],1)*data[0,1]/pow(data[:,0],1), 'ro-', label='y = c/n')
-semilogx(data[:,0], pow(data[0,0],2)*data[0,1]/pow(data[:,0],2), 'ro-', label='y = c/n')
+plot(data[:,0], data[:,1], 'b-')
+#semilogx(data[:,0], pow(data[0,0],1)*data[0,1]/pow(data[:,0],1), 'ro-', label='y = c/n')
+#semilogx(data[:,0], pow(data[0,0],2)*data[0,1]/pow(data[:,0],2), 'ro-', label='y = c/n')
 """
 pcoeff = polyfit(data[:,0], data[:,1], 10)
 yfit = polyval(pcoeff, data[:,0])
@@ -36,6 +36,7 @@ legend()
 if to_save:
     savefig(save_name1, bbox_inches='tight')
 
+"""
 figure(2)
 loglog(data[:,0], data[:,2], 'bo-')
 #pcoeff = polyfit(data[:,0], data[:,2], 10)
@@ -52,5 +53,6 @@ ylabel('Err. in second moment')
 legend()
 if to_save:
     savefig(save_name2, bbox_inches='tight')
+"""
 
 show()

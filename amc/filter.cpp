@@ -30,8 +30,8 @@ Graph::Graph(System& sys) {
     num_vert = 0;
     obs_interval = 1;
     obs_curr_index = 0;
-    max_obs_time = 0.2;
     delta = system->sim_time_delta;
+    max_obs_time = 2.0;
 
     min_holding_time = delta;
     seeding_finished = false;
@@ -356,11 +356,23 @@ bool Graph::update_density_implicit(Vertex* v)
         Edge* etmp = *i;
         sum = sum + etmp->transition_prob_delta * (etmp->from->prob_best_path);
     }
-    sum = v->self_transition_prob * (sum + v->prob_best_path); 
+    sum = sum + v->self_transition_prob *(v->prob_best_path); 
     
+
     double sumt = sum;
-    v->prob_best_path_buffer = sum*normal_val(obs[obs_curr_index].x,
-            obs_var, gx.x, NUM_DIM_OBS);
+#if 1
+    double tomult = normal_val(obs[obs_curr_index].x, obs_var, gx.x, NUM_DIM_OBS);
+#else
+    double obs_delta = 0;
+    if(obs_curr_index == 0)
+        obs_delta = obs[obs_curr_index].x[0] -  system->init_state[0];
+    else
+        obs_delta = obs[obs_curr_index].x[0] - obs[obs_curr_index -1].x[0];
+
+    double tomult = exp(gx.x[0]*obs_delta - 0.5*sq(gx.x[0])*delta);
+#endif
+
+    v->prob_best_path_buffer = sum*tomult;
     
     if(v->prob_best_path_buffer != v->prob_best_path_buffer)
     {
@@ -393,15 +405,15 @@ void Graph::average_density(Vertex* v)
 
 int Graph::calculate_delta()
 {
-    double max_time = -1000;
+    double min_time = 1000;
     for(unsigned int i=0; i< num_vert; i++)
     {
         Vertex* v = vlist[i];
-        if( v->holding_time > max_time)
-            max_time = v->holding_time;
+        if( v->holding_time < min_time)
+            min_time = v->holding_time;
     }
-    delta = max_time;
-
+    delta = min(0.99*min_time, 0.05);
+    cout<<"delta: "<< delta << endl;
     return 0;
 }
 
@@ -418,8 +430,16 @@ int Graph::calculate_probabilities_delta_all()
 int Graph::calculate_probabilities_delta(Vertex* v)
 {
     double holding_time = v->holding_time;
-    // double pself = holding_time/(holding_time + delta);
-    double pself = 0;
+    double pself = 0*(1 - delta/holding_time);
+    /*
+    if(holding_time > delta)
+    {
+        cout<<"add more nodes to reduce holding time" << endl;
+        getchar();
+    }
+    double pself = holding_time/delta;
+    */
+    // double pself = 0;
     for(list<Edge*>::iterator j = v->edges_out.begin(); j != v->edges_out.end(); j++)
     {
         Edge* etmp = (*j);
@@ -427,8 +447,8 @@ int Graph::calculate_probabilities_delta(Vertex* v)
     }
 
     v->self_transition_prob = pself;
-    v->holding_time_delta = holding_time*(1-pself);
-
+    v->holding_time_delta = holding_time;
+    //cout<<"ht_del: "<< v->holding_time<<endl;
     return 0;
 }
 
@@ -713,8 +733,6 @@ int Graph::connect_edges_approx(Vertex* v)
 
     normalize_edges(v);
 
-    calculate_probabilities_delta(v);
-
     delete[] sys_var;
 
     return 0;
@@ -771,7 +789,6 @@ void Graph::propagate_system()
 
     double curr_time = 0;
     double max_time = max_obs_time;
-    int count = obs_interval;
 
     truth.push_back(system->init_state);
 
@@ -779,16 +796,11 @@ void Graph::propagate_system()
     {
         State snext = system->integrate( truth.back(), system->sim_time_delta, false);
         truth.push_back( snext);
-
-        count--;
-        if(count == 0)
-        {
-            count = obs_interval;
-            State next_obs = system->observation( snext, false);
-            obs.push_back(next_obs);
-            obs_times.push_back(curr_time);
-        }
         curr_time += system->sim_time_delta;
+
+        State next_obs = system->observation( snext, false);
+        obs.push_back(next_obs);
+        obs_times.push_back(curr_time);
     }
 }
 
@@ -836,7 +848,6 @@ int Graph::simulate_trajectory_implicit()
     list<double> seq_times;
 
     State stmp = system->init_state;
-    //multivar_normal(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
 
     bool can_go_forward = false;
 
@@ -847,13 +858,10 @@ int Graph::simulate_trajectory_implicit()
     else
         cout<<"vcurr has zero edges" << endl;
 
-    double traj_prob = normal_val(system->init_state.x, system->init_var, stmp.x, NUM_DIM);
-    //if( (stmp.x[1]<0.1) && (stmp.x[0] <0.1))
-    //    cout<<"bad_traj: "<< traj_prob<<endl;
-
     double curr_time = 0;
     double max_time = max_obs_time;
-
+    
+    double traj_prob = 1.0;
     seq.push_back(vcurr->s);
     actual_seq.push_back(vcurr->s);
 
@@ -869,9 +877,7 @@ int Graph::simulate_trajectory_implicit()
 
         curr_time += (vcurr->holding_time_delta);
         double rand_tmp = RANDF - vcurr->self_transition_prob;
-        if(rand_tmp < 0)
-            traj_prob = traj_prob * vcurr->self_transition_prob;
-        else
+        if(rand_tmp > 0)
         { 
             double runner = 0;
             for(list<Edge*>::iterator eo = vcurr->edges_out.begin(); \
@@ -880,12 +886,12 @@ int Graph::simulate_trajectory_implicit()
                 runner += (*eo)->transition_prob_delta;
                 if(runner > rand_tmp)
                 {
-                    traj_prob = traj_prob * ((*eo)->transition_prob_delta);
                     vcurr = (*eo)->to;
                     break;
                 }
             }
         }
+        //cout<<vcurr->holding_time_delta<<" ";
 
         seq.push_back(vcurr->s);
         actual_seq.push_back(next_actual_state);
@@ -941,8 +947,6 @@ void Graph::analyse_monte_carlo_trajectories()
     traj_m2_1 = traj_m2_1/(float)num_trajs;
     actual_m2_1 = actual_m2_1/(float)num_trajs;
     
-    double eq_m1 = system->init_state[0]*exp(-1*max_obs_time);
-    double eq_m2 = system->init_var[0]/2*(1 + exp(-2*max_obs_time)) + eq_m1*eq_m1;
     cout<<num_vert<<" "<< fabs(traj_m1_1 - actual_m1_1) << " " << fabs(traj_m2_1 - actual_m2_1) << endl;
 }
 
@@ -991,8 +995,43 @@ void Graph::plot_monte_carlo_trajectories()
         times_iter++;
         count++;
     }
-
     mout.close();
+
+    ofstream aout("data/actual_traj.dat");
+    count = 0;
+
+    times_iter = monte_carlo_times.begin();
+
+    for(list< list<State> >::iterator i= actual_trajectories.begin(); \
+            i != actual_trajectories.end(); i++)
+    {
+        list<State> curr_traj = (*i);
+
+        list<double> time_seq = (*times_iter);
+        list<double>::iterator time_seq_iter = time_seq.begin();
+        for(list<State>::iterator j = curr_traj.begin(); j != curr_traj.end(); j++)
+        {
+            aout<< (*time_seq_iter) <<"\t";
+            State& curr_state = *j;
+            for(int k=0; k< NUM_DIM; k++)
+            {
+                aout<< curr_state.x[k]<<"\t";
+            }
+            for(int k=NUM_DIM; k< 4; k++)
+            {
+                aout<< 0 <<"\t";
+            }
+
+            aout<<endl;
+            time_seq_iter++;
+        }
+        aout<<count<<"\t"<< 1.0 <<"\t"<<endl;
+
+        times_iter++;
+        count++;
+    }
+    aout.close();
+
 } 
 
 void Graph::plot_monte_carlo_density(char* filename)

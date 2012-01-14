@@ -15,6 +15,7 @@
 #include <utility>
 #include <cassert>
 #include <string>
+#include <iomanip>
 
 #include <Eigen/Dense>
 #include "kdtree.h"

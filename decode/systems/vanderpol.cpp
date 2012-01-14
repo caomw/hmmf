@@ -21,10 +21,12 @@ System::System()
 
     for(int i=1; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-2;
+        process_noise[i] = 1e-1;
         init_var[i-1] = 1e-2;
     }
-    process_noise[0] = 1e-3;
+    process_noise[0] = 1e-2;
+    process_noise[2] = 1e-2;
+
     for(int i=0; i< NUM_DIM_OBS-1; i++)
     {
         obs_noise[i] = 1e-3;
