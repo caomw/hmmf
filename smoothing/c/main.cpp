@@ -2,12 +2,12 @@
 
 #define ndim (2)
 
-double zmin[ndim] = {0, 0};
-double zmax[ndim] = {1, 1};
+double zmin[ndim] = {0, 0.5};
+double zmax[ndim] = {1, 2.5};
 double init_var[ndim] = {1e-2, 1e-2};
 double init_state[ndim] = {0, 1.0};
 double pvar[ndim] = {1e-2, 1e-2};
-double ovar = 1e-3;
+double ovar[ndim] = {1e-3, 1e-3};
 double zero[ndim] = {0, 0};
 
 int add(double* src, double* dest)
@@ -48,16 +48,18 @@ int get_obs(double* s, double* obs)
 {
     for(int i=0; i< ndim; i++)
         obs[i] = 0;
-    double noise = 0;
-    multivar_normal(zero, &ovar, &noise, 1); 
-    obs[0] = s[0] + noise;
+    double noise[ndim] = {0};
+    multivar_normal(zero, ovar, noise, 2); 
+    obs[0] = s[0] + noise[0];
+    obs[1] = s[1] + noise[1];
     return 0;
 }
 double holding_time(double* s, double r)
 {
+    double h = r*(zmax[1] - zmin[0]);
     double ret[ndim];
     drift(s, ret);
-    return r*r/(pvar[0] + r*norm(ret));
+    return h*h/(pvar[0] + h*norm(ret));
 }
 
 class Node
@@ -260,7 +262,7 @@ class Graph
                 {
                     toadd = toadd + P[j*num_vert + i]*alphas[index][j];
                 }
-                alphas[index+1][i] = toadd*normal_val(obs, &ovar, nodes[i]->x, 1);
+                alphas[index+1][i] = toadd*normal_val(obs, ovar, nodes[i]->x, 2);
                 tprob = tprob + alphas[index+1][i];
             }
             for(int i=0; i<num_vert; i++)
@@ -282,7 +284,7 @@ class Graph
                 double toadd = 0;
                 for(int j=0; j<num_vert; j++)
                 {
-                    toadd = toadd + P[i*num_vert + j]*betas[index+1][j]*normal_val(obs, &ovar, nodes[j]->x, 1);
+                    toadd = toadd + P[i*num_vert + j]*betas[index+1][j]*normal_val(obs, ovar, nodes[j]->x, 2);
                 }
                 betas[index][i] = toadd;
                 tprob = tprob + betas[index][i];
@@ -305,7 +307,7 @@ class Graph
             int steps = observations.size();
             vector< vector<double> > alphas(steps+1, vector<double>(num_vert));
             vector< vector<double> > betas(steps+1, vector<double>(num_vert));
-            vector< vector<double> > sdensity(steps+1, vector<double>(num_vert));
+            vector< vector<double> > sdensity(steps, vector<double>(num_vert));
             int li = steps;
 
             double tprob = 0;
@@ -320,32 +322,46 @@ class Graph
             
             for(int i=0; i<steps; i++)
                 update_alphas(alphas, observations[i], i);
-            for(int i=steps-2; i > (-1); i--)
-                update_betas(betas, observations[i+1], i);
+            for(int i=steps-1; i >= 0; i--)
+                update_betas(betas, observations[i], i);
             for(int i=0; i<steps; i++)
             {
-               ; 
+                for(int j=0; j<num_vert; j++)
+                {
+                    sdensity[i][j] = alphas[i+1][j]*betas[i][j];
+                }
             }
 
-            for(int i=0; i< steps+1; i++)
+            for(int i=0; i< steps; i++)
             {
                 double cmean[ndim];
-                calci_mean(alphas, i, cmean);
-                vector<double> tmp; tmp.assign(cmean, cmean+ndim);
-                festimates.push_back(tmp);
+                
+                calci_mean(alphas, i+1, cmean);
+                vector<double> tmp1; tmp1.assign(cmean, cmean+ndim);
+                festimates.push_back(tmp1);
+
+                calci_mean(sdensity, i, cmean);
+                vector<double> tmp2; tmp2.assign(cmean, cmean+ndim);
+                sestimates.push_back(tmp2);
             }
-            
-
-
-
+                        
+            // write output
             ofstream of("filter.dat");
-            for(int i=0; i< steps+1; i++)
+            for(int i=0; i< steps; i++)
             {
                 for(int j=0; j<ndim; j++)
                     of<<festimates[i][j]<<" ";
                 of<<endl;
             }
             of.close();
+            ofstream os("smoothing.dat");
+            for(int i=0; i< steps; i++)
+            {
+                for(int j=0; j<ndim; j++)
+                    os<<sestimates[i][j]<<" ";
+                os<<endl;
+            }
+            os.close();
             return 0;
         }
         
