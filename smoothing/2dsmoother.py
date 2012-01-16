@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-2D linear system smoother
+Smoothing using Markov chains
 """
 
 import sys
@@ -18,10 +18,10 @@ font = FontProperties(size='medium')
 NUM_DIM = 2
 init_state = array([0.5, 0.5])
 init_var = array([[1e-3,0.],[0., 1e-3]])
-process_var = array([[1e-1, 0.],[0., 1e-1]])
-observation_var = array([[1e-2, 0.],[0., 1e-2]])
-zmin = [0.0, 0.0]
-zmax = [1.0, 1.0]
+process_var = array([[1e-3, 0.],[0., 1e-3]])
+observation_var = array([[1e-3, 0.],[0., 1e-3]])
+zmin = [0.4, 0.4]
+zmax = [0.9, 0.6]
 
 
 def find_closest_index(mylist, myvar):
@@ -46,7 +46,6 @@ def calci_moment(arrin, weights_in, m):
 def normalize_density(arr):
     arr = arr/sum(arr)
 
-"""
 # vanderpol
 def A(z=1):
     return array([[0., 1],[-1 - 4.0*z[0]*z[1], 2.0]])
@@ -61,6 +60,7 @@ def get_observation(z):
     noise = np.random.multivariate_normal([0,0], sqrt(observation_var))
     y = z[0] + noise[0] 
     return y
+
 """
 # linear
 def A(z=1):
@@ -76,6 +76,7 @@ def get_observation(z):
     noise = np.random.multivariate_normal([0,0], sqrt(observation_var))
     y = z + noise
     return y
+"""
 
 class Node:
     def get_key(self, z):
@@ -91,7 +92,9 @@ class Node:
 
 class Approximate_chain:
 
-    def __init__(self, num):
+    def __init__(self, num, to_dump):
+        
+        np.random.seed(10)
         self.num_vert = num
         self.bowlr = 2.2*pow(log(self.num_vert)/float(self.num_vert),1.0/float(NUM_DIM))
         self.nodes = []
@@ -109,21 +112,25 @@ class Approximate_chain:
 
         P = zeros((self.num_vert, self.num_vert))
         self.Phdelta = zeros((self.num_vert, self.num_vert))
-        for i in range(self.num_vert):
-            n1 = self.nodes[i]
-            mu = n1.z + drift(n1.z, n1.htime)
-            var = process_var*n1.htime
-            n1_neighbors = self.node_tree.query_ball_point(n1.key, self.bowlr)
-            probs = []
-            for n2_i in n1_neighbors:
-                cprob = normal_val(self.nodes[n2_i].z, mu, var)
-                probs.append(cprob)
-            probs = array(probs)/sum(probs)
-            count = 0
-            for n2_i in n1_neighbors:
-                P[n1.index][n2_i] = probs[count]
-                count = count + 1
-        
+        if to_dump:
+            for i in range(self.num_vert):
+                n1 = self.nodes[i]
+                mu = n1.z + drift(n1.z, n1.htime)
+                var = process_var*n1.htime
+                n1_neighbors = self.node_tree.query_ball_point(n1.key, self.bowlr)
+                probs = []
+                for n2_i in n1_neighbors:
+                    cprob = normal_val(self.nodes[n2_i].z, mu, var)
+                    probs.append(cprob)
+                probs = array(probs)/sum(probs)
+                count = 0
+                for n2_i in n1_neighbors:
+                    P[n1.index][n2_i] = probs[count]
+                    count = count + 1
+            pickle.dump(P, open('p.pkl', 'wb'))
+        else:
+            P = pickle.load(open('p.pkl', 'rb'))
+
         """
         # get filtering one_step transition probabilities using matrices
         self.delta = min(edge_times)*0.999
@@ -146,7 +153,7 @@ class Approximate_chain:
         """
        
         min_htime = min([n1.htime for n1 in self.nodes])
-        self.delta = min(min_htime, 0.005)
+        self.delta = 0.1*min_htime
         print 'min_htime: ', min_htime,' delta: ', self.delta
         # explicit method
         self.Phdelta = P.copy()
@@ -229,7 +236,7 @@ class Approximate_chain:
             kf_var  = dot(dot(expA,kf_var),expA.T) + process_var*self.delta
             S = observations[oi,:] - estimate_state
             gain = dot(dot(kf_var, C(estimate_state).T), np.linalg.inv( dot(dot(C(estimate_state),kf_var),C(estimate_state).T) + observation_var))
-            kf_var = dot(eye(2) -dot(gain, C(estimate_state)), kf_var)
+            kf_var = dot(1.0 -dot(gain, C(estimate_state)), kf_var)
             
             kfestimates.append(estimate_state + dot(gain,S))
             kfvars.append(kf_var)
@@ -257,6 +264,7 @@ class Approximate_chain:
         times, truth, observations = self.propagate_system(max_time)
         kfestimates, ksestimates, kfvars = self.run_kalman_smoother(times, truth, observations)
 
+        sestimates = []
         alphas = zeros((len(times)+1, self.num_vert))
         betas = zeros((len(times)+1, self.num_vert))
         for n1 in nodes:
@@ -272,14 +280,12 @@ class Approximate_chain:
             self.update_beta(oi+1, observations[oi], betas)
         #print "updated both"
         
-        sestimates = []
         density = zeros((len(times)+1, self.num_vert))
         for oi in range(len(times)+1):
             density[oi,:] = alphas[oi,:]*betas[oi,:]
             normalize_density(density[oi,:])
             sestimates.append(list(calci_moment(self.states, density[oi,:], 1)))
         sestimates.pop()
-        
         festimates = []
         for oi in range(len(times)):
             festimates.append(list(calci_moment(self.states, alphas[oi+1,:], 1)))
@@ -298,9 +304,9 @@ class Approximate_chain:
         axis('tight')
         grid()
         xlabel('t [s]')
-        legend(loc=1, prop=font)
+        legend(loc=2, prop=font)
         title('vanderpol_x')
-        #savefig('smooth_vanderpol_x'+str(self.num_vert)+'.pdf', bbox_inches='tight')
+        savefig('smooth_vanderpol_x'+str(self.num_vert)+'.pdf', bbox_inches='tight')
         
         fig = figure(2)
         ax = fig.add_subplot(111, aspect='equal')
@@ -313,14 +319,14 @@ class Approximate_chain:
         axis('tight')
         grid()
         xlabel('t [s]')
-        legend(loc=1, prop=font)
+        legend(loc=3, prop=font)
         title('vanderpol_x_dot')
-        #savefig('smooth_vanderpol_x_dot_'+str(self.num_vert)+'.pdf', bbox_inches='tight')
+        savefig('smooth_vanderpol_x_dot_'+str(self.num_vert)+'.pdf', bbox_inches='tight')
         
         show()
 
         return (np.linalg.norm(np.array(truth)-np.array(kfestimates))**2)/(max_time/self.delta), (np.linalg.norm(np.array(truth)-np.array(ksestimates))**2)/(max_time/self.delta), \
-                (np.linalg.norm(np.array(truth)-np.array(festimates))**2)/(max_time/self.delta) ,(np.linalg.norm(np.array(truth)-np.array(sestimates))**2)/(max_time/self.delta)
+                (np.linalg.norm(np.array(truth)-np.array(festimates))**2)/(max_time/self.delta), 0#,(np.linalg.norm(np.array(truth)-np.array(sestimates))**2)/(max_time/self.delta)
 
 if __name__ == "__main__":
     
@@ -345,10 +351,13 @@ if __name__ == "__main__":
     
     if 1:
         n = int(sys.argv[1])
-        amc = Approximate_chain(n)
-        kferr, kserr, ferr, serr = amc.run_hmmf_smoother(1)
-        print kferr, kserr, ferr, serr
-        #pickle.dump(amc, open('amc.pkl','wb'))
+        to_dump = int(sys.argv[2])
+        if to_dump >= 1:
+            amc = Approximate_chain(n, True)
+            sys.exit(0)
+        else:
+            amc = Approximate_chain(n, False)
+            kferr, kserr, ferr, serr = amc.run_hmmf_smoother(0.5)
+            print kferr, kserr, ferr, serr
     else:
         print "no"
-        #amc = pickle.load(open('amc.pkl', 'rb'))
