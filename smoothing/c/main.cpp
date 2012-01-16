@@ -125,7 +125,7 @@ class Graph
         }
         int connect_nodes()
         {
-            delta = 0.1*min_htime();
+            delta = 0.8*min_htime();
             for(int i=0; i< num_vert; i++)
             {
                 Node* n = nodes[i];
