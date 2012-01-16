@@ -122,8 +122,9 @@ class Graph{
         void print_rrg();
         void plot_graph();
         void plot_trajectory();
+        void clear_monte_carlo_trajectories(); 
         void plot_monte_carlo_trajectories(); 
-        void analyse_monte_carlo_trajectories();
+        void analyse_monte_carlo_trajectories(double& e1, double& e2);
         void plot_monte_carlo_density(char* filename);
 
         // algorithm functions
