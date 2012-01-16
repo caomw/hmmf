@@ -70,7 +70,7 @@ int do_err_convergence()
 {
     System sys;
     int inc = 1000;
-    for (int n=500; n< 501; n=n+inc)
+    for (int n=5000; n< 200000; n=n+inc)
     {
         srand(0);
         Graph graph(sys);
@@ -89,12 +89,47 @@ int do_err_convergence()
         for(int i=0; i< 50000; i++)
             graph.simulate_trajectory_implicit();
         
-        graph.analyse_monte_carlo_trajectories();
-        graph.plot_monte_carlo_trajectories();
+        double e1=0, e2=0;
+        graph.analyse_monte_carlo_trajectories(e1, e2);
+        //graph.plot_monte_carlo_trajectories();
     }
     return 0;
 }
 
+int do_err_convergence_incremental()
+{
+    ofstream eout("err.dat");
+    System sys;
+    Graph graph(sys);
+    int inc = 1000;
+    for(int n=0; n < 1000; n++)
+    {
+        Vertex* v = graph.add_sample(false);
+        graph.connect_edges_approx(v);
+        graph.calculate_probabilities_delta(v);
+        graph.reconnect_edges_neighbors(v);
+    }
+    for (int n=0; n< 1000000; n=n+1)
+    {
+        Vertex* v = graph.add_sample(false);
+        graph.connect_edges_approx(v);
+        graph.calculate_probabilities_delta(v);
+        graph.reconnect_edges_neighbors(v);
+        
+        if(n % inc == 0)
+        {
+            for(int i=0; i< 50000; i++)
+                graph.simulate_trajectory_implicit();
+            double e1=0, e2=0;
+            graph.analyse_monte_carlo_trajectories(e1, e2);
+            eout<<graph.num_vert<<" "<<e1<<" "<<e2<<endl;
+            eout.flush();
+            graph.clear_monte_carlo_trajectories();
+        }
+    }
+    eout.close();
+    return 0;
+}
 int do_batch(int tot_vert)
 {
     System sys;
@@ -442,7 +477,8 @@ int main(int argc, char* argv[])
     if (argc > 1)
         tot_vert = atoi(argv[1]);
 
-    do_err_convergence();
+    do_err_convergence_incremental();
+    // do_err_convergence();
     // do_error_plot();
     // do_batch(tot_vert);
     // do_incremental(tot_vert);

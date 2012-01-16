@@ -413,7 +413,7 @@ int Graph::calculate_delta()
             min_time = v->holding_time;
     }
     delta = min(0.99*min_time, 0.05);
-    cout<<"delta: "<< delta << endl;
+    //cout<<"delta: "<< delta << endl;
     return 0;
 }
 
@@ -430,7 +430,7 @@ int Graph::calculate_probabilities_delta_all()
 int Graph::calculate_probabilities_delta(Vertex* v)
 {
     double holding_time = v->holding_time;
-    double pself = 0*(1 - delta/holding_time);
+    double pself = 1*(1 - delta/holding_time);
     /*
     if(holding_time > delta)
     {
@@ -638,7 +638,7 @@ int Graph::reconnect_edges_neighbors(Vertex* v)
     double key[NUM_DIM] ={0};
     system->get_key(v->s, key);
 
-    double bowlr = gamma/2 * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
+    double bowlr = gamma/5 * pow( log(num_vert)/(num_vert), 1.0/(double)NUM_DIM);
 
     kdres *res;
     res = kd_nearest_range(state_tree, key, bowlr );
@@ -915,16 +915,16 @@ int Graph::simulate_trajectory_implicit()
     return 1;
 }
 
-void Graph::analyse_monte_carlo_trajectories()
+void Graph::analyse_monte_carlo_trajectories(double& err_m1, double& err_m2)
 {
     list< list<State> >::iterator traj_iter = monte_carlo_trajectories.begin();
     list< list<State> >::iterator actual_traj_iter = actual_trajectories.begin();
     double totprob = 0;
     int num_trajs = 0;
-    double traj_m1_1 = 0;
-    double actual_m1_1 = 0;
-    double traj_m2_1 = 0;
-    double actual_m2_1 = 0;
+    double traj_m1_1 = 0, traj_m1_2 = 0;
+    double actual_m1_1 = 0, actual_m1_2 = 0;
+    double traj_m2_1 = 0, traj_m2_2 = 0;
+    double actual_m2_1 = 0, actual_m2_2 = 0;
     for(list<double>::iterator i = monte_carlo_probabilities.begin(); \
             i!= monte_carlo_probabilities.end(); i++)
     {
@@ -934,10 +934,14 @@ void Graph::analyse_monte_carlo_trajectories()
         State& last_state = (*traj_iter).back();
         State& actual_last_state = (*actual_traj_iter).back();
         traj_m1_1 = traj_m1_1 + last_state.x[0]; // *(*i);
+        traj_m1_2 = traj_m1_2 + last_state.x[1]; // *(*i);
         actual_m1_1 = actual_m1_1 + actual_last_state.x[0];
+        actual_m1_2 = actual_m1_2 + actual_last_state.x[1];
         
         traj_m2_1 = traj_m2_1 + sq(last_state.x[0]); //*(*i);
+        traj_m2_2 = traj_m2_2 + sq(last_state.x[1]); //*(*i);
         actual_m2_1 = actual_m2_1 + sq(actual_last_state.x[0]); //*(*i);
+        actual_m2_2 = actual_m2_2 + sq(actual_last_state.x[1]); //*(*i);
 
         traj_iter++;
         actual_traj_iter++;
@@ -946,8 +950,22 @@ void Graph::analyse_monte_carlo_trajectories()
     actual_m1_1 = actual_m1_1/(float)num_trajs;
     traj_m2_1 = traj_m2_1/(float)num_trajs;
     actual_m2_1 = actual_m2_1/(float)num_trajs;
-    
-    cout<<num_vert<<" "<< fabs(traj_m1_1 - actual_m1_1) << " " << fabs(traj_m2_1 - actual_m2_1) << endl;
+    traj_m1_2 = traj_m1_2/(float)num_trajs;
+    actual_m1_2 = actual_m1_2/(float)num_trajs;
+    traj_m2_2 = traj_m2_2/(float)num_trajs;
+    actual_m2_2 = actual_m2_2/(float)num_trajs;
+   
+    err_m1 = sqrt(sq(traj_m1_1 - actual_m1_1) + sq(traj_m1_2 - actual_m1_2));
+    err_m2 = sqrt(sq(traj_m2_1 - actual_m2_1) + sq(traj_m2_2 - actual_m2_2));
+    cout<<num_vert<<" "<< sqrt(sq(traj_m1_1 - actual_m1_1) + sq(traj_m1_2 - actual_m1_2)) << " " << sqrt(sq(traj_m2_1 - actual_m2_1) + sq(traj_m2_2 - actual_m2_2)) << endl;
+}
+
+void Graph::clear_monte_carlo_trajectories()
+{
+    monte_carlo_trajectories.clear();
+    monte_carlo_probabilities.clear();
+    monte_carlo_times.clear();
+    actual_trajectories.clear();
 }
 
 void Graph::plot_monte_carlo_trajectories()
