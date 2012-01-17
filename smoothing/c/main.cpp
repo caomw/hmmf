@@ -7,7 +7,7 @@ double zmax[ndim] = {1, 2.5};
 double init_var[ndim] = {1e-2, 1e-2};
 double init_state[ndim] = {0, 1.0};
 double pvar[ndim] = {1e-2, 1e-2};
-double ovar[ndim] = {1e-3, 1e-3};
+double ovar[ndim] = {2*1e-2, 2*1e-2};
 double zero[ndim] = {0, 0};
 
 int add(double* src, double* dest)
@@ -141,7 +141,7 @@ class Graph
                     kd_res_next(res);
                 }
                 kd_res_free(res);
-                
+
                 vector<double> probs(neighbors.size());
                 double tprob = 0;
                 double fdt[ndim]; drift(n->x, fdt, n->htime);
@@ -167,7 +167,7 @@ class Graph
             }
             return 0;
         }
-        
+
         vector< vector<double> > truth;
         vector< vector<double> > observations;
         int propagate_system(double max_time)
@@ -208,31 +208,15 @@ class Graph
                    cout<<endl;
                    */
             }
-            ofstream ot("truth.dat");
-            for(unsigned int i=0; i< truth.size(); i++)
-            {
-                for(int j=0; j<ndim; j++)
-                    ot<<truth[i][j]<<" ";
-                ot<<endl;
-            }
-            ot.close();
-            ofstream ob("observations.dat");
-            for(unsigned int i=0; i< observations.size(); i++)
-            {
-                for(int j=0; j<ndim; j++)
-                    ob<<observations[i][j]<<" ";
-                ob<<endl;
-            }
-            ob.close();
 
             return 0;
         }
-        
+
         int calci_mean(vector< vector<double> >& density, int index, double* ret)
         {
             for(int i=0; i<ndim; i++)
                 ret[i] = 0;
-            
+
             double tprob = 0;
             for(int i=0; i<num_vert; i++)
             {
@@ -277,7 +261,7 @@ class Graph
             double obs[ndim] = {0};
             for(int i=0; i<ndim; i++)
                 obs[i] = obs_in[i];
-            
+
             double tprob = 0;
             for(int i=0; i<num_vert; i++)
             {
@@ -303,7 +287,7 @@ class Graph
             festimates.clear();
             sestimates.clear();
             propagate_system(max_time);
-            
+
             int steps = observations.size();
             vector< vector<double> > alphas(steps+1, vector<double>(num_vert));
             vector< vector<double> > betas(steps+1, vector<double>(num_vert));
@@ -319,7 +303,7 @@ class Graph
             }
             for(int i=0; i<num_vert; i++)
                 alphas[0][i] = alphas[0][i]/tprob;
-            
+
             for(int i=0; i<steps; i++)
                 update_alphas(alphas, observations[i], i);
             for(int i=steps-1; i >= 0; i--)
@@ -327,15 +311,13 @@ class Graph
             for(int i=0; i<steps; i++)
             {
                 for(int j=0; j<num_vert; j++)
-                {
                     sdensity[i][j] = alphas[i+1][j]*betas[i][j];
-                }
             }
 
             for(int i=0; i< steps; i++)
             {
                 double cmean[ndim];
-                
+
                 calci_mean(alphas, i+1, cmean);
                 vector<double> tmp1; tmp1.assign(cmean, cmean+ndim);
                 festimates.push_back(tmp1);
@@ -344,8 +326,50 @@ class Graph
                 vector<double> tmp2; tmp2.assign(cmean, cmean+ndim);
                 sestimates.push_back(tmp2);
             }
-                        
-            // write output
+
+            return 0;
+        }
+        int calculate_err(double& ferrt, double& serrt)
+        {
+            ferrt = 0;
+            serrt = 0;
+            int steps = observations.size();
+            for(int i=0; i<steps; i++)
+            {
+                double ferrc = 0;
+                double serrc = 0;
+                for(int j=0; j<ndim; j++)
+                {
+                    ferrc = ferrc + sq(truth[i][j] - festimates[i][j]);
+                    serrc = serrc + sq(truth[i][j] - sestimates[i][j]);
+                }
+                ferrt = ferrt + ferrc;
+                serrt = serrt + serrc;
+            }
+            ferrt = ferrt/(double)steps;
+            serrt = serrt/(double)steps;
+            return 0;
+        }
+        int output_trajectories()
+        {
+            ofstream ot("truth.dat");
+            for(unsigned int i=0; i< truth.size(); i++)
+            {
+                for(int j=0; j<ndim; j++)
+                    ot<<truth[i][j]<<" ";
+                ot<<endl;
+            }
+            ot.close();
+            ofstream ob("observations.dat");
+            for(unsigned int i=0; i< observations.size(); i++)
+            {
+                for(int j=0; j<ndim; j++)
+                    ob<<observations[i][j]<<" ";
+                ob<<endl;
+            }
+            ob.close();
+
+            int steps = observations.size();
             ofstream of("filter.dat");
             for(int i=0; i< steps; i++)
             {
@@ -362,9 +386,10 @@ class Graph
                 os<<endl;
             }
             os.close();
+
             return 0;
         }
-        
+
 };
 
 int main(int argc, char** argv)
@@ -376,13 +401,41 @@ int main(int argc, char** argv)
     if(argc > 2)
         max_time = atof(argv[2]);
 
+#if 1
     tic();
     Graph g = Graph(n);
     g.connect_nodes();
     cout<<"delta: "<< g.delta<<endl;
     g.run_smoother(max_time);
-    
+    g.output_trajectories();
+    double ferr, serr;
+    g.calculate_err(ferr, serr);
+    cout<<n<<" "<<ferr<<" "<<serr<<endl;
     cout<<"dt: "<< toc()<<endl;
+#endif
+
+#if 0
+    int max_tries = 10;
+    for(int n=100; n<3000; n=n+500)
+    {
+        srand(0);
+        Graph g = Graph(n);
+        g.connect_nodes();
+        double favg=0, savg=0;
+        for(int tries=0; tries<max_tries; tries++)
+        {
+            g.run_smoother(0.2);
+            double ferr, serr;
+            g.calculate_err(ferr, serr);
+            favg = favg + ferr;
+            savg = savg + serr;
+        }
+        favg = favg/(double)max_tries;
+        savg = savg/(double)max_tries;
+        cout<<n<<" "<<favg<<" "<<savg<<endl;
+    }
+#endif
 
     return 0;
 }
+
