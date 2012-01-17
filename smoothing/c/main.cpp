@@ -1,14 +1,14 @@
 #include "common.h"
 
-#define ndim (2)
+#define ndim (3)
 
-double zmin[ndim] = {0, 0.5};
-double zmax[ndim] = {1, 2.5};
-double init_var[ndim] = {1e-2, 1e-2};
-double init_state[ndim] = {0, 1.0};
-double pvar[ndim] = {1e-2, 1e-2};
-double ovar[ndim] = {2*1e-2, 2*1e-2};
-double zero[ndim] = {0, 0};
+double zmin[ndim] = {0, 0.5, 1.5};
+double zmax[ndim] = {1, 2.5, 2.5};
+double init_var[ndim] = {1e-2, 1e-2, 1e-2};
+double init_state[ndim] = {0, 1.0, 2.2};
+double pvar[ndim] = {1e-2, 1e-2, 1e-4};
+double ovar[ndim] = {1e-2, 1e-2};
+double zero[ndim] = {0, 0, 0};
 
 int add(double* src, double* dest)
 {
@@ -25,23 +25,30 @@ int copy(double* src, double* dest)
 }
 double norm(double* s)
 {
-    double prod=1;
+    double sum = 0;
     for(int i=0; i<ndim;i++)
-        prod = prod*sq(s[i]);
-    return sqrt(prod);
+        sum = sum + sq(s[i]);
+    return sqrt(sum);
 }
-int drift(double* s, double *ret, double dt=1.0)
+int drift(double* s, double *ret, double dt=1.0, bool real=false)
 {
+    double mu = s[2];
+    if(real)
+        mu = 2.0;
     ret[0] = s[1]*dt;
-    ret[1] = (-s[0] + 2.0*s[1]*(1-sq(s[0])))*dt;
+    ret[1] = (-s[0] + mu*s[1]*(1-sq(s[0])))*dt;
+    ret[2] = 0*dt;
     return 0;
 }
-int diffusion(double* s, double* ret, double dt=1.0)
+int diffusion(double* s, double* ret, double dt=1.0, bool real=false)
 {
     double var[ndim] ={0};
     var[0] = pvar[0]*dt;
     var[1] = pvar[1]*dt;
+    var[2] = pvar[2]*dt;
     multivar_normal(zero, var, ret, ndim);
+    if(real)
+        ret[2] = 0;
     return 0;
 }
 int get_obs(double* s, double* obs)
@@ -57,8 +64,8 @@ int get_obs(double* s, double* obs)
 double holding_time(double* s, double r)
 {
     double h = r*(zmax[1] - zmin[0]);
-    double ret[ndim];
-    drift(s, ret);
+    double ret[ndim] ={0};
+    drift(s, ret, 1.0, true);
     return h*h/(pvar[0] + h*norm(ret));
 }
 
@@ -179,15 +186,16 @@ class Graph
             double curr_state[ndim];
             double curr_obs[ndim];
             copy(init_state, curr_state);
+            curr_state[2] = 2.0;            // fix the init_state for truth propagation
             while(curr_time <= max_time)
             {
                 double runner_time = 0;
                 while(runner_time < delta)
                 {
                     double next_state[ndim];
-                    drift(curr_state, next_state, integration_delta);
+                    drift(curr_state, next_state, integration_delta, true);
                     double noise[ndim] = {0};
-                    diffusion(curr_state, noise, integration_delta); 
+                    diffusion(curr_state, noise, integration_delta, true); 
                     add(noise, next_state);
                     add(next_state, curr_state);
                     runner_time = runner_time + integration_delta;
@@ -202,11 +210,11 @@ class Graph
 
                 //cout<< fabs(curr_time/delta - (int)(curr_time/delta)) << endl;
                 /*
-                   cout<<curr_time<<" ";
-                   for(int j=0; j<ndim; j++)
-                   cout<<curr_state[j]<<" ";
-                   cout<<endl;
-                   */
+                cout<<curr_time<<" ";
+                for(int j=0; j<ndim; j++)
+                    cout<<curr_state[j]<<" ";
+                cout<<endl;
+                */
             }
 
             return 0;
@@ -338,7 +346,7 @@ class Graph
             {
                 double ferrc = 0;
                 double serrc = 0;
-                for(int j=0; j<ndim; j++)
+                for(int j=ndim-1; j<ndim; j++)
                 {
                     ferrc = ferrc + sq(truth[i][j] - festimates[i][j]);
                     serrc = serrc + sq(truth[i][j] - sestimates[i][j]);
