@@ -135,7 +135,8 @@ class System
         int get_key(State& s, double *key);
         bool is_free(State &s);
         State sample();
-        State integrate(State& s, double duration, bool is_clean);
+        State get_fdt(State& s, double duration);
+        State integrate(State& s, double duration, bool is_clean, bool is_propagate=false);
         void get_variance(State& s, double duration, double* var);
         void get_obs_variance(State& s, double* var);
         

@@ -2,8 +2,8 @@
 
 #define ndim (3)
 
-double zmin[ndim] = {0, 0.5, 1.5};
-double zmax[ndim] = {1, 2.5, 2.5};
+double zmin[ndim] = {-2.5, -4.0, 1.5};
+double zmax[ndim] = {2.5, 4.0, 2.5};
 double init_var[ndim] = {1e-2, 1e-2, 1e-2};
 double init_state[ndim] = {0, 1.0, 2.2};
 double pvar[ndim] = {1e-2, 1e-2, 1e-4};
@@ -132,7 +132,7 @@ class Graph
         }
         int connect_nodes()
         {
-            delta = 0.8*min_htime();
+            delta = 0.99*min_htime();
             for(int i=0; i< num_vert; i++)
             {
                 Node* n = nodes[i];
@@ -313,9 +313,18 @@ class Graph
                 alphas[0][i] = alphas[0][i]/tprob;
 
             for(int i=0; i<steps; i++)
+            {
                 update_alphas(alphas, observations[i], i);
+                
+                //if(i%(int)(steps/10.0) == 0)
+                //    cout<<"a: "<< i << endl;
+            }
             for(int i=steps-1; i >= 0; i--)
+            {
+                //if(i%(int)(steps/10.0) == 0)
+                //    cout<<"b: "<< i << endl;
                 update_betas(betas, observations[i], i);
+            }
             for(int i=0; i<steps; i++)
             {
                 for(int j=0; j<num_vert; j++)
@@ -337,7 +346,7 @@ class Graph
 
             return 0;
         }
-        int calculate_err(double& ferrt, double& serrt)
+        int calculate_err(double& ferrt, double& serrt, double max_time)
         {
             ferrt = 0;
             serrt = 0;
@@ -346,7 +355,7 @@ class Graph
             {
                 double ferrc = 0;
                 double serrc = 0;
-                for(int j=ndim-1; j<ndim; j++)
+                for(int j=0; j<ndim; j++)
                 {
                     ferrc = ferrc + sq(truth[i][j] - festimates[i][j]);
                     serrc = serrc + sq(truth[i][j] - sestimates[i][j]);
@@ -354,8 +363,8 @@ class Graph
                 ferrt = ferrt + ferrc;
                 serrt = serrt + serrc;
             }
-            ferrt = ferrt/(double)steps;
-            serrt = serrt/(double)steps;
+            ferrt = ferrt*max_time/(double)steps;
+            serrt = serrt*max_time/(double)steps;
             return 0;
         }
         int output_trajectories()
@@ -409,7 +418,7 @@ int main(int argc, char** argv)
     if(argc > 2)
         max_time = atof(argv[2]);
 
-#if 1
+#if 0
     tic();
     Graph g = Graph(n);
     g.connect_nodes();
@@ -417,14 +426,14 @@ int main(int argc, char** argv)
     g.run_smoother(max_time);
     g.output_trajectories();
     double ferr, serr;
-    g.calculate_err(ferr, serr);
+    g.calculate_err(ferr, serr, max_time);
     cout<<n<<" "<<ferr<<" "<<serr<<endl;
     cout<<"dt: "<< toc()<<endl;
 #endif
 
-#if 0
-    int max_tries = 10;
-    for(int n=100; n<3000; n=n+500)
+#if 1
+    int max_tries = 1000;
+    for(int n=100; n<500; n=n+30)
     {
         srand(0);
         Graph g = Graph(n);
@@ -434,7 +443,8 @@ int main(int argc, char** argv)
         {
             g.run_smoother(0.2);
             double ferr, serr;
-            g.calculate_err(ferr, serr);
+            g.calculate_err(ferr, serr, 0.2);
+            //cout<<ferr<<" "<<serr<<endl;
             favg = favg + ferr;
             savg = savg + serr;
         }

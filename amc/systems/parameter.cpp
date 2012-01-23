@@ -14,7 +14,7 @@ System::System()
         max_states[i] = 1;
     }
     init_state.x[0] = 0;
-    init_state.x[1] = 0.5;
+    init_state.x[1] = 0.9;
 
     for(int i=0; i< NUM_DIM; i++)
     {
@@ -22,7 +22,7 @@ System::System()
         obs_noise[i] = 1e-3;
         init_var[i] = 1e-3;
     }
-    
+    process_noise[1] = 1e-1; 
     sim_time_delta = 0.01;
 }
 
@@ -66,7 +66,14 @@ int System::get_key(State& s, double *key)
     return 0;
 }
 
-State System::integrate(State& s, double duration, bool is_clean)
+State System::get_fdt(State& s, double duration)
+{
+    State stmp;
+    stmp.x[0] = cos(2*M_PI*stmp.x[0]*stmp.x[1])*duration;
+    stmp.x[1] = 0*duration;
+    return stmp;
+}
+State System::integrate(State& s, double duration, bool is_clean, bool is_propagate)
 {
     State t;
 
@@ -91,12 +98,16 @@ State System::integrate(State& s, double duration, bool is_clean)
     double curr_time = 0;
     while(curr_time < duration)
     {
-        double phi = t.x[1];
+        
         if( !is_clean)
             multivar_normal( mean, var, tmp, NUM_DIM);
-        else
-            phi = 0.5;
         
+        double phi = t.x[1];
+        if(is_propagate)
+        {
+            phi = 0.5;
+            tmp[1] = 0;
+        }
         double f1dt=0, f2dt = 0;
         f1dt = (cos(2*M_PI*phi*t.x[0]))*delta_t;
         f2dt = 0*delta_t;
@@ -265,7 +276,7 @@ int pfilter_resample(State* parts, double *weights, int num_particles)
     }
 
     State* newparts = new State[num_particles];
-#if 0
+#if 1
     double u = RANDF/(double)num_particles;
     int i = 0;
     for(int j=0; j<num_particles; j++)

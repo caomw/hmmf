@@ -4,6 +4,10 @@ import sys
 from numpy import *
 from pylab import *
 
+to_save = False
+if len(sys.argv) > 3:
+    to_save = bool(sys.argv[1])
+
 truth = loadtxt('truth.dat')
 obs = loadtxt('observations.dat')
 fest = loadtxt('filter.dat')
@@ -26,7 +30,8 @@ grid()
 xlabel('t [s]')
 legend(loc=4)
 title('vanderpol_x')
-savefig('smoothing_vanderpol_x.pdf', bbox_inches='tight')
+if to_save:
+    savefig('smoothing_vanderpol_x.pdf', bbox_inches='tight')
 
 figure(2)
 plot(times, truth[:,1], 'r-', label='sys')
@@ -38,8 +43,20 @@ grid()
 xlabel('t [s]')
 legend(loc=4)
 title('vanderpol_x_dot')
-savefig('smoothing_vanderpol_x_dot.pdf', bbox_inches='tight')
+if to_save:
+    savefig('smoothing_vanderpol_x_dot.pdf', bbox_inches='tight')
 
+figure(3)
+plot(times, truth[:,2], 'r-', label='sys')
+plot(times, fest[:,2], 'g-', label='filter')
+plot(times, sest[:,2], 'c-', label='smoothing')
+axis('tight')
+grid()
+xlabel('t [s]')
+legend(loc=4)
+title('vanderpol_mu')
+if to_save:
+    savefig('smoothing_vanderpol_mu.pdf', bbox_inches='tight')
 
 ferr = truth - fest
 serr = truth - sest

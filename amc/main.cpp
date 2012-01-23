@@ -36,7 +36,7 @@ State get_mean(Graph& graph, bool is_cout=true)
     return mstate;
 }
 
-void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
+void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe, double max_time=1.0)
 {
     bpe = 0;
     kfe = 0;
@@ -53,17 +53,22 @@ void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe)
         State& s3 = (*kfiter);
         State& s4 = (*pfiter);
 
+        /*
         bpe = bpe + graph.dist(s1,s2)*graph.dist(s1,s2);
         kfe = kfe + graph.dist(s1,s3)*graph.dist(s1,s3);
         pfe = pfe + graph.dist(s1,s4)*graph.dist(s1,s4);
-
+        */
+        bpe = bpe + sq(s1.x[1] - s2.x[1]);
+        kfe = kfe + sq(s1.x[1] - s3.x[1]);
+        pfe = pfe + sq(s1.x[1] - s4.x[1]);
+        
         bpiter++;
         kfiter++;
         pfiter++;
     }
-    bpe = bpe/(double)graph.truth.size();
-    kfe = kfe/(double)graph.truth.size();
-    pfe = pfe/(double)graph.truth.size();
+    bpe = bpe*max_time/(double)graph.truth.size();
+    kfe = kfe*max_time/(double)graph.truth.size();
+    pfe = pfe*max_time/(double)graph.truth.size();
 }
 
 int do_err_convergence()
@@ -134,7 +139,7 @@ int do_batch(int tot_vert)
 {
     System sys;
     Graph graph(sys);
-
+    srand(0);
     
 #if 1
     tic();
@@ -168,6 +173,7 @@ int do_batch(int tot_vert)
     graph.seeding_finished = true;
     
     graph.calculate_delta();
+    cout<<"delta: "<< graph.delta<<endl;
     graph.system->sim_time_delta = graph.delta;
     graph.calculate_probabilities_delta_all();
 
@@ -210,11 +216,11 @@ int do_batch(int tot_vert)
 #endif
 
     double bpe, kfe, pfe;
-    get_sq_error(graph, bpe, kfe, pfe);
+    get_sq_error(graph, bpe, kfe, pfe, graph.max_obs_time);
     cout<<"bpe: "<< bpe <<" kfe: "<< kfe << " pfe: "<< pfe << endl;
     
     graph.plot_trajectory();
-    graph.plot_graph();
+    //graph.plot_graph();
 
     return 0;
 }
@@ -337,7 +343,7 @@ int do_error_plot()
 
     System sys;
 
-    for(int tot_vert=10; tot_vert < 5000; tot_vert+= 20)
+    for(int tot_vert=10000; tot_vert < 10001; tot_vert+= 20)
     {
         double average_time_hmm = 0;
         double average_time_pf = 0;
@@ -345,28 +351,25 @@ int do_error_plot()
         double average_kfe = 0;
         double average_pfe = 0;
 
+        Graph graph(sys);
+        for(int i=0; i < tot_vert; i++)
+            graph.add_sample();
+        for(unsigned int i=0; i< graph.num_vert; i++)
+        {
+            Vertex* v = graph.vlist[i];
+            graph.connect_edges_approx(v);
+        }
+        graph.calculate_delta();
+        graph.system->sim_time_delta = graph.delta;
+        graph.calculate_probabilities_delta_all();
+        graph.seeding_finished = true;
+
         for(int how_many=0; how_many < max_runs; how_many++)
         {
-            Graph graph(sys);
-            
-            tic();
-            for(int i=0; i < tot_vert; i++)
-                graph.add_sample();
-            for(unsigned int i=0; i< graph.num_vert; i++)
-            {
-                Vertex* v = graph.vlist[i];
-                graph.connect_edges_approx(v);
-            }
-            //average_time_hmm += toc();
-
-            graph.calculate_delta();
-            graph.system->sim_time_delta = graph.delta;
-            graph.calculate_probabilities_delta_all();
-
             graph.propagate_system();
             graph.get_kalman_path();
             tic();
-            graph.get_pf_path(tot_vert);
+            graph.get_pf_path(1000);
             average_time_pf += toc();
             
             tic();
@@ -377,7 +380,6 @@ int do_error_plot()
                         v->s.x, NUM_DIM);
             }
             graph.normalize_density();
-            graph.seeding_finished = true;
 
             graph.best_path.clear();
             graph.best_path.push_back(get_mean(graph, false));
@@ -392,7 +394,8 @@ int do_error_plot()
             //graph.plot_trajectory();
 
             double bpe, kfe, pfe;
-            get_sq_error(graph, bpe, kfe, pfe);
+            get_sq_error(graph, bpe, kfe, pfe, graph.max_obs_time);
+            cout<<bpe<<" "<< kfe<<" "<<pfe<<endl;
 
             average_bpe += bpe;
             average_kfe += kfe;
@@ -477,10 +480,10 @@ int main(int argc, char* argv[])
     if (argc > 1)
         tot_vert = atoi(argv[1]);
 
-    do_err_convergence_incremental();
+    // do_err_convergence_incremental();
     // do_err_convergence();
     // do_error_plot();
-    // do_batch(tot_vert);
+    do_batch(tot_vert);
     // do_incremental(tot_vert);
 
     // do_timing_plot();

@@ -174,26 +174,39 @@ def plot_trajs():
     figure(1)    
     plot( tsys[:], sys[:,0], 'r-', label='sys', lw=1.5)
     plot( tbp[:], bp[:,0], 'g-', label='hmm', lw=1.5)
-    plot( tkf[:], kf[:,0], 'c-', label='kf', lw=0.5)
+    #plot( tkf[:], kf[:,0], 'c-', label='kf', lw=0.5)
     plot( tpf[:], pf[:,0], 'y-', label='pf', lw=1.5)
     axis('tight')
-    legend(loc=1)
+    legend(loc=4)
     grid()
     xlabel('t [s]')
     title('x(t)')
     #savefig('vanderpol_x.pdf', bbox_inches='tight')
     
-    if NUM_DIM == 2:
+    if NUM_DIM >= 2:
         figure(2)    
         plot( tsys[:], sys[:,1], 'r-', label='sys', lw=1.5)
         plot( tbp[:], bp[:,1], 'g-', label='hmm', lw=1.5)
-        # plot( tkf[:], kf[:,1], 'c-', label='kf', lw=0.5)
+        #plot( tkf[:], kf[:,1], 'c-', label='kf', lw=0.5)
         plot( tpf[:], pf[:,1], 'y-', label='pf', lw=1.5)
         axis('tight')
-        legend()
+        legend(loc=7)
         grid()
         xlabel('t [s]')
         title('x_dot(t)')
+        #savefig('vanderpol_x_dot.pdf', bbox_inches='tight')
+    
+    if NUM_DIM >= 3:
+        figure(3)    
+        plot( tsys[:], sys[:,2], 'r-', label='sys', lw=1.5)
+        plot( tbp[:], bp[:,2], 'g-', label='hmm', lw=1.5)
+        #plot( tkf[:], kf[:,2], 'c-', label='kf', lw=0.5)
+        plot( tpf[:], pf[:,2], 'y-', label='pf', lw=1.5)
+        axis('tight')
+        legend(loc=7)
+        grid()
+        xlabel('t [s]')
+        title('theta2(t)')
         #savefig('vanderpol_x_dot.pdf', bbox_inches='tight')
 
     """
@@ -450,8 +463,8 @@ def do_err_plot():
 
 if __name__ == "__main__":
 
-    # plot_trajs()
-    plot_sim_trajs()
+    plot_trajs()
+    #plot_sim_trajs()
     # draw_obstacles()    
     
     # do_err_plot()

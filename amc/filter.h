@@ -2,7 +2,7 @@
 #define __filter_h__
 
 #include "utils/common.h"
-#include "systems/singleint.h"
+#include "systems/parameter.h"
 
 class Edge;
 class Vertex;

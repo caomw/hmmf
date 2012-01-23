@@ -31,7 +31,7 @@ Graph::Graph(System& sys) {
     obs_interval = 1;
     obs_curr_index = 0;
     delta = system->sim_time_delta;
-    max_obs_time = 2.0;
+    max_obs_time = 10.0;
 
     min_holding_time = delta;
     seeding_finished = false;
@@ -412,7 +412,7 @@ int Graph::calculate_delta()
         if( v->holding_time < min_time)
             min_time = v->holding_time;
     }
-    delta = min(0.99*min_time, 0.05);
+    delta = 0.99*min_time;
     //cout<<"delta: "<< delta << endl;
     return 0;
 }
@@ -790,11 +790,14 @@ void Graph::propagate_system()
     double curr_time = 0;
     double max_time = max_obs_time;
 
-    truth.push_back(system->init_state);
+    State start_state = system->init_state;
+    start_state.x[1] = -0.5;
+    start_state.x[2] = 0.25;
+    truth.push_back(start_state);
 
     while(curr_time < max_time)
     {
-        State snext = system->integrate( truth.back(), system->sim_time_delta, false);
+        State snext = system->integrate( truth.back(), system->sim_time_delta, false, true);
         truth.push_back( snext);
         curr_time += system->sim_time_delta;
 
@@ -869,7 +872,7 @@ int Graph::simulate_trajectory_implicit()
 
     while(curr_time < max_time)
     {
-        State next_actual_state = system->integrate(vcurr->s, vcurr->holding_time_delta, false);
+        State next_actual_state = system->integrate(vcurr->s, vcurr->holding_time_delta, false, true);
         if(next_actual_state.x[0] > system->max_states[0])
             next_actual_state.x[0] = system->max_states[0];
         else if(next_actual_state.x[0] < system->min_states[0])
