@@ -132,6 +132,7 @@ class Graph
         }
         int connect_nodes()
         {
+            int num_nonzero = 0;
             delta = 0.99*min_htime();
             for(int i=0; i< num_vert; i++)
             {
@@ -170,8 +171,23 @@ class Graph
                 {
                     probs[j] = probs[j]/tprob;
                     P[n->index*num_vert + neighbors[j]] = (1-ps)*probs[j];
+                    if(P[n->index*num_vert + neighbors[j]] > 1e-30)
+                        num_nonzero++;
                 }
             }
+            
+            // create sparse matrix
+            SparseMatrix<float> Psparse(num_vert, num_vert);
+            Psparse.reserve(num_nonzero);
+            for(int j=0; j< num_vert; j++)
+            {
+                Psparse.startVec(j);
+                for(int i=0; i< num_vert; i++)
+                {
+                    Psparse.insertBack(i,j) = P[i*num_vert + j];
+                }
+            }
+
             return 0;
         }
 
@@ -418,7 +434,7 @@ int main(int argc, char** argv)
     if(argc > 2)
         max_time = atof(argv[2]);
 
-#if 0
+#if 1
     tic();
     Graph g = Graph(n);
     g.connect_nodes();
@@ -431,7 +447,7 @@ int main(int argc, char** argv)
     cout<<"dt: "<< toc()<<endl;
 #endif
 
-#if 1
+#if 0
     int max_tries = 1000;
     for(int n=100; n<500; n=n+30)
     {
