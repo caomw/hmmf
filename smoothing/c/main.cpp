@@ -1,14 +1,9 @@
 #include "common.h"
 
-#define ndim (3)
-
-double zmin[ndim] = {-2.5, -4.0, 1.5};
-double zmax[ndim] = {2.5, 4.0, 2.5};
-double init_var[ndim] = {1e-2, 1e-2, 1e-2};
-double init_state[ndim] = {0, 1.0, 2.2};
-double pvar[ndim] = {1e-2, 1e-2, 1e-4};
-double ovar[ndim] = {1e-2, 1e-2};
-double zero[ndim] = {0, 0, 0};
+//#include "systems/vanderpol_parameter.h"
+#include "systems/vanderpol.h"
+//#include "systems/singleint.h"
+//#include "systems/parameter.h"
 
 int add(double* src, double* dest)
 {
@@ -22,51 +17,6 @@ int copy(double* src, double* dest)
     for(int i=0; i< ndim; i++)
         dest[i] = src[i];
     return 0;
-}
-double norm(double* s)
-{
-    double sum = 0;
-    for(int i=0; i<ndim;i++)
-        sum = sum + sq(s[i]);
-    return sqrt(sum);
-}
-int drift(double* s, double *ret, double dt=1.0, bool real=false)
-{
-    double mu = s[2];
-    if(real)
-        mu = 2.0;
-    ret[0] = s[1]*dt;
-    ret[1] = (-s[0] + mu*s[1]*(1-sq(s[0])))*dt;
-    ret[2] = 0*dt;
-    return 0;
-}
-int diffusion(double* s, double* ret, double dt=1.0, bool real=false)
-{
-    double var[ndim] ={0};
-    var[0] = pvar[0]*dt;
-    var[1] = pvar[1]*dt;
-    var[2] = pvar[2]*dt;
-    multivar_normal(zero, var, ret, ndim);
-    if(real)
-        ret[2] = 0;
-    return 0;
-}
-int get_obs(double* s, double* obs)
-{
-    for(int i=0; i< ndim; i++)
-        obs[i] = 0;
-    double noise[ndim] = {0};
-    multivar_normal(zero, ovar, noise, 2); 
-    obs[0] = s[0] + noise[0];
-    obs[1] = s[1] + noise[1];
-    return 0;
-}
-double holding_time(double* s, double r)
-{
-    double h = r*(zmax[1] - zmin[0]);
-    double ret[ndim] ={0};
-    drift(s, ret, 1.0, true);
-    return h*h/(pvar[0] + h*norm(ret));
 }
 
 class Node
@@ -97,6 +47,7 @@ class Graph
         int num_vert;
         double bowlr;
         double* P;
+        vector< vector<int> > neighbor_list;
         double delta;
         Graph(int num_nodes)
         {
@@ -132,7 +83,6 @@ class Graph
         }
         int connect_nodes()
         {
-            int num_nonzero = 0;
             delta = 0.99*min_htime();
             for(int i=0; i< num_vert; i++)
             {
@@ -149,7 +99,8 @@ class Graph
                     kd_res_next(res);
                 }
                 kd_res_free(res);
-
+                
+                neighbor_list.push_back(neighbors);
                 vector<double> probs(neighbors.size());
                 double tprob = 0;
                 double fdt[ndim]; drift(n->x, fdt, n->htime);
@@ -171,23 +122,9 @@ class Graph
                 {
                     probs[j] = probs[j]/tprob;
                     P[n->index*num_vert + neighbors[j]] = (1-ps)*probs[j];
-                    if(P[n->index*num_vert + neighbors[j]] > 1e-30)
-                        num_nonzero++;
                 }
             }
             
-            // create sparse matrix
-            SparseMatrix<float> Psparse(num_vert, num_vert);
-            Psparse.reserve(num_nonzero);
-            for(int j=0; j< num_vert; j++)
-            {
-                Psparse.startVec(j);
-                for(int i=0; i< num_vert; i++)
-                {
-                    Psparse.insertBack(i,j) = P[i*num_vert + j];
-                }
-            }
-
             return 0;
         }
 
@@ -202,7 +139,7 @@ class Graph
             double curr_state[ndim];
             double curr_obs[ndim];
             copy(init_state, curr_state);
-            curr_state[2] = 2.0;            // fix the init_state for truth propagation
+            //curr_state[1] = 0.5;                // fix init_state for propagation
             while(curr_time <= max_time)
             {
                 double runner_time = 0;
@@ -266,11 +203,12 @@ class Graph
             for(int i=0; i<num_vert; i++)
             {
                 double toadd = 0;
-                for(int j=0; j<num_vert; j++)
+                for(unsigned int j=0; j< neighbor_list[i].size(); j++)
                 {
-                    toadd = toadd + P[j*num_vert + i]*alphas[index][j];
+                    int neighbor_j = neighbor_list[i][j];
+                    toadd = toadd + P[neighbor_j*num_vert + i]*alphas[index][neighbor_j];
                 }
-                alphas[index+1][i] = toadd*normal_val(obs, ovar, nodes[i]->x, 2);
+                alphas[index+1][i] = toadd*normal_val(obs, ovar, nodes[i]->x, ndim_obs);
                 tprob = tprob + alphas[index+1][i];
             }
             for(int i=0; i<num_vert; i++)
@@ -279,7 +217,7 @@ class Graph
             }
             return 0;
         }
-        // use index+1 betas to get index betas
+        // use index betas to get index-1 betas
         int update_betas(vector< vector<double> >& betas, vector<double> obs_in, int index)
         {
             double obs[ndim] = {0};
@@ -290,16 +228,17 @@ class Graph
             for(int i=0; i<num_vert; i++)
             {
                 double toadd = 0;
-                for(int j=0; j<num_vert; j++)
+                for(unsigned int j=0; j< neighbor_list[i].size(); j++)
                 {
-                    toadd = toadd + P[i*num_vert + j]*betas[index+1][j]*normal_val(obs, ovar, nodes[j]->x, 2);
+                    int neighbor_j = neighbor_list[i][j];
+                    toadd = toadd + P[i*num_vert + neighbor_j]*betas[index][neighbor_j]*normal_val(obs, ovar, nodes[neighbor_j]->x, ndim_obs);
                 }
-                betas[index][i] = toadd;
-                tprob = tprob + betas[index][i];
+                betas[index-1][i] = toadd;
+                tprob = tprob + betas[index-1][i];
             }
             for(int i=0; i<num_vert; i++)
             {
-                betas[index][i] = betas[index][i]/tprob;
+                betas[index-1][i] = betas[index-1][i]/tprob;
             }
             return 0;
         }
@@ -313,17 +252,16 @@ class Graph
             propagate_system(max_time);
 
             int steps = observations.size();
-            vector< vector<double> > alphas(steps+1, vector<double>(num_vert));
-            vector< vector<double> > betas(steps+1, vector<double>(num_vert));
-            vector< vector<double> > sdensity(steps, vector<double>(num_vert));
-            int li = steps;
+            vector< vector<double> > alphas(steps+1, vector<double>(num_vert,0));
+            vector< vector<double> > betas(steps, vector<double>(num_vert,0));
+            vector< vector<double> > sdensity(steps, vector<double>(num_vert,0));
 
             double tprob = 0;
             for(int i=0; i<num_vert; i++)
             {
                 alphas[0][i] = normal_val(init_state, init_var, nodes[i]->x, ndim);
                 tprob = tprob + alphas[0][i];
-                betas[li][i] = 1.0;
+                betas[steps-1][i] = 1.0;
             }
             for(int i=0; i<num_vert; i++)
                 alphas[0][i] = alphas[0][i]/tprob;
@@ -335,7 +273,8 @@ class Graph
                 //if(i%(int)(steps/10.0) == 0)
                 //    cout<<"a: "<< i << endl;
             }
-            for(int i=steps-1; i >= 0; i--)
+            
+            for(int i=steps-1; i >= 1; i--)
             {
                 //if(i%(int)(steps/10.0) == 0)
                 //    cout<<"b: "<< i << endl;
@@ -436,6 +375,7 @@ int main(int argc, char** argv)
 
 #if 1
     tic();
+    srand(0);
     Graph g = Graph(n);
     g.connect_nodes();
     cout<<"delta: "<< g.delta<<endl;
