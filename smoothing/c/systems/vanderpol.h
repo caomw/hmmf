@@ -2,7 +2,7 @@
 #define __vanderpol__
 
 #define ndim        (2)
-#define ndim_obs    (1)
+#define ndim_obs    (2)
 
 double zmin[ndim] = {-2.5, -4.0};
 double zmax[ndim] = {2.5, 3.0};

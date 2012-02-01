@@ -43,7 +43,7 @@ plot(times, sest[:,1], 'c-', label='smoothing')
 axis('tight')
 grid()
 xlabel('t [s]')
-legend(loc=4)
+legend(loc=1)
 title('vanderpol_x_dot')
 if to_save:
     savefig('smoothing_vanderpol_x_dot.pdf', bbox_inches='tight')

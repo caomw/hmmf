@@ -1,8 +1,9 @@
 #include "common.h"
 
 //#include "systems/vanderpol_parameter.h"
-#include "systems/vanderpol.h"
-//#include "systems/singleint.h"
+//#include "systems/vanderpol.h"
+#include "systems/singleint.h"
+//#include "systems/uhlmann.h"
 //#include "systems/parameter.h"
 
 int add(double* src, double* dest)
@@ -46,14 +47,14 @@ class Graph
         vector<Node*> nodes;
         int num_vert;
         double bowlr;
-        double* P;
+        float* P;
         vector< vector<int> > neighbor_list;
         double delta;
         Graph(int num_nodes)
         {
             num_vert = num_nodes;
-            P = new double[num_nodes*num_nodes];
-            memset(P, 0, sizeof(double)*num_nodes*num_nodes);
+            P = new float[num_nodes*num_nodes];
+            memset(P, 0, sizeof(float)*num_nodes*num_nodes);
             bowlr = 2.2*pow(log(num_vert+1)/(num_vert+1.0), 1/(double)ndim);
             node_tree = kd_create(ndim);
             for(int i=0; i< num_nodes; i++)
@@ -83,7 +84,7 @@ class Graph
         }
         int connect_nodes()
         {
-            delta = 0.99*min_htime();
+            delta = min(1.0, 0.99*min_htime());
             for(int i=0; i< num_vert; i++)
             {
                 Node* n = nodes[i];
@@ -138,8 +139,7 @@ class Graph
             double integration_delta = min(1e-3, delta/2.0);
             double curr_state[ndim];
             double curr_obs[ndim];
-            copy(init_state, curr_state);
-            //curr_state[1] = 0.5;                // fix init_state for propagation
+            copy(init_state_real, curr_state);
             while(curr_time <= max_time)
             {
                 double runner_time = 0;
@@ -206,7 +206,8 @@ class Graph
                 for(unsigned int j=0; j< neighbor_list[i].size(); j++)
                 {
                     int neighbor_j = neighbor_list[i][j];
-                    toadd = toadd + P[neighbor_j*num_vert + i]*alphas[index][neighbor_j];
+                    if(alphas[index][neighbor_j] > 1e-6)
+                        toadd = toadd + P[neighbor_j*num_vert + i]*alphas[index][neighbor_j];
                 }
                 alphas[index+1][i] = toadd*normal_val(obs, ovar, nodes[i]->x, ndim_obs);
                 tprob = tprob + alphas[index+1][i];
@@ -231,7 +232,8 @@ class Graph
                 for(unsigned int j=0; j< neighbor_list[i].size(); j++)
                 {
                     int neighbor_j = neighbor_list[i][j];
-                    toadd = toadd + P[i*num_vert + neighbor_j]*betas[index][neighbor_j]*normal_val(obs, ovar, nodes[neighbor_j]->x, ndim_obs);
+                    if(betas[index][neighbor_j] > 1e-6)
+                        toadd = toadd + P[i*num_vert + neighbor_j]*betas[index][neighbor_j]*normal_val(obs, ovar, nodes[neighbor_j]->x, ndim_obs);
                 }
                 betas[index-1][i] = toadd;
                 tprob = tprob + betas[index-1][i];
@@ -273,7 +275,7 @@ class Graph
                 //if(i%(int)(steps/10.0) == 0)
                 //    cout<<"a: "<< i << endl;
             }
-            
+            /*
             for(int i=steps-1; i >= 1; i--)
             {
                 //if(i%(int)(steps/10.0) == 0)
@@ -285,7 +287,7 @@ class Graph
                 for(int j=0; j<num_vert; j++)
                     sdensity[i][j] = alphas[i+1][j]*betas[i][j];
             }
-
+            */
             for(int i=0; i< steps; i++)
             {
                 double cmean[ndim];
@@ -374,22 +376,22 @@ int main(int argc, char** argv)
         max_time = atof(argv[2]);
 
 #if 1
-    tic();
     srand(0);
     Graph g = Graph(n);
     g.connect_nodes();
     cout<<"delta: "<< g.delta<<endl;
+    tic();
     g.run_smoother(max_time);
+    cout<<"dt: "<< toc()<<endl;
     g.output_trajectories();
     double ferr, serr;
     g.calculate_err(ferr, serr, max_time);
     cout<<n<<" "<<ferr<<" "<<serr<<endl;
-    cout<<"dt: "<< toc()<<endl;
 #endif
 
 #if 0
-    int max_tries = 1000;
-    for(int n=100; n<500; n=n+30)
+    int max_tries = 2000;
+    for(int n=10; n<100; n=n+5)
     {
         srand(0);
         Graph g = Graph(n);
@@ -397,9 +399,9 @@ int main(int argc, char** argv)
         double favg=0, savg=0;
         for(int tries=0; tries<max_tries; tries++)
         {
-            g.run_smoother(0.2);
+            g.run_smoother(1);
             double ferr, serr;
-            g.calculate_err(ferr, serr, 0.2);
+            g.calculate_err(ferr, serr, 1);
             //cout<<ferr<<" "<<serr<<endl;
             favg = favg + ferr;
             savg = savg + serr;

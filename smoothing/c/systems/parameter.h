@@ -6,10 +6,10 @@
 
 double zmin[ndim] = {-0.2, 0};
 double zmax[ndim] = {1, 1};
-double init_var[ndim] = {1e-2, 1e-1};
+double init_var[ndim] = {1e-3, 1e-1};
 double init_state[ndim] = {0.0, 0.9};
-double pvar[ndim] = {1e-2, 1e-4};
-double ovar[ndim] = {1e-3, 1e-1};
+double pvar[ndim] = {1e-4, 1e-3};
+double ovar[ndim] = {1e-3, 1e-3};
 double zero[ndim] = {0, 0};
 
 double norm(double* s)

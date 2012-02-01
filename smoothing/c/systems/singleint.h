@@ -1,12 +1,14 @@
 #ifndef __singleint__
 #define __singleint__
 
-#define ndim (2)
+#define ndim        (2)
+#define ndim_obs    (2)
 
 double zmin[ndim] = {-1, -1};
 double zmax[ndim] = {1, 1};
 double init_var[ndim] = {1e-2, 1e-2};
 double init_state[ndim] = {0.8, 0.8};
+double init_state_real[ndim] = {0.8, 0.8};
 double pvar[ndim] = {1e-1, 1e-1};
 double ovar[ndim] = {1e-3, 1e-3};
 double zero[ndim] = {0, 0};
@@ -37,7 +39,7 @@ int get_obs(double* s, double* obs)
     for(int i=0; i< ndim; i++)
         obs[i] = 0;
     double noise[ndim] = {0};
-    multivar_normal(zero, ovar, noise, 2); 
+    multivar_normal(zero, ovar, noise, ndim_obs); 
     obs[0] = s[0] + noise[0];
     obs[1] = s[1] + noise[1];
     return 0;
