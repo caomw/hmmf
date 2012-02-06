@@ -1,14 +1,18 @@
 #include "filter.h"
 
-State get_mean(Graph& graph, bool is_cout=true)
+State get_mean(Graph& graph, State& covarstate, bool is_cout=true)
 {
     State mstate;
     double mean[NUM_DIM] = {0};
+    double covar[NUM_DIM] = {0};
     double totprob = 0;
     for(unsigned int i=0; i<graph.num_vert; i++)
     {
         for(int j=0; j< NUM_DIM; j++)
             mean[j] += ((graph.vlist[i]->s.x[j]) * (graph.vlist[i]->prob_best_path));
+        
+        for(int j=0; j< NUM_DIM; j++)
+            covar[j] += (sq(graph.vlist[i]->s.x[j]) * (graph.vlist[i]->prob_best_path));
 
         if(graph.vlist[i]->prob_best_path != graph.vlist[i]->prob_best_path)
         {
@@ -21,6 +25,7 @@ State get_mean(Graph& graph, bool is_cout=true)
     for(int j=0; j< NUM_DIM; j++)
     {
         mstate.x[j] = mean[j]/totprob;
+        covarstate.x[j] = covar[j]/totprob - sq(mstate.x[j]);
 
         if(mstate.x[j] != mstate.x[j])
         {
@@ -53,15 +58,16 @@ void get_sq_error(Graph& graph, double& bpe, double& kfe, double& pfe, double ma
         State& s3 = (*kfiter);
         State& s4 = (*pfiter);
 
-        /*
+        
         bpe = bpe + graph.dist(s1,s2)*graph.dist(s1,s2);
         kfe = kfe + graph.dist(s1,s3)*graph.dist(s1,s3);
         pfe = pfe + graph.dist(s1,s4)*graph.dist(s1,s4);
-        */
+        
+        /*
         bpe = bpe + sq(s1.x[1] - s2.x[1]);
         kfe = kfe + sq(s1.x[1] - s3.x[1]);
         pfe = pfe + sq(s1.x[1] - s4.x[1]);
-        
+        */
         bpiter++;
         kfiter++;
         pfiter++;
@@ -176,7 +182,8 @@ int do_batch(int tot_vert)
     cout<<"delta: "<< graph.delta<<endl;
     graph.system->sim_time_delta = graph.delta;
     graph.calculate_probabilities_delta_all();
-
+    
+    srand(0);
     graph.propagate_system();
     graph.get_kalman_path();
     tic();
@@ -187,19 +194,35 @@ int do_batch(int tot_vert)
 #if 1
     cout<<"start filter"<<endl;
     tic();
+    State curr_var;
+    State curr_mean;
     graph.best_path.clear();
-    graph.best_path.push_back(get_mean(graph, false));
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {
+        curr_mean = get_mean(graph, curr_var, false);
+        /*
+        for(int j=0; j<NUM_DIM; j++)
+            cout<<curr_var.x[j]<<" ";
+        cout<<endl;
+        */
+        graph.best_path.push_back(curr_mean);
+
         graph.obs_curr_index = i;
         // cout<< "time: " << graph.obs_times[graph.obs_curr_index] << " ";
-        graph.update_density_implicit_all(); 
+        graph.update_density_implicit_all(curr_var.norm());
         /*
-        if(i%10 == 0)
-            cout<<i<<endl;
-        */
-        graph.best_path.push_back(get_mean(graph, false));
+           if(i%10 == 0)
+           cout<<i<<endl;
+           */
     }
+    curr_mean = get_mean(graph, curr_var, false);
+    /*
+    for(int j=0; j<NUM_DIM; j++)
+        cout<<curr_var.x[j]<<" ";
+    cout<<endl;
+    */
+    graph.best_path.push_back(curr_mean);
+
     cout<<"filter time: "<< toc() << endl;
 #endif
 
@@ -288,8 +311,9 @@ int do_incremental(int tot_vert)
     cout<<"starting filtering"<<endl;
     int to_add = tot_vert/graph.obs.size();
     tic();
+    State covar;
     graph.best_path.clear();
-    graph.best_path.push_back(get_mean(graph, false));
+    graph.best_path.push_back(get_mean(graph, covar, false));
     for(unsigned int i=0; i < graph.obs.size(); i++)
     {   
         /*
@@ -309,7 +333,7 @@ int do_incremental(int tot_vert)
         graph.update_density_implicit_all();
         graph.normalize_density();
 
-        graph.best_path.push_back(get_mean(graph, false));
+        graph.best_path.push_back(get_mean(graph, covar, false));
     }
 #endif
 #endif
@@ -336,21 +360,26 @@ int do_incremental(int tot_vert)
     return 0;
 }
 
-int do_error_plot()
+int do_error_plot(int start_vert, int end_vert=1.0)
 {
     ofstream err_out("data/err_out.dat");
-    int max_runs = 10;
-
+    int max_runs = 2000;
+    
+    int svert = start_vert;
+    int evert = end_vert;
+    if(evert < svert)
+        evert = svert + 1;
+        
     System sys;
 
-    for(int tot_vert=10000; tot_vert < 10001; tot_vert+= 20)
+    for(int tot_vert=10; tot_vert < 100; tot_vert+= 5)
     {
         double average_time_hmm = 0;
         double average_time_pf = 0;
         double average_bpe = 0;
         double average_kfe = 0;
         double average_pfe = 0;
-
+        
         Graph graph(sys);
         for(int i=0; i < tot_vert; i++)
             graph.add_sample();
@@ -369,7 +398,7 @@ int do_error_plot()
             graph.propagate_system();
             graph.get_kalman_path();
             tic();
-            graph.get_pf_path(1000);
+            graph.get_pf_path(tot_vert);
             average_time_pf += toc();
             
             tic();
@@ -382,34 +411,34 @@ int do_error_plot()
             graph.normalize_density();
 
             graph.best_path.clear();
-            graph.best_path.push_back(get_mean(graph, false));
+            State covar;
+            graph.best_path.push_back(get_mean(graph, covar, false));
             for(unsigned int i=0; i < graph.obs.size(); i++)
             {
                 graph.obs_curr_index = i;
                 graph.update_density_implicit_all();
-                graph.best_path.push_back(get_mean(graph, false));
+                graph.best_path.push_back(get_mean(graph, covar, false));
             }
             average_time_hmm += toc();
 
-            //graph.plot_trajectory();
-
-            double bpe, kfe, pfe;
+            double bpe=0, kfe=0, pfe=0;
             get_sq_error(graph, bpe, kfe, pfe, graph.max_obs_time);
-            cout<<bpe<<" "<< kfe<<" "<<pfe<<endl;
+            //cout<<how_many<<" "<<bpe<<" "<< kfe<<" "<<pfe<<endl;
+            //cout<<how_many<<" "; cout.flush();
 
             average_bpe += bpe;
             average_kfe += kfe;
             average_pfe += pfe;
         }
-
+        //cout<<endl;
         average_time_hmm = average_time_hmm/(double)max_runs;
         average_time_pf = average_time_pf/(double)max_runs;
         average_bpe = average_bpe/(double)max_runs;
         average_kfe = average_kfe/(double)max_runs;
         average_pfe = average_pfe/(double)max_runs;
 
-        cout<<tot_vert<<"\t"<<average_time_hmm<<"\t"<<average_time_pf<<"\t"<< average_bpe <<"\t"<< average_kfe << "\t"<<average_pfe<<endl;
-        err_out<<tot_vert<<"\t"<<average_time_hmm<<"\t"<<average_time_pf<<"\t"<< average_bpe <<"\t"<< average_kfe << "\t"<<average_pfe<<endl;
+        cout<<tot_vert<<" "<<average_time_hmm<<" "<<average_time_pf<<" "<< average_bpe <<" "<< average_kfe << " "<<average_pfe<<endl;
+        err_out<<tot_vert<<" "<<average_time_hmm<<" "<<average_time_pf<<" "<< average_bpe <<" "<< average_kfe << " "<<average_pfe<<endl;
         err_out.flush();
     }
     err_out.close();
@@ -482,7 +511,7 @@ int main(int argc, char* argv[])
 
     // do_err_convergence_incremental();
     // do_err_convergence();
-    // do_error_plot();
+    // do_error_plot(tot_vert);
     do_batch(tot_vert);
     // do_incremental(tot_vert);
 

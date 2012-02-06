@@ -10,8 +10,8 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = -4;
-        max_states[i] = 4;
+        min_states[i] = 0;
+        max_states[i] = 3;
     }
     init_state.x[0] = 0;
     init_state.x[1] = 1.0;
@@ -19,10 +19,10 @@ System::System()
     for(int i=0; i< NUM_DIM; i++)
     {
         process_noise[i] = 1e-1;
-        obs_noise[i] = 1e-1;
-        init_var[i] = 1e-1;
+        obs_noise[i] = 1e-2;
+        init_var[i] = 1e-2;
     }
-    
+     
     sim_time_delta = 0.01;
 }
 
@@ -74,7 +74,7 @@ State System::get_fdt(State& s, double duration)
     return stmp;
 }
 
-State System::integrate(State& s, double duration, bool is_clean)
+State System::integrate(State& s, double duration, bool is_clean, bool parameter_holder)
 {
     State t;
 
@@ -82,7 +82,7 @@ State System::integrate(State& s, double duration, bool is_clean)
     double *mean = new double[NUM_DIM];
     double *tmp = new double[NUM_DIM];
     
-    double delta_t = min(duration, 0.005);
+    double delta_t = min(duration, 0.001);
 
     for(int i=0; i<NUM_DIM; i++)
     {
@@ -185,7 +185,7 @@ State System::observation(State& s, bool is_clean)
 void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar)
 {
 
-#if 1
+#if 0
     kalman_path.clear();
 
     kalman_path.push_back(init_state);

@@ -149,7 +149,7 @@ class Graph{
         void update_density_implicit_no_obs(Vertex* v);
         void update_density_implicit_no_obs_all();
         bool update_density_implicit(Vertex* v);
-        void update_density_implicit_all();
+        void update_density_implicit_all(double covar=1.0);
         void buffer_prob_copy();
        
         int calculate_delta();

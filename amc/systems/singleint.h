@@ -148,7 +148,7 @@ class System
         bool is_free(State &s);
         State sample();
         State get_fdt(State& s, double duration);
-        State integrate(State& s, double duration, bool is_clean);
+        State integrate(State& s, double duration, bool is_clean, bool is_real=false);
         void get_obs_variance(State& s, double* var);
         void get_variance(State& s, double duration, double* var);
         

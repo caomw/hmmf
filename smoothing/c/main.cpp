@@ -2,9 +2,10 @@
 
 //#include "systems/vanderpol_parameter.h"
 //#include "systems/vanderpol.h"
-#include "systems/singleint.h"
+//#include "systems/singleint.h"
 //#include "systems/uhlmann.h"
-//#include "systems/parameter.h"
+#include "systems/parameter.h"
+//#include "systems/parameter_hard.h"
 
 int add(double* src, double* dest)
 {
@@ -47,15 +48,16 @@ class Graph
         vector<Node*> nodes;
         int num_vert;
         double bowlr;
-        float* P;
+        double* P;
         vector< vector<int> > neighbor_list;
         double delta;
         Graph(int num_nodes)
         {
             num_vert = num_nodes;
-            P = new float[num_nodes*num_nodes];
-            memset(P, 0, sizeof(float)*num_nodes*num_nodes);
-            bowlr = 2.2*pow(log(num_vert+1)/(num_vert+1.0), 1/(double)ndim);
+            P = new double[num_nodes*num_nodes];
+            memset(P, 0, sizeof(double)*num_nodes*num_nodes);
+            bowlr = pow(2.1*(1+1/(double)ndim), 1/(double)ndim)*pow(log(num_vert+1)/(num_vert+1.0), 1/(double)ndim);
+            //bowlr = 2.2*pow(log(num_vert+1)/(num_vert+1.0), 1/(double)ndim);
             node_tree = kd_create(ndim);
             for(int i=0; i< num_nodes; i++)
             {
@@ -84,14 +86,14 @@ class Graph
         }
         int connect_nodes()
         {
-            delta = min(1.0, 0.99*min_htime());
+            double pos[ndim] = {0};
+            delta = min(0.01, 0.99*min_htime());
             for(int i=0; i< num_vert; i++)
             {
                 Node* n = nodes[i];
                 vector<int> neighbors;        
                 kdres *res;
                 res = kd_nearest_range(node_tree, n->key, bowlr);
-                double pos[ndim] = {0};
                 while( !kd_res_end(res) )
                 {
                     Node* n1 = (Node*) kd_res_item(res, pos);
@@ -104,7 +106,7 @@ class Graph
                 neighbor_list.push_back(neighbors);
                 vector<double> probs(neighbors.size());
                 double tprob = 0;
-                double fdt[ndim]; drift(n->x, fdt, n->htime);
+                double fdt[ndim] ={0}; drift(n->x, fdt, n->htime);
                 double var[ndim];
                 for(int j=0; j<ndim; j++)
                 {
@@ -145,7 +147,7 @@ class Graph
                 double runner_time = 0;
                 while(runner_time < delta)
                 {
-                    double next_state[ndim];
+                    double next_state[ndim] ={0};
                     drift(curr_state, next_state, integration_delta, true);
                     double noise[ndim] = {0};
                     diffusion(curr_state, noise, integration_delta, true); 
@@ -206,7 +208,7 @@ class Graph
                 for(unsigned int j=0; j< neighbor_list[i].size(); j++)
                 {
                     int neighbor_j = neighbor_list[i][j];
-                    if(alphas[index][neighbor_j] > 1e-6)
+                    if(alphas[index][neighbor_j] > 1e-10)
                         toadd = toadd + P[neighbor_j*num_vert + i]*alphas[index][neighbor_j];
                 }
                 alphas[index+1][i] = toadd*normal_val(obs, ovar, nodes[i]->x, ndim_obs);
@@ -232,7 +234,7 @@ class Graph
                 for(unsigned int j=0; j< neighbor_list[i].size(); j++)
                 {
                     int neighbor_j = neighbor_list[i][j];
-                    if(betas[index][neighbor_j] > 1e-6)
+                    if(betas[index][neighbor_j] > 1e-10)
                         toadd = toadd + P[i*num_vert + neighbor_j]*betas[index][neighbor_j]*normal_val(obs, ovar, nodes[neighbor_j]->x, ndim_obs);
                 }
                 betas[index-1][i] = toadd;
@@ -376,7 +378,7 @@ int main(int argc, char** argv)
         max_time = atof(argv[2]);
 
 #if 1
-    srand(0);
+    srand(time(NULL));
     Graph g = Graph(n);
     g.connect_nodes();
     cout<<"delta: "<< g.delta<<endl;

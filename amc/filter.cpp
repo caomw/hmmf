@@ -31,7 +31,7 @@ Graph::Graph(System& sys) {
     obs_interval = 1;
     obs_curr_index = 0;
     delta = system->sim_time_delta;
-    max_obs_time = 10.0;
+    max_obs_time = 1;
 
     min_holding_time = delta;
     seeding_finished = false;
@@ -46,7 +46,7 @@ Graph::Graph(System& sys) {
     else if(NUM_DIM == 4)
         factor = 0.5*M_PI*M_PI;
     
-    //factor = 1;
+    factor = 1;
     gamma = 2.3; // *pow( (1+1/(double)NUM_DIM), 1/(double)NUM_DIM) *pow(factor, -1/(double)NUM_DIM);
 };
 
@@ -357,20 +357,9 @@ bool Graph::update_density_implicit(Vertex* v)
         sum = sum + etmp->transition_prob_delta * (etmp->from->prob_best_path);
     }
     sum = sum + v->self_transition_prob *(v->prob_best_path); 
-    
 
     double sumt = sum;
-#if 1
     double tomult = normal_val(obs[obs_curr_index].x, obs_var, gx.x, NUM_DIM_OBS);
-#else
-    double obs_delta = 0;
-    if(obs_curr_index == 0)
-        obs_delta = obs[obs_curr_index].x[0] -  system->init_state[0];
-    else
-        obs_delta = obs[obs_curr_index].x[0] - obs[obs_curr_index -1].x[0];
-
-    double tomult = exp(gx.x[0]*obs_delta - 0.5*sq(gx.x[0])*delta);
-#endif
 
     v->prob_best_path_buffer = sum*tomult;
     
@@ -490,17 +479,44 @@ void Graph::update_density_implicit_no_obs_all()
     buffer_prob_copy();
 }
 
-void Graph::update_density_implicit_all()
+void Graph::update_density_implicit_all(double covar)
 {
-    bool to_normalize = true;
+    //double key_covar = 0.1;
+    double key_covar = 3*sqrt(covar + system->process_noise[0]*delta)/fabs(system->max_states[0] - system->min_states[0]);
+    //key_covar = max(key_covar, 0.1);
+    //cout<<key_covar<<endl;
+    bool to_normalize = false;
+    State last_mean = best_path.back();
+    State next_mean = system->integrate(last_mean, delta, true);
+    
+    // zero whole buffer
     for(unsigned int j = 0; j< num_vert; j++)
+        vlist[j]->prob_best_path_buffer = 0;
+#if 0
+    double key[NUM_DIM] ={0};
+    system->get_key(next_mean, key);
+    kdres *res;
+    res = kd_nearest_range(state_tree, key, key_covar);
+    double pos[NUM_DIM] = {0};
+    while( !kd_res_end(res) )
     {
-        Vertex* v = vlist[j];
-        bool retval = update_density_implicit(v);
+        Vertex* v1 = (Vertex* ) kd_res_item(res, pos);
+        bool retval = update_density_implicit(v1);
         to_normalize |= retval;
+        kd_res_next(res);
+    }
+    kd_res_free(res);
+    buffer_prob_copy();
+#else
+    to_normalize = true;
+    for(unsigned int i=0; i< num_vert; i++)
+    {
+        Vertex* vtmp = vlist[i];
+        if(vtmp->prob_best_path > 1e-6)
+            update_density_implicit(vtmp);
     }
     buffer_prob_copy();
-    
+#endif
     if(to_normalize)
         normalize_density();
 }
@@ -791,8 +807,7 @@ void Graph::propagate_system()
     double max_time = max_obs_time;
 
     State start_state = system->init_state;
-    start_state.x[1] = -0.5;
-    start_state.x[2] = 0.25;
+    start_state.x[1] = 0.5;
     truth.push_back(start_state);
 
     while(curr_time < max_time)

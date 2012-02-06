@@ -137,14 +137,63 @@ class System
         State sample();
         State get_fdt(State& s, double duration);
         State integrate(State& s, double duration, bool is_clean, bool is_propagate=false);
-        void get_variance(State& s, double duration, double* var);
-        void get_obs_variance(State& s, double* var);
-        
-        State observation(State& s, bool is_clean);
+        void get_variance(State& s, double duration, double* var)
+        {
+            for(int i=0; i<NUM_DIM; i++)
+            {   
+                var[i] = process_noise[i]*duration;
+            } 
+        }
 
+        void get_obs_variance(State& s, double* var)
+        {
+            for(int i=0; i<NUM_DIM_OBS; i++)
+            {   
+                var[i] = obs_noise[i];
+            } 
+        }
+
+        State observation(State& s, bool is_clean)
+        {
+            State t;
+
+            double *tmp = new double[NUM_DIM_OBS];
+            double *mean = new double[NUM_DIM_OBS];
+
+            for(int i=0; i< NUM_DIM_OBS; i++)
+            {
+                mean[i] = 0;
+                tmp[i] = 0;
+            }
+
+            if( !is_clean)
+            {
+                multivar_normal( mean, obs_noise, tmp, NUM_DIM_OBS);
+            }
+            else
+            {
+                for(int i=0; i<NUM_DIM_OBS; i++)
+                {
+                    tmp[i] = 0;
+                }
+            }
+
+            for(int i=0; i<NUM_DIM_OBS; i++)
+                t.x[i] = 0;
+
+            for(int i=0; i<NUM_DIM_OBS; i++)
+            {
+                t.x[i] = s.x[i] + tmp[i];
+            }
+
+            delete[] mean;
+            delete[] tmp;
+
+            return t;
+        }
         void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar);
         void get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path, int nparticles);
-        
+
         double dist(State s1, State s2)
         {
             double t = 0;

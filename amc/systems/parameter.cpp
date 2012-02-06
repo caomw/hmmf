@@ -18,11 +18,11 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-3;
-        obs_noise[i] = 1e-3;
-        init_var[i] = 1e-3;
+        process_noise[i] = 1e-2;
+        obs_noise[i] = 1e-2;
+        init_var[i] = 1e-2;
     }
-    process_noise[1] = 1e-1; 
+    process_noise[1] = 1e-4; 
     sim_time_delta = 0.01;
 }
 
@@ -44,7 +44,6 @@ State System::sample()
         {
             s.x[i] = min_states[i] + RANDF*( max_states[i] - min_states[i]);
         }
-
         if( is_free(s) )
             break;
     }
@@ -73,6 +72,7 @@ State System::get_fdt(State& s, double duration)
     stmp.x[1] = 0*duration;
     return stmp;
 }
+
 State System::integrate(State& s, double duration, bool is_clean, bool is_propagate)
 {
     State t;
@@ -125,68 +125,9 @@ State System::integrate(State& s, double duration, bool is_clean, bool is_propag
     return t;
 }
 
-void System::get_variance(State& s, double duration, double* var)
-{
-    for(int i=0; i<NUM_DIM; i++)
-    {   
-        var[i] = process_noise[i]*duration;
-    } 
-}
 
-void System::get_obs_variance(State& s, double* var)
-{
-    for(int i=0; i<NUM_DIM_OBS; i++)
-    {   
-        var[i] = obs_noise[i];
-    } 
-}
 
-State System::observation(State& s, bool is_clean)
-{
-    State t;
 
-    double *tmp1 = new double[NUM_DIM_OBS];
-    double *mean1 = new double[NUM_DIM_OBS];
-    double *tmp2 = new double[NUM_DIM_OBS];
-    double *mean2 = new double[NUM_DIM_OBS];
-    
-    for(int i=0; i< NUM_DIM_OBS; i++)
-    {
-        mean1[i] = 0;
-        mean2[i] = 0;
-        tmp1[i] = 0;
-        tmp2[i] = 0;
-    }
-
-    if( !is_clean)
-    {
-        multivar_normal( mean1, obs_noise, tmp1, NUM_DIM_OBS);
-        multivar_normal( mean2, obs_noise, tmp2, NUM_DIM_OBS);
-    }
-    else
-    {
-        for(int i=0; i<NUM_DIM_OBS; i++)
-        {
-            tmp1[i] = 0;
-            tmp2[i] = 0;
-        }
-    }
-    
-    for(int i=0; i<NUM_DIM_OBS; i++)
-        t.x[i] = 0;
-
-    for(int i=0; i<NUM_DIM_OBS; i++)
-    {
-        t.x[i] = s.x[i] + tmp1[i];
-    }
-
-    delete[] mean1;
-    delete[] tmp1;
-    delete[] mean2;
-    delete[] tmp2;
-
-    return t;
-}
 
 void System::get_kalman_path( vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar)
 {

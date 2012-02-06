@@ -4,18 +4,11 @@
 #include <iostream>
 #include <cstdio>
 #include <cmath>
-#include <cfloat>
-#include <list>
 #include <vector>
-#include <queue>
 #include <fstream>
 #include <cstdlib>
 #include <sys/time.h>
-#include <algorithm>
-#include <utility>
-#include <cassert>
 #include <string>
-#include <iomanip>
 
 //#define EIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET
 //#include <Eigen/Sparse>

@@ -22,45 +22,46 @@ times = linspace(dt, d+dt, len(truth[:,0]))
 #print "dt: ", dt
 #print times
 
-figure(1)
-plot(times, truth[:,0], 'r-', label='sys')
-#plot(times, obs[:,0], 'b-', label='obs')
-plot(times, fest[:,0], 'g-', label='filter')
-plot(times, sest[:,0], 'c-', label='smoothing')
-axis('tight')
-grid()
-xlabel('t [s]')
-legend(loc=4)
-title('vanderpol_x')
-if to_save:
-    savefig('smoothing_vanderpol_x.pdf', bbox_inches='tight')
+if len(truth[0,:]) > 0:
+    figure(1)
+    plot(times, truth[:,0], 'r-', label='sys')
+    #plot(times, obs[:,0], 'b-', label='obs')
+    plot(times, fest[:,0], 'g-', label='filter')
+    plot(times, sest[:,0], 'c-', label='smoothing')
+    axis('tight')
+    grid()
+    xlabel('t [s]')
+    legend(loc=4)
+    title('vanderpol_x')
+    if to_save:
+        savefig('smoothing_vanderpol_x.pdf', bbox_inches='tight')
 
-figure(2)
-plot(times, truth[:,1], 'r-', label='sys')
-#plot(times, obs[:,1], 'b-', label='obs')
-plot(times, fest[:,1], 'g-', label='filter')
-plot(times, sest[:,1], 'c-', label='smoothing')
-axis('tight')
-grid()
-xlabel('t [s]')
-legend(loc=1)
-title('vanderpol_x_dot')
-if to_save:
-    savefig('smoothing_vanderpol_x_dot.pdf', bbox_inches='tight')
+if len(truth[0,:]) > 1:
+    figure(2)
+    plot(times, truth[:,1], 'r-', label='sys')
+    #plot(times, obs[:,1], 'b-', label='obs')
+    plot(times, fest[:,1], 'g-', label='filter')
+    plot(times, sest[:,1], 'c-', label='smoothing')
+    axis('tight')
+    grid()
+    xlabel('t [s]')
+    legend(loc=1)
+    title('vanderpol_x_dot')
+    if to_save:
+        savefig('smoothing_vanderpol_x_dot.pdf', bbox_inches='tight')
 
-"""
-figure(3)
-plot(times, truth[:,2], 'r-', label='sys')
-plot(times, fest[:,2], 'g-', label='filter')
-plot(times, sest[:,2], 'c-', label='smoothing')
-axis('tight')
-grid()
-xlabel('t [s]')
-legend(loc=4)
-title('vanderpol_mu')
-if to_save:
-    savefig('smoothing_vanderpol_mu.pdf', bbox_inches='tight')
-"""
+if len(truth[0,:]) > 2:
+    figure(3)
+    plot(times, truth[:,2], 'r-', label='sys')
+    plot(times, fest[:,2], 'g-', label='filter')
+    plot(times, sest[:,2], 'c-', label='smoothing')
+    axis('tight')
+    grid()
+    xlabel('t [s]')
+    legend(loc=4)
+    title('vanderpol_mu')
+    if to_save:
+        savefig('smoothing_vanderpol_mu.pdf', bbox_inches='tight')
 
 ferr = truth - fest
 serr = truth - sest
