@@ -31,23 +31,14 @@ Graph::Graph(System& sys) {
     obs_interval = 1;
     obs_curr_index = 0;
     delta = system->sim_time_delta;
-    max_obs_time = 1;
+    max_obs_time = 10;
 
     min_holding_time = delta;
     seeding_finished = false;
 
     state_tree = kd_create(NUM_DIM);
 
-    double factor = 1;
-    if(NUM_DIM == 2)
-        factor = M_PI;
-    else if(NUM_DIM == 3)
-        factor = 4/3*M_PI;
-    else if(NUM_DIM == 4)
-        factor = 0.5*M_PI*M_PI;
-    
-    factor = 1;
-    gamma = 2.3; // *pow( (1+1/(double)NUM_DIM), 1/(double)NUM_DIM) *pow(factor, -1/(double)NUM_DIM);
+    gamma = 2.1*pow(1+1/(double)NUM_DIM, 1/(double)NUM_DIM);
 };
 
 Graph::~Graph()
@@ -401,7 +392,7 @@ int Graph::calculate_delta()
         if( v->holding_time < min_time)
             min_time = v->holding_time;
     }
-    delta = 0.99*min_time;
+    delta = min(0.01, 0.99*min_time);
     //cout<<"delta: "<< delta << endl;
     return 0;
 }
@@ -512,8 +503,7 @@ void Graph::update_density_implicit_all(double covar)
     for(unsigned int i=0; i< num_vert; i++)
     {
         Vertex* vtmp = vlist[i];
-        if(vtmp->prob_best_path > 1e-6)
-            update_density_implicit(vtmp);
+        update_density_implicit(vtmp);
     }
     buffer_prob_copy();
 #endif

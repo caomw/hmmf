@@ -3,7 +3,7 @@ CPP = g++
 
 BIN = ./main
 C_SRCS = utils/kdtree.c
-CPP_SRCS = utils/common.cpp main.cpp
+CPP_SRCS = utils/common.cpp filter.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)
@@ -13,6 +13,7 @@ INCS = -I./ -I systems/ -I utils/ -I /home/pratik/apps/eigen/
 LIBS = -L./
 
 CFLAGS = -Wall -g -pg -O3
+CPPFLAGS = -Wall -g -pg -O3 -std=c++0x
 LDFLAGS = -g -pg
 
 all: $(BIN)
@@ -27,7 +28,7 @@ $(BIN): $(OBJS)
 
 %.o: %.cpp
 	@echo "  [CC]    $@"
-	@$(CPP) $(CFLAGS) $(INCS) -c $< -o $@
+	@$(CPP) $(CPPFLAGS) $(INCS) -c $< -o $@
 
 clean:
 	rm -rf $(BIN) $(C_OBJS) $(CPP_OBJS) gmon.out

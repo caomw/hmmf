@@ -12,6 +12,7 @@ truth = loadtxt('truth.dat')
 obs = loadtxt('observations.dat')
 fest = loadtxt('filter.dat')
 sest = loadtxt('smoothing.dat')
+pfest = loadtxt('pfilter.dat')
 
 d = 1
 if len(sys.argv) >= 2:
@@ -27,7 +28,8 @@ if len(truth[0,:]) > 0:
     plot(times, truth[:,0], 'r-', label='sys')
     #plot(times, obs[:,0], 'b-', label='obs')
     plot(times, fest[:,0], 'g-', label='filter')
-    plot(times, sest[:,0], 'c-', label='smoothing')
+    #plot(times, sest[:,0], 'c-', label='smoothing')
+    plot(times, pfest[:,0], 'y-', label='pf')
     axis('tight')
     grid()
     xlabel('t [s]')
@@ -41,7 +43,8 @@ if len(truth[0,:]) > 1:
     plot(times, truth[:,1], 'r-', label='sys')
     #plot(times, obs[:,1], 'b-', label='obs')
     plot(times, fest[:,1], 'g-', label='filter')
-    plot(times, sest[:,1], 'c-', label='smoothing')
+    #plot(times, sest[:,1], 'c-', label='smoothing')
+    plot(times, pfest[:,1], 'y-', label='pf')
     axis('tight')
     grid()
     xlabel('t [s]')
@@ -54,7 +57,8 @@ if len(truth[0,:]) > 2:
     figure(3)
     plot(times, truth[:,2], 'r-', label='sys')
     plot(times, fest[:,2], 'g-', label='filter')
-    plot(times, sest[:,2], 'c-', label='smoothing')
+    #plot(times, sest[:,2], 'c-', label='smoothing')
+    plot(times, pfest[:,2], 'y-', label='pf')
     axis('tight')
     grid()
     xlabel('t [s]')
@@ -64,10 +68,13 @@ if len(truth[0,:]) > 2:
         savefig('smoothing_vanderpol_mu.pdf', bbox_inches='tight')
 
 ferr = truth - fest
-serr = truth - sest
+#serr = truth - sest
+pferr = truth - pfest
 n1 = [norm(ferr[i,:])*norm(ferr[i,:]) for i in range(len(ferr[:,0]))]
-n2 = [norm(serr[i,:])*norm(serr[i,:]) for i in range(len(serr[:,0]))]
+#n2 = [norm(serr[i,:])*norm(serr[i,:]) for i in range(len(serr[:,0]))]
+n3 = [norm(pferr[i,:])*norm(pferr[i,:]) for i in range(len(pferr[:,0]))]
 
-print "ferr: ", mean(n1)*d, " serr: ", mean(n2)*d
+n2 = 0
+print "ferr: ", mean(n1)*d, " serr: ", mean(n2)*d, " pferr: ", mean(n3)*d
 
 show()

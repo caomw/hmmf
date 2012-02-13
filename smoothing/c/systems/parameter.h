@@ -5,12 +5,12 @@
 #define ndim_obs (1)
 
 double zmin[ndim] = {-0.2, 0};
-double zmax[ndim] = {1, 1};
-double init_var[ndim] = {1e-3, 1e-1};
+double zmax[ndim] = {1, 1.5};
+double init_var[ndim] = {1e-2, 1e-1};
 double init_state[ndim] = {0.0, 0.9};
 double init_state_real[ndim] = {0.0, 0.5};
-double pvar[ndim] = {1e-4, 1e-3};
-double ovar[ndim] = {1e-4};
+double pvar[ndim] = {1e-3, 1e-4};
+double ovar[ndim] = {1e-3};
 double zero[ndim] = {0};
 
 double norm(double* s)
@@ -40,12 +40,17 @@ int diffusion(double* s, double* ret, double dt=1.0, bool real=false)
         ret[1] = 0;
     return 0;
 }
-int get_obs(double* s, double* obs)
+int get_obs(double* s, double* obs, bool is_clean = false)
 {
     for(int i=0; i< ndim; i++)
         obs[i] = 0;
+    if(is_clean)
+    {
+        obs[0] = s[0];
+        return 0;
+    }
     double noise[ndim_obs] = {0};
-    multivar_normal(zero, ovar, noise, ndim_obs); 
+    multivar_normal(zero, ovar, noise, ndim_obs);
     obs[0] = s[0] + noise[0];
     return 0;
 }

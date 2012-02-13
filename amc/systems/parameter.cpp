@@ -10,8 +10,8 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = 0;
-        max_states[i] = 1;
+        min_states[i] = -0.5;
+        max_states[i] = 1.5;
     }
     init_state.x[0] = 0;
     init_state.x[1] = 0.9;
@@ -22,7 +22,8 @@ System::System()
         obs_noise[i] = 1e-2;
         init_var[i] = 1e-2;
     }
-    process_noise[1] = 1e-4; 
+    process_noise[1] = 1e-4;
+    init_var[1] = 1e-1;
     sim_time_delta = 0.01;
 }
 

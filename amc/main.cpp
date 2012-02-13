@@ -187,7 +187,7 @@ int do_batch(int tot_vert)
     graph.propagate_system();
     graph.get_kalman_path();
     tic();
-    graph.get_pf_path(tot_vert);
+    graph.get_pf_path(1000);
     cout<<"pf time: "<< toc() << endl;
 #endif
     
@@ -363,7 +363,7 @@ int do_incremental(int tot_vert)
 int do_error_plot(int start_vert, int end_vert=1.0)
 {
     ofstream err_out("data/err_out.dat");
-    int max_runs = 2000;
+    int max_runs = 1000;
     
     int svert = start_vert;
     int evert = end_vert;
@@ -372,35 +372,38 @@ int do_error_plot(int start_vert, int end_vert=1.0)
         
     System sys;
 
-    for(int tot_vert=10; tot_vert < 100; tot_vert+= 5)
+    for(int tot_vert=200; tot_vert < 2000; tot_vert+= 100)
     {
         double average_time_hmm = 0;
         double average_time_pf = 0;
         double average_bpe = 0;
         double average_kfe = 0;
         double average_pfe = 0;
-        
-        Graph graph(sys);
-        for(int i=0; i < tot_vert; i++)
-            graph.add_sample();
-        for(unsigned int i=0; i< graph.num_vert; i++)
-        {
-            Vertex* v = graph.vlist[i];
-            graph.connect_edges_approx(v);
-        }
-        graph.calculate_delta();
-        graph.system->sim_time_delta = graph.delta;
-        graph.calculate_probabilities_delta_all();
-        graph.seeding_finished = true;
-
+       
+        srand(0);
         for(int how_many=0; how_many < max_runs; how_many++)
         {
+            tic();
+            Graph graph(sys);
+            for(int i=0; i < tot_vert; i++)
+                graph.add_sample();
+            for(unsigned int i=0; i< graph.num_vert; i++)
+            {
+                Vertex* v = graph.vlist[i];
+                graph.connect_edges_approx(v);
+            }
+            graph.calculate_delta();
+            graph.system->sim_time_delta = graph.delta;
+            graph.calculate_probabilities_delta_all();
+            graph.seeding_finished = true;
+            average_time_hmm += toc();
+
             graph.propagate_system();
             graph.get_kalman_path();
             tic();
             graph.get_pf_path(tot_vert);
             average_time_pf += toc();
-            
+
             tic();
             for(unsigned int i=0; i< graph.num_vert; i++)
             {
