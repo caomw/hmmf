@@ -13,9 +13,18 @@ if len(sys.argv) >= 3:
 
 truth = loadtxt('data/truth.dat')
 obs = loadtxt('data/observations.dat')
-fest = loadtxt('data/filter.dat')
-sest = loadtxt('data/smoothing.dat')
-pfest = loadtxt('data/pfilter.dat')
+try:
+    fest = loadtxt('data/filter.dat')
+except IOError:
+    print 'no filter data'
+try:
+    sest = loadtxt('data/smoothing.dat')
+except IOError:
+    print 'no smoothing data'
+try:
+    pfest = loadtxt('data/pfilter.dat')
+except IOError:
+    print 'no pf data'
 
 d = 1
 if len(sys.argv) >= 2:

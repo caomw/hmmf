@@ -4,6 +4,8 @@
 #define ndim        (2)
 #define ndim_obs    (2)
 
+#include "sysutil.h"
+
 double zmin[ndim] = {-1, -1};
 double zmax[ndim] = {1, 1};
 double zdiff[ndim] = {2, 2};
@@ -14,13 +16,7 @@ double pvar[ndim] = {1e-2, 1e-2};
 double ovar[ndim] = {1e-3, 1e-3};
 double zero[ndim] = {0, 0};
 
-double norm(double* s)
-{
-    double sum = 0;
-    for(int i=0; i<ndim;i++)
-        sum = sum + sq(s[i]);
-    return sqrt(sum);
-}
+
 int drift(double* s, double *ret, double dt=1.0, bool real=false)
 {
     ret[0] = -s[0]*dt;
@@ -57,6 +53,26 @@ double holding_time(double* s, double r)
     double ret[ndim] ={0};
     drift(s, ret, 1.0, true);
     return h*h/(pvar[0] + h*norm(ret));
+}
+
+int integrate_system(double* curr_state, double dt, bool is_clean=false)
+{
+    double integration_delta = min(1e-3, dt/2.0);
+    double runner_time = 0;
+    while(runner_time < dt)
+    {
+        double next_state_delta[ndim] ={0};
+        drift(curr_state, next_state_delta, integration_delta, true);
+        double noise[ndim] = {0};
+        if(!is_clean)
+        {
+            diffusion(curr_state, noise, integration_delta, true);
+            add(noise, next_state_delta);
+        }
+        add(next_state_delta, curr_state);
+        runner_time = runner_time + integration_delta;
+    }
+    return 0;
 }
 
 #endif

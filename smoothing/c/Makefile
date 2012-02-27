@@ -3,7 +3,7 @@ CPP = g++
 
 BIN = ./main
 C_SRCS = utils/kdtree.c
-CPP_SRCS = utils/common.cpp smoothing.cpp
+CPP_SRCS = utils/common.cpp filter.cpp
 
 C_OBJS = $(C_SRCS:.c=.o)
 CPP_OBJS = $(CPP_SRCS:.cpp=.o)

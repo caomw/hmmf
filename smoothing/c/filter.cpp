@@ -7,32 +7,6 @@
 //#include "systems/parameter.h"
 //#include "systems/parameter_hard.h"
 
-#define large_num       (10000)
-
-int add(double* src, double* dest)
-{
-    // puts result in dest
-    for(int i=0; i< ndim; i++)
-        dest[i] = dest[i] + src[i];
-    return 0;
-}
-int copy(double* src, double* dest)
-{
-    for(int i=0; i< ndim; i++)
-        dest[i] = src[i];
-    return 0;
-}
-double max_norm(double* src, int dim=ndim)
-{
-    double m = -1;
-    for(int i=0; i<dim; i++)
-    {
-        if(m < src[i])
-            m = src[i];
-    }
-    return m;
-}
-
 class Node
 {
     public:
@@ -40,12 +14,15 @@ class Node
         double key[ndim];
         int index;
         double htime;
-        
-        set<int> ein;
-        vector<int> eout;
+        double weight;
+        int id;
 
-        Node(int iin, double* xin)
+        vector<int> eout;
+        vector<int> ein;
+        Node(int iin, double* xin, double win=0)
         {
+            weight = win;
+            id = 0;
             for(int i=0; i< ndim; i++)
             {
                 x[i] = xin[i];
@@ -53,11 +30,7 @@ class Node
             }
             index = iin;
         }
-        ~Node()
-        {
-        }
 };
-
 class Graph
 {
     public:
@@ -66,13 +39,15 @@ class Graph
         int num_vert;
         double delta;
         float* P;
-        vector<double> density;
+        double bowlr;
 
-        Graph()
+        Graph(int n, double delta_in)
         {
-            P = new float[large_num*large_num];
-            num_vert = 0;
-            delta = 0.001;
+            num_vert = 2*n;
+            P = new float[num_vert*num_vert];
+            memset(P, 0, sizeof(float)*num_vert*num_vert);
+            bowlr = 1; 
+            delta = delta_in;
             node_tree = kd_create(ndim);
         }
         ~Graph()
@@ -82,57 +57,50 @@ class Graph
             kd_free(node_tree);
             delete[] P;
         }
-        int clear_graph()
-        {
-            for(int i=0; i< num_vert; i++)
-                delete nodes[i];
-            kd_free(node_tree);
-            delete[] P;
-
-            P = new float[large_num*large_num];
-            num_vert = 0;
-            delta = 0.001;
-            node_tree = kd_create(ndim);
-            return 0;
-        }
-        int add_node(Node* n1)
+        int add_node_iter(Node* n1)
         {
             nodes.push_back(n1);
-            num_vert++;
             kd_insert(node_tree, n1->key, n1);
             return 0;
         }
-        int node_clear_eout(int ii)
+        int add_nodes(vector< vector<double> >& particles_prev, vector< vector<double> >& particles, vector<double>& win)
         {
-            Node* n = nodes[ii];
-            for(unsigned int i=0; i< n->eout.size(); i++)
+            for(unsigned int i=0; i< particles_prev.size(); i++)
             {
-                P[ii*large_num + n->eout[i]] = 0;
-                nodes[n->eout[i]]->ein.erase(ii);
+                Node* n1 = new Node(i, &(particles_prev[i][0]), win[i]);
+                n1->id = 0;
+                add_node_iter(n1);
             }
-            n->eout.clear();
+            for(unsigned int i=0; i< particles.size(); i++)
+            {
+                Node* n1 = new Node(particles_prev.size()+i, &(particles[i][0]), 0);
+                n1->id = 1;
+                add_node_iter(n1);
+            }
             return 0;
         }
-        Node* sample_node(double* mean, double* var)
+        int connect_nodes()
         {
-            double tmp[ndim];
-            //multivar_normal(mean, var, tmp, ndim);
-            for(int i=0; i<ndim; i++)
+            double fmean[ndim]={0}, fvar[ndim] ={0};
+            calci_moment(fmean, fvar);
+            //double scaling = pow(max_norm(fvar), ndim);
+            double scaling = 1;
+            bowlr = 2.1*pow((1+1/(float)ndim), 1/(float)ndim)*scaling*pow(log(num_vert/2)/(double)num_vert/2, 1/(double)ndim);
+            //cout<<"bowlr: "<<bowlr<<endl;
+            for(int i=0; i< num_vert; i++)
             {
-                tmp[i] = mean[i] + (RANDF - 0.5)*6*sqrt(var[i]);
+                if(nodes[i]->id == 0)
+                    connect_nodes_iter(i);
             }
-            Node* n = new Node(num_vert, tmp);
-            return n;
+            return 0;
         }
-        int connect_node(int nodei, double bowlr)
+        int connect_nodes_iter(int nodei)
         {
-            node_clear_eout(nodei);
-            
             Node* n = nodes[nodei];
             n->htime = holding_time(n->x, bowlr);
             if(n->htime < delta)
             {
-                cout<<"htime "<<n->htime<<" < delta "<<delta<<endl;
+                cout<<"htime "<<n->htime<<" < delta "<<delta<<" index: "<< nodei<<endl;
                 exit(0);
             }
             vector<int> neighbors;  
@@ -142,7 +110,7 @@ class Graph
             while( !kd_res_end(res) )
             {
                 Node* n1 = (Node*) kd_res_item(res, pos);
-                if(n1 != n)
+                if(n1->id == 1)
                     neighbors.push_back(n1->index);
                 kd_res_next(res);
             }
@@ -150,51 +118,132 @@ class Graph
 
             vector<float> probs(neighbors.size(), 0);
             double tprob = 0;
-            double fdt[ndim] ={0}; drift(n->x, fdt, n->htime);
+            double next_state[ndim] ={0};
+            copy(n->x, next_state);
+            integrate_system(next_state, n->htime, true);
             double var[ndim];
             for(int j=0; j<ndim; j++)
-            {
-                fdt[j] = fdt[j] + n->x[j];
                 var[j] = pvar[j]*(n->htime);
-            }
             for(unsigned int j=0; j<neighbors.size(); j++)
             {
                 Node* n1 = nodes[neighbors[j]];
-                probs[j] = normal_val(fdt, var, n1->x, ndim);
+                probs[j] = normal_val(next_state, var, n1->x, ndim);
                 tprob = tprob + probs[j];
             }
-            double ps = 1 - delta/n->htime;
-            P[n->index*large_num + n->index] = ps;
             for(unsigned int j=0; j<neighbors.size(); j++)
             {
                 Node* n1 = nodes[neighbors[j]];
                 probs[j] = probs[j]/tprob;
-                P[n->index*large_num + n1->index] = (1-ps)*probs[j];
-                n1->ein.insert(n->index);
+                P[n->index*num_vert + n1->index] = probs[j];
+                n1->ein.push_back(n->index);
+                //cout<<"pushed back "<<n->index<<" into "<< n1->index << endl;
             }
-
-            neighbors.push_back(n->index);
             n->eout = neighbors;
-            n->ein.insert(n->index);
-            return 0;
-        }
-        int reconnect_neighbors(int nodei, double bowlr)
-        {
-            Node* n = nodes[nodei];
-            double pos[ndim] = {0};
-            kdres *res;
-            res = kd_nearest_range(node_tree, n->key, bowlr);
-            while( !kd_res_end(res) )
-            {
-                Node* n1 = (Node*) kd_res_item(res, pos);
-                if(n1 != n)
-                    connect_node(n1->index, bowlr);
-                kd_res_next(res);
-            }
-            kd_res_free(res);
             return 0;
         }
 
+        int calci_moment(double* retm, double* retv, int id=0)
+        {
+            int s = 0;
+            int e = num_vert/2;
+            if(id)
+            {
+                s = num_vert/2;
+                e = num_vert;
+            }
+            for(int i=0; i<ndim; i++)
+            {
+                retm[i] = 0;
+                retv[i] = 0;
+            }
+            double tprob = 0;
+            for(int i=s; i< e; i++)
+            {
+                for(int j=0; j<ndim; j++)
+                {
+                    retm[j] = retm[j] + nodes[i]->weight*nodes[i]->x[j];
+                    retv[j] = retv[j] + nodes[i]->weight*sq(nodes[i]->x[j]);
+                }
+                tprob = tprob + nodes[i]->weight;
+            }
+            for(int i=0; i<ndim; i++)
+            {
+                retm[i] = retm[i]/tprob;
+                retv[i] = retv[i]/tprob;
+                retv[i] = retv[i] - sq(retm[i]);
+            }
+            return 0;
+        }
+        int normalize_density()
+        {
+            for(int i=0; i< num_vert/2; i++)
+            {
+                if(nodes[i]->id == 0)
+                    nodes[i]->weight = 0;
+            } 
+
+            double tprob = 0;
+            for(int i=0; i< num_vert; i++)
+                tprob = tprob + nodes[i]->weight;
+            for(int i=0; i< num_vert; i++)
+                nodes[i]->weight = nodes[i]->weight/tprob;
+            return 0;
+        }
+        int update_density(vector<double>& obs_in)
+        {
+            double obs[ndim] = {0};
+            for(int i=0; i<ndim; i++)
+                obs[i] = obs_in[i];
+
+            for(int i=0; i< num_vert; i++)
+            {
+                double to_add = 0;
+                Node *n1 = nodes[i];
+                if(n1->id == 1)
+                {
+                    for(unsigned int j=0; j< n1->ein.size(); j++)
+                        to_add = to_add + nodes[n1->ein[j]]->weight*P[j*num_vert + i];
+                    
+                    double curr_obs[ndim] = {0};
+                    get_obs(n1->x, curr_obs, true);
+                    nodes[i]->weight = to_add*normal_val(obs, ovar, curr_obs, ndim_obs);
+                }
+            }
+            normalize_density();
+            return 0;
+        }
+        int print()
+        {
+            cout<<"-----------------"<<endl;
+            for(int i=num_vert/2; i<num_vert; i++)
+            {
+                Node *n1 = nodes[i];
+                cout<<"index: "<< n1->index<<" id: "<<n1->id<<" eins: "<<n1->ein.size()<<endl;
+                for(unsigned int j=0; j< n1->ein.size(); j++)
+                    cout<< nodes[n1->ein[j]]->index<<"-"<<nodes[n1->ein[j]]->weight<<" ";
+                cout<<endl;
+
+            }
+            cout<<"transition matrix"<<endl;
+            for(int i=0;i<num_vert;i++)
+            {
+                for(int j=0;j<num_vert;j++)
+                    cout<<P[i*num_vert + j]<<" ";
+                cout<<endl;
+            }
+            cout<<"-----------------"<<endl;
+            return 0;
+        }
+};
+class HMMF
+{
+    public:
+        double delta;
+
+        HMMF()
+        {
+            delta = 0.01;
+        }
 
         vector< vector<double> > truth;
         vector< vector<double> > observations;
@@ -203,23 +252,12 @@ class Graph
             truth.clear();
             observations.clear();
             double curr_time = 0;
-            double integration_delta = min(1e-3, delta/2.0);
             double curr_state[ndim];
             double curr_obs[ndim];
             copy(init_state_real, curr_state);
             while(curr_time <= max_time)
             {
-                double runner_time = 0;
-                while(runner_time < delta)
-                {
-                    double next_state[ndim] ={0};
-                    drift(curr_state, next_state, integration_delta, true);
-                    double noise[ndim] = {0};
-                    diffusion(curr_state, noise, integration_delta, true); 
-                    add(noise, next_state);
-                    add(next_state, curr_state);
-                    runner_time = runner_time + integration_delta;
-                }
+                integrate_system(curr_state, delta);
                 curr_time = curr_time + delta;
 
                 vector<double> state_tmp; state_tmp.assign(curr_state, curr_state+ndim);
@@ -230,182 +268,51 @@ class Graph
 
                 //cout<< fabs(curr_time/delta - (int)(curr_time/delta)) << endl;
                 /*
-                cout<<curr_time<<" ";
-                for(int j=0; j<ndim; j++)
-                    cout<<curr_state[j]<<" ";
-                cout<<endl;
-                */
+                   cout<<curr_time<<" ";
+                   for(int j=0; j<ndim; j++)
+                   cout<<curr_state[j]<<" ";
+                   cout<<endl;
+                   */
             }
 
             return 0;
         }
-
-        int calci_moment(double* retm, double* retv)
-        {
-            for(int i=0; i<ndim; i++)
-            {
-                retm[i] = 0;
-                retv[i] = 0;
-            }
-            double tprob = 0;
-            for(unsigned int i=0; i<density.size(); i++)
-            {
-                for(int j=0; j<ndim; j++)
-                {
-                    retm[j] = retm[j] + density[i]*nodes[i]->x[j];
-                    retv[j] = retv[j] + density[i]*sq(nodes[i]->x[j]);
-                }
-                tprob = tprob + density[i];
-            }
-            for(int i=0; i<ndim; i++)
-            {
-                retm[i] = retm[i]/tprob;
-                retv[i] = retv[i]/tprob;
-                retv[i] = retv[i] - sq(retm[i]);
-            }
-            return 0;
-        }
-        int normalize_density(vector<double>& d)
-        {
-            double tprob = 0;
-            for(unsigned int i=0; i< d.size(); i++)
-                tprob = tprob + d[i];
-            for(unsigned int i=0; i< d.size(); i++)
-                d[i] = d[i]/tprob;
-            return 0;
-        }
-        int approximate_density(double bowlr, int ii)
-        {
-            double small_bowl = bowlr/pow(3, 1/(float)ndim);
-            double mp = 0;
-            int mp_num = 0;
-            double pos[ndim] = {0};
-            kdres *res;
-            res = kd_nearest_range(node_tree, nodes[ii]->key, small_bowl);
-            while( !kd_res_end(res) )
-            {
-                Node* n1 = (Node*) kd_res_item(res, pos);
-                if( (n1->index != ii) && (density[n1->index] > 1e-30) )
-                {
-                    mp = mp + density[n1->index];
-                    mp_num++;
-                }
-                kd_res_next(res);
-            }
-            kd_res_free(res);
-            density[ii] = mp/(double)mp_num;
-            return 0;
-        }
-        int update_density(double* next_mean, double bowlr, vector<double>& obs_in)
-        {
-            double next_mean_key[ndim] ={0};
-            for(int i=0; i<ndim; i++)
-                next_mean_key[i] = (next_mean[i] - zmin[i])/(zmax[i] - zmin[i]);
-            
-            vector<int> which_ones;
-            double pos[ndim] = {0};
-            kdres *res;
-            res = kd_nearest_range(node_tree, next_mean_key, bowlr);
-            while( !kd_res_end(res) )
-            {
-                Node* n1 = (Node*) kd_res_item(res, pos);
-                which_ones.push_back(n1->index);
-                kd_res_next(res);
-            }
-            kd_res_free(res);
-
-            double obs[ndim] = {0};
-            for(int i=0; i<ndim; i++)
-                obs[i] = obs_in[i];
-
-            vector<double> dcopy = density;
-            memset(&(density[0]), 0, density.size()*sizeof(double));
-            for(unsigned int i=0; i< which_ones.size(); i++)
-            {
-                Node* curr = nodes[which_ones[i]];
-                double to_add = 0;
-                for(set<int>::iterator j=curr->ein.begin(); j != curr->ein.end(); j++)
-                {
-                    int fromi = *j;
-                    //cout<<curr->index<<" "<<fromi <<" "<<dcopy[fromi]<<" "<<P[fromi*large_num + curr->index]<<" "<< to_add<<endl;
-                    to_add = to_add + dcopy[fromi]*(P[fromi*large_num + curr->index]);
-                }
-                double curr_obs[ndim] = {0};
-                get_obs(curr->x, curr_obs, true);
-                density[i] = to_add*normal_val(obs, ovar, curr_obs, ndim_obs);
-            }
-            normalize_density(density);
-            return 0;
-        }
-        
-        // returns a new estimate and changes density
-        // samples near next estimated density and updates current density
-        vector<double> filter_iterate(int per_step, vector<double>& curr_obs)
-        {
-            double curr_mean[ndim], curr_var[ndim];
-            calci_moment(curr_mean, curr_var);
-            double next_var[ndim], next_mean[ndim];
-            for(int j=0; j<ndim; j++)
-                next_var[j] = curr_var[j] + pvar[j]*delta;
-            drift(curr_mean, next_mean, delta);
-            add(curr_mean, next_mean);
-            
-            double scaling = (3*sqrt(max_norm(next_var))/max_norm(zdiff));
-            double bowlr = 2.1*pow((1+1/(float)ndim), 1/(float)ndim)*scaling *pow(log(per_step)/(double)per_step, 1/(double)ndim);
-            
-            vector<int> which_ones;
-            for(int i=0; i<per_step; i++)
-            {
-                Node* n2 = sample_node(next_mean, next_var);
-                which_ones.push_back(num_vert);
-                add_node(n2); density.push_back(0);
-                //approximate_density(bowlr, n2->index);
-            }
-            for(int i=0; i<per_step; i++)
-            {
-                connect_node(which_ones[i], bowlr);
-                //reconnect_neighbors(which_ones[i], bowlr/5);
-            }
-
-
-            update_density(next_mean, scaling, curr_obs);
-            normalize_density(density);
-            
-            calci_moment(next_mean, next_var);
-            cout<<next_mean[0]<<" "<<next_mean[1]<<endl;
-            vector<double> tmp1; tmp1.assign(next_mean, next_mean+ndim);
-            return tmp1;
-        }
-
         vector< vector<double> > festimates;
-        int run_filter(int per_step)
+        int run_filter(int num_particles)
         {
-            density.clear();
             festimates.clear();
             int steps = observations.size();
 
-            vector<int> which_ones;
-            for(int i=0; i<per_step; i++)
+            vector< vector<double> > particles(num_particles, vector<double>(ndim,0));
+            vector< vector<double> > particles_prev(num_particles, vector<double>(ndim,0));
+            vector<double> weights(num_particles, 0);
+            for(int i=0; i< num_particles; i++)
             {
-                Node* n2 = sample_node(init_state, init_var);
-                which_ones.push_back(num_vert);
-                add_node(n2); density.push_back(0);
+                multivar_normal(init_state, init_var, &(particles[i][0]), ndim);
+                weights[i] = 1.0/(double)num_particles;
             }
-            double scaling = (3*sqrt(max_norm(init_var))/max_norm(zdiff));
-            double bowlr = 2.1*pow((1+1/(float)ndim), 1/(float)ndim)*scaling*pow(log(num_vert)/(float)num_vert, 1/(float)ndim);
-            for(int i =0; i<per_step; i++)
-            {
-                connect_node(which_ones[i], bowlr);
-                density[i] = normal_val(init_state, init_var, nodes[which_ones[i]]->x, ndim);
-            }
-            normalize_density(density);
-            double next_var[ndim], next_mean[ndim];
-            calci_moment(next_mean, next_var);
-            cout<<"init mean: "<<next_mean[0]<<" "<<next_mean[1]<<endl;
-            
             for(int i=0; i<steps; i++)
-                festimates.push_back(filter_iterate(per_step, observations[i]));
+            {
+                particles_prev = particles;
 
+                for(int j=0; j<num_particles; j++)
+                    integrate_system(&(particles[j][0]), delta);
+
+                Graph g(num_particles, delta);
+                g.add_nodes(particles_prev, particles, weights);
+                g.connect_nodes();
+                //g.print();
+                g.update_density(observations[i]);
+
+                vector<double> fmean(ndim,0);
+                for(int j=0; j<num_particles; j++)
+                {
+                    weights[j] = g.nodes[num_particles+j]->weight;
+                    for(int i=0; i<ndim; i++)
+                        fmean[i] = fmean[i] + weights[j]*particles[j][i];
+                }
+                festimates.push_back(fmean); 
+            }
             return 0;
         }
 
@@ -418,7 +325,6 @@ class Graph
         {
             pfestimates.clear();
             int steps = observations.size();
-            double integration_delta = min(1e-3, delta/2.0);
 
             vector< vector<double> > particles(num_particles, vector<double>(ndim,0));
             vector<double> weights(num_particles, 0);
@@ -430,19 +336,8 @@ class Graph
             for(int i=0; i<steps; i++)
             {
                 for(int j=0; j<num_particles; j++)
-                {
-                    double runner_delta = 0;
-                    while(runner_delta < delta)
-                    {
-                        double next_state_delta[ndim] ={0};
-                        drift(&(particles[j][0]), next_state_delta, integration_delta, false);
-                        double noise[ndim] = {0};
-                        diffusion(&(particles[j][0]), noise, integration_delta, false);
-                        add(noise, next_state_delta);
-                        add(next_state_delta, &(particles[j][0]));
-                        runner_delta += integration_delta;
-                    }
-                }
+                    integrate_system(&(particles[j][0]), delta);
+
                 double tot_prob = 0;
                 vector<double> pfmean(ndim,0);
                 for(int j=0; j<num_particles; j++)
@@ -464,6 +359,8 @@ class Graph
         }
         int calculate_err(double& ferrt, double& pferrt, double max_time)
         {
+            if((festimates.size() == 0) && (pfestimates.size() == 0) )
+                return 1;
             ferrt = 0;
             pferrt = 0;
             int steps = observations.size();
@@ -520,8 +417,9 @@ class Graph
 
             return 0;
         }
-
 };
+
+
 
 int main(int argc, char** argv)
 {
@@ -535,19 +433,19 @@ int main(int argc, char** argv)
 
 #if 1
     srand(time(NULL));
-    Graph g = Graph();
-    
-    g.festimates.clear();
-    g.pfestimates.clear();
-    g.propagate_system(max_time);
-    
-    g.run_pfilter(n);
+    HMMF h;
+
+    h.festimates.clear();
+    h.pfestimates.clear();
+    h.propagate_system(max_time);
+
+    h.run_pfilter(n);
     tic();
-    g.run_filter(n);
+    h.run_filter(n);
     cout<<"dt: "<< toc()<<endl;
-    g.output_trajectories();
+    h.output_trajectories();
     double ferr, pferr;
-    g.calculate_err(ferr, pferr, max_time);
+    h.calculate_err(ferr, pferr, max_time);
     cout<<n<<" "<<ferr<<" "<<pferr<<endl;
 #endif
 
@@ -563,7 +461,7 @@ int main(int argc, char** argv)
             g.festimates.clear();
             g.pfestimates.clear();
             g.propagate_system(1);
-            
+
             g.run_pfilter(n);
             g.run_filter(n);
             double ferr, pferr;
