@@ -11,11 +11,11 @@ to_save = False
 if len(sys.argv) >= 3:
     to_save = bool(sys.argv[1])
 
-truth = loadtxt('truth.dat')
-obs = loadtxt('observations.dat')
-fest = loadtxt('filter.dat')
-sest = loadtxt('smoothing.dat')
-pfest = loadtxt('pfilter.dat')
+truth = loadtxt('data/truth.dat')
+obs = loadtxt('data/observations.dat')
+fest = loadtxt('data/filter.dat')
+sest = loadtxt('data/smoothing.dat')
+pfest = loadtxt('data/pfilter.dat')
 
 d = 1
 if len(sys.argv) >= 2:

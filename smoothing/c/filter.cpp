@@ -485,7 +485,7 @@ class Graph
         }
         int output_trajectories()
         {
-            ofstream ot("truth.dat");
+            ofstream ot("data/truth.dat");
             for(unsigned int i=0; i< truth.size(); i++)
             {
                 for(int j=0; j<ndim; j++)
@@ -493,7 +493,7 @@ class Graph
                 ot<<endl;
             }
             ot.close();
-            ofstream ob("observations.dat");
+            ofstream ob("data/observations.dat");
             for(unsigned int i=0; i< observations.size(); i++)
             {
                 for(int j=0; j<ndim; j++)
@@ -501,7 +501,7 @@ class Graph
                 ob<<endl;
             }
             ob.close();
-            ofstream of("filter.dat");
+            ofstream of("data/filter.dat");
             for(unsigned int i=0; i< festimates.size(); i++)
             {
                 for(int j=0; j<ndim; j++)
@@ -509,7 +509,7 @@ class Graph
                 of<<endl;
             }
             of.close();
-            ofstream pf("pfilter.dat");
+            ofstream pf("data/pfilter.dat");
             for(unsigned int i=0; i< pfestimates.size(); i++)
             {
                 for(int j=0; j<ndim; j++)
