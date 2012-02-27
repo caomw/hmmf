@@ -8,9 +8,11 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mcolor
 
+rc('font', family='serif')
+rc('text', usetex='True')
 
 times = []
-NUM_DIM = 2
+NUM_DIM = 4
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -179,8 +181,8 @@ def plot_trajs():
     axis('tight')
     legend(loc=4)
     grid()
-    xlabel('t [s]')
-    title('x(t)')
+    xlabel(r't(s)')
+    title(r'$x_1(t)$')
     #savefig('vanderpol_x.pdf', bbox_inches='tight')
     
     if NUM_DIM >= 2:
@@ -192,8 +194,8 @@ def plot_trajs():
         axis('tight')
         legend(loc=7)
         grid()
-        xlabel('t [s]')
-        title('x_dot(t)')
+        xlabel(r't(s)')
+        title(r'$x_2(t)$')
         #savefig('vanderpol_x_dot.pdf', bbox_inches='tight')
     
     if NUM_DIM >= 3:
@@ -205,41 +207,23 @@ def plot_trajs():
         axis('tight')
         legend(loc=7)
         grid()
-        xlabel('t [s]')
-        title('theta2(t)')
+        xlabel(r't(s)')
+        title(r'$x_3(t)$')
         #savefig('vanderpol_x_dot.pdf', bbox_inches='tight')
 
-    """
-    for i in range(NUM_DIM):
-        ax1 = subplot(NUM_DIM,1,i+1, aspect='auto')
+    if NUM_DIM >= 4:
+        figure(4)    
+        plot( tsys[:], sys[:,3], 'r-', label='sys', lw=1.5)
+        plot( tbp[:], bp[:,3], 'g-', label='hmm', lw=1.5)
+        #plot( tkf[:], kf[:,3], 'c-', label='kf', lw=0.5)
+        plot( tpf[:], pf[:,3], 'y-', label='pf', lw=1.5)
+        axis('tight')
+        legend(loc=7)
         grid()
+        xlabel(r't(s)')
+        title(r'$x_4(t)$')
+        #savefig('vanderpol_x_dot.pdf', bbox_inches='tight')
 
-        if len(sys) != 0:
-            plot( tsys[:], sys[:,i], 'r-', label='sys', lw=1.5)
-        #if len(obs) != 0:
-            #plot( tobs[:], obs[:,i], 'bx', label='obs')
-        
-        if len(bp) != 0:
-            plot( tbp[:], bp[:,i], 'g-', label='hmm', lw=1.5)
-        if len(kf) != 0:
-            plot( tkf[:], kf[:,i], 'c-', label='kf', lw=1.5)
-        if len(pf) != 0:
-            plot( tpf[:], pf[:,i], 'y-', label='pf', lw=1.5)
-    
-        #print norm(sys[:,i] - bp[:,i]), norm( sys[:,i] - pf[:,i])
-
-        ax2 = ax1.twinx()
-        if len(kf_covar) != 0:
-            upper = [ kf[x,i] + sqrt(kf_covar[x,i]) for x in range(len(kf_covar))]
-            lower = [ kf[x,i] - sqrt(kf_covar[x,i]) for x in range(len(kf_covar))]
-            
-            print "kf: ", kf
-            print "kf_covar: ", kf_covar
-            print "upper: ", upper
-
-            plot( tkf_covar[:], upper, 'm-', label='kf_covar1', lw=1.5)
-            plot( tkf_covar[:], lower, 'm-', label='kf_covar2', lw=1.5)
-    """
     """
     figure(2)
     if len(sys) != 0:

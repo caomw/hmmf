@@ -4,6 +4,9 @@ import sys
 from numpy import *
 from pylab import *
 
+rc('font', family='serif')
+rc('text', usetex='True')
+
 to_save = False
 if len(sys.argv) >= 3:
     to_save = bool(sys.argv[1])
@@ -32,11 +35,11 @@ if len(truth[0,:]) > 0:
     plot(times, pfest[:,0], 'y-', label='pf')
     axis('tight')
     grid()
-    xlabel('t [s]')
+    xlabel(r'$t(s)$')
     legend(loc=4)
-    title('vanderpol_x')
+    title(r'$x_1(t)$')
     if to_save:
-        savefig('smoothing_vanderpol_x.pdf', bbox_inches='tight')
+        savefig('x1.pdf', bbox_inches='tight')
 
 if len(truth[0,:]) > 1:
     figure(2)
@@ -47,12 +50,13 @@ if len(truth[0,:]) > 1:
     plot(times, pfest[:,1], 'y-', label='pf')
     axis('tight')
     grid()
-    xlabel('t [s]')
+    xlabel(r'$t(s)$')
     legend(loc=1)
-    title('vanderpol_x_dot')
+    title(r'$x_2(t)$')
     if to_save:
-        savefig('smoothing_vanderpol_x_dot.pdf', bbox_inches='tight')
-
+        savefig('x2.pdf', bbox_inches='tight')
+    
+"""
 if len(truth[0,:]) > 2:
     figure(3)
     plot(times, truth[:,2], 'r-', label='sys')
@@ -61,11 +65,37 @@ if len(truth[0,:]) > 2:
     plot(times, pfest[:,2], 'y-', label='pf')
     axis('tight')
     grid()
-    xlabel('t [s]')
+    xlabel(r'$t(s)$')
     legend(loc=4)
-    title('vanderpol_mu')
+    title(r'$x_3(t)$')
     if to_save:
-        savefig('smoothing_vanderpol_mu.pdf', bbox_inches='tight')
+        savefig('x3.pdf', bbox_inches='tight')
+
+if len(truth[0,:]) > 3:
+    figure(4)
+    plot(times, truth[:,3], 'r-', label='sys')
+    plot(times, fest[:,3], 'g-', label='filter')
+    #plot(times, sest[:,3], 'c-', label='smoothing')
+    plot(times, pfest[:,3], 'y-', label='pf')
+    axis('tight')
+    grid()
+    xlabel(r'$t(s)$')
+    legend(loc=4)
+    title(r'$x_4(t)$')
+    if to_save:
+        savefig('x4.pdf', bbox_inches='tight')
+"""
+
+figure(5)
+plot(truth[:,0], truth[:,1], 'r-', label='sys')
+#plot(fest[:,0], fest[:,1], 'g-', label='filter')
+plot(pfest[:,0], pfest[:,1], 'y-', label='pf')
+axis('tight')
+grid()
+xlabel(r'$x(t)$')
+ylabel(r'$y(t)$')
+legend(loc=1)
+
 
 ferr = truth - fest
 #serr = truth - sest

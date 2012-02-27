@@ -2,7 +2,7 @@
 #define __filter_h__
 
 #include "utils/common.h"
-#include "systems/parameter.h"
+#include "systems/ship.h"
 
 class Edge;
 class Vertex;

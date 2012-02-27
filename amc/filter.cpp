@@ -31,7 +31,7 @@ Graph::Graph(System& sys) {
     obs_interval = 1;
     obs_curr_index = 0;
     delta = system->sim_time_delta;
-    max_obs_time = 10;
+    max_obs_time = 1;
 
     min_holding_time = delta;
     seeding_finished = false;
@@ -473,7 +473,7 @@ void Graph::update_density_implicit_no_obs_all()
 void Graph::update_density_implicit_all(double covar)
 {
     //double key_covar = 0.1;
-    double key_covar = 3*sqrt(covar + system->process_noise[0]*delta)/fabs(system->max_states[0] - system->min_states[0]);
+    //double key_covar = 3*sqrt(covar + system->process_noise[0]*delta)/fabs(system->max_states[0] - system->min_states[0]);
     //key_covar = max(key_covar, 0.1);
     //cout<<key_covar<<endl;
     bool to_normalize = false;
@@ -697,10 +697,7 @@ int Graph::connect_edges_approx(Vertex* v)
     //int pr = kd_res_size(res);
 
     double *sys_var = new double[NUM_DIM];
-    State stmp;
-    State fdt = system->get_fdt(v->s, holding_time);
-    for(int i=0; i<NUM_DIM; i++)
-        stmp.x[i] = v->s.x[i] + fdt.x[i];
+    State stmp = system->integrate(v->s, holding_time, true);
     system->get_variance(v->s, holding_time, sys_var);
 
     double sum_prob = 0;
@@ -796,8 +793,7 @@ void Graph::propagate_system()
     double curr_time = 0;
     double max_time = max_obs_time;
 
-    State start_state = system->init_state;
-    start_state.x[1] = 0.5;
+    State start_state = system->init_state_real;
     truth.push_back(start_state);
 
     while(curr_time < max_time)

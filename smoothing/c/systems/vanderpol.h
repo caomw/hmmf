@@ -44,6 +44,7 @@ int get_obs(double* s, double* obs, bool is_clean=false)
     {
         obs[0] = s[0];
         obs[1] = s[1];
+        return 0;
     }
     double noise[ndim] = {0};
     multivar_normal(zero, ovar, noise, ndim_obs); 

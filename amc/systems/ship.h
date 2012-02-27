@@ -99,9 +99,8 @@ class System
         double *max_states;
         double sim_time_delta;
         
-        int num_particles;
-
         State init_state;
+        State init_state_real;
 
         System();
         ~System();
@@ -157,14 +156,14 @@ class System
         int get_key(State& s, double *key);
         bool is_free(State &s);
         State sample();
-        State integrate(State& s, double duration, bool is_clean);
+        State integrate(State& s, double duration, bool is_clean=false, bool is_real=false);
         void get_variance(State& s, double duration, double* var);
         void get_obs_variance(State& s, double* var);
         
         State observation(State& s, bool is_clean);
 
         void get_kalman_path(vector<State>& obs, vector<double>& obs_times, list<State>& kalman_path, list<State>& kalman_covar);
-        void get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path);
+        void get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path, int num_particles);
         
         double dist(State s1, State s2)
         {

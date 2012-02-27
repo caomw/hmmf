@@ -187,7 +187,7 @@ int do_batch(int tot_vert)
     graph.propagate_system();
     graph.get_kalman_path();
     tic();
-    graph.get_pf_path(1000);
+    graph.get_pf_path(5000);
     cout<<"pf time: "<< toc() << endl;
 #endif
     
@@ -363,7 +363,7 @@ int do_incremental(int tot_vert)
 int do_error_plot(int start_vert, int end_vert=1.0)
 {
     ofstream err_out("data/err_out.dat");
-    int max_runs = 1000;
+    int max_runs = 20;
     
     int svert = start_vert;
     int evert = end_vert;
@@ -372,7 +372,7 @@ int do_error_plot(int start_vert, int end_vert=1.0)
         
     System sys;
 
-    for(int tot_vert=200; tot_vert < 2000; tot_vert+= 100)
+    for(int tot_vert=svert; tot_vert < svert+1; tot_vert+= 100)
     {
         double average_time_hmm = 0;
         double average_time_pf = 0;
@@ -385,8 +385,10 @@ int do_error_plot(int start_vert, int end_vert=1.0)
         {
             tic();
             Graph graph(sys);
-            for(int i=0; i < tot_vert; i++)
-                graph.add_sample();
+            for(int i=0; i < 100; i++)
+                graph.add_sample(true);
+            for(int i=0; i < tot_vert-100; i++)
+                graph.add_sample(false);
             for(unsigned int i=0; i< graph.num_vert; i++)
             {
                 Vertex* v = graph.vlist[i];
@@ -426,7 +428,7 @@ int do_error_plot(int start_vert, int end_vert=1.0)
 
             double bpe=0, kfe=0, pfe=0;
             get_sq_error(graph, bpe, kfe, pfe, graph.max_obs_time);
-            //cout<<how_many<<" "<<bpe<<" "<< kfe<<" "<<pfe<<endl;
+            cout<<how_many<<" "<<bpe<<" "<< kfe<<" "<<pfe<<endl;
             //cout<<how_many<<" "; cout.flush();
 
             average_bpe += bpe;
@@ -514,8 +516,8 @@ int main(int argc, char* argv[])
 
     // do_err_convergence_incremental();
     // do_err_convergence();
-    // do_error_plot(tot_vert);
-    do_batch(tot_vert);
+    do_error_plot(tot_vert);
+    // do_batch(tot_vert);
     // do_incremental(tot_vert);
 
     // do_timing_plot();

@@ -13,19 +13,21 @@ System::System()
         min_states[i] = -12;
         max_states[i] = 12;
         init_state.x[i] = -11;
+        init_state_real.x[i] = -11;
     }
     init_state.x[2] = 0;
     init_state.x[3] = 0;
+    init_state_real.x[2] = 0;
+    init_state_real.x[3] = 0;
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1;
-        obs_noise[i] = 1;
-        init_var[i] = 1;
+        process_noise[i] = 1e-1;
+        obs_noise[i] = 1e-1;
+        init_var[i] = 1e-2;
     }
     
     sim_time_delta = 0.01;
-    num_particles = 2000;
 }
 
 System::~System()
@@ -68,7 +70,7 @@ int System::get_key(State& s, double *key)
     return 0;
 }
 
-State System::integrate(State& s, double duration, bool is_clean)
+State System::integrate(State& s, double duration, bool is_clean, bool is_real)
 {
     State t;
 
@@ -308,7 +310,7 @@ int pfilter_resample(State* parts, double *weights, int num_particles)
     return 0;
 }
 
-void System::get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path)
+void System::get_pf_path( vector<State>& obs, vector<double>& obs_times, list<State>& pf_path, int num_particles)
 {
     pf_path.clear();
 
