@@ -1,8 +1,8 @@
 #include "common.h"
 
 //#include "systems/vanderpol_parameter.h"
-//#include "systems/vanderpol.h"
-#include "systems/singleint.h"
+#include "systems/vanderpol.h"
+//#include "systems/singleint.h"
 //#include "systems/uhlmann.h"
 //#include "systems/parameter.h"
 //#include "systems/parameter_hard.h"
@@ -24,11 +24,17 @@ class Node
             weight = win;
             id = 0;
             for(int i=0; i< ndim; i++)
-            {
                 x[i] = xin[i];
-                key[i] = (xin[i]-zmin[i])/(zmax[i] - zmin[i]);
-            }
+            get_key(xin, key);
             index = iin;
+        }
+        int get_key(double* xin, double* keyout)
+        {
+            for(int i=0; i< ndim; i++)
+            {
+                keyout[i] = (xin[i]-zmin[i])/(zmax[i] - zmin[i]);
+            }
+            return 0;
         }
 };
 class Graph
@@ -97,15 +103,20 @@ class Graph
         int connect_nodes_iter(int nodei)
         {
             Node* n = nodes[nodei];
-            n->htime = holding_time(n->x, bowlr);
-            if(n->htime < delta)
-            {
-                cout<<"htime "<<n->htime<<" < delta "<<delta<<" index: "<< nodei<<endl;
-                exit(0);
-            }
+            //n->htime = holding_time(n->x, bowlr);
+            n->htime = delta;
+            
+            double next_state[ndim] ={0}, next_state_key[ndim]={0};
+            copy(n->x, next_state);
+            integrate_system(next_state, n->htime, true);
+            n->get_key(next_state, next_state_key);
+            double var[ndim];
+            for(int j=0; j<ndim; j++)
+                var[j] = pvar[j]*(n->htime);
+
             vector<int> neighbors;  
             kdres *res;
-            res = kd_nearest_range(node_tree, n->key, bowlr);
+            res = kd_nearest_range(node_tree, next_state_key, bowlr);
             double pos[ndim] = {0};
             while( !kd_res_end(res) )
             {
@@ -118,13 +129,7 @@ class Graph
 
             vector<float> probs(neighbors.size(), 0);
             double tprob = 0;
-            double next_state[ndim] ={0};
-            copy(n->x, next_state);
-            integrate_system(next_state, n->htime, true);
-            double var[ndim];
-            for(int j=0; j<ndim; j++)
-                var[j] = pvar[j]*(n->htime);
-            for(unsigned int j=0; j<neighbors.size(); j++)
+                        for(unsigned int j=0; j<neighbors.size(); j++)
             {
                 Node* n1 = nodes[neighbors[j]];
                 probs[j] = normal_val(next_state, var, n1->x, ndim);
@@ -204,7 +209,7 @@ class Graph
                     for(unsigned int j=0; j< n1->ein.size(); j++)
                         to_add = to_add + nodes[n1->ein[j]]->weight*P[j*num_vert + i];
                     
-                    double curr_obs[ndim] = {0};
+                    double curr_obs[ndim_obs] = {0};
                     get_obs(n1->x, curr_obs, true);
                     nodes[i]->weight = to_add*normal_val(obs, ovar, curr_obs, ndim_obs);
                 }
@@ -253,7 +258,7 @@ class HMMF
             observations.clear();
             double curr_time = 0;
             double curr_state[ndim];
-            double curr_obs[ndim];
+            double curr_obs[ndim_obs];
             copy(init_state_real, curr_state);
             while(curr_time <= max_time)
             {
@@ -425,7 +430,7 @@ int main(int argc, char** argv)
 {
     // n per step
     int n = 100;
-    double max_time = 0.1;
+    double max_time = 1;
     if(argc > 1)
         n = atoi(argv[1]);
     if(argc > 2)
@@ -434,45 +439,51 @@ int main(int argc, char** argv)
 #if 1
     srand(time(NULL));
     HMMF h;
-
-    h.festimates.clear();
-    h.pfestimates.clear();
     h.propagate_system(max_time);
 
+    tic();
     h.run_pfilter(n);
+    cout<<"dt pf: "<< toc()<<endl;
     tic();
     h.run_filter(n);
-    cout<<"dt: "<< toc()<<endl;
+    cout<<"dt hmmf: "<< toc()<<endl;
     h.output_trajectories();
-    double ferr, pferr;
+    double ferr=0, pferr=0;
     h.calculate_err(ferr, pferr, max_time);
     cout<<n<<" "<<ferr<<" "<<pferr<<endl;
 #endif
 
 #if 0
+    int s = n;
     int max_tries = 50;
-    for(int n=1000; n<3000; n=n+500)
+    for(int i=s; i<s+5; i=i+10)
     {
         srand(0);
-        Graph g = Graph();
-        double favg=0, pfavg=0;
+        double favg=0, pfavg=0, ftavg=0, pftavg=0;
         for(int tries=0; tries<max_tries; tries++)
         {
-            g.festimates.clear();
-            g.pfestimates.clear();
-            g.propagate_system(1);
+            HMMF h;
+            h.propagate_system(max_time);
+            
+            tic();
+            h.run_pfilter(i);
+            pftavg += toc();
+            
+            tic();
+            h.run_filter(i);
+            ftavg += toc();
 
-            g.run_pfilter(n);
-            g.run_filter(n);
-            double ferr, pferr;
-            g.calculate_err(ferr, pferr, 1);
-            //cout<<ferr<<" "<<pferr<<endl;
+            double ferr=0, pferr=0;
+            h.calculate_err(ferr, pferr, max_time);
             favg = favg + ferr;
             pfavg = pfavg + pferr;
+            cout<<tries<<" "<<favg/(float)tries<<" "<<pfavg/(float)tries<<endl;
         }
         favg = favg/(double)max_tries;
         pfavg = pfavg/(double)max_tries;
-        cout<<n<<" "<<favg<<" "<<pfavg<<endl;
+        ftavg = ftavg/(double)max_tries;
+        pftavg = pftavg/(double)max_tries;
+        cout<<i<<" "<<ftavg<<" "<<pftavg<<" "<<favg<<" "<<pfavg<<endl;
     }
 #endif
 

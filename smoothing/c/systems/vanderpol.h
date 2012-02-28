@@ -4,23 +4,18 @@
 #define ndim        (2)
 #define ndim_obs    (1)
 
+#include "sysutil.h"
+
 double zmin[ndim] = {-2.5, -4.0};
 double zmax[ndim] = {2.5, 4.0};
 double zdiff[ndim] = {5.0, 8.0};
-double init_var[ndim] = {1e-2, 1e-2};
+double init_var[ndim] = {1e-1, 1e-1};
 double init_state[ndim] = {0.0, 1.0};
 double init_state_real[ndim] = {0.0, 1.0};
-double pvar[ndim] = {1e-1, 1e-1};
-double ovar[ndim] = {1e-1, 1e-1};
+double pvar[ndim] = {1e-1, 1e-2};
+double ovar[ndim_obs] = {1*1e-3};
 double zero[ndim] = {0};
 
-double norm(double* s)
-{
-    double sum = 0;
-    for(int i=0; i<ndim;i++)
-        sum = sum + sq(s[i]);
-    return sqrt(sum);
-}
 int drift(double* s, double *ret, double dt=1.0, bool real=false)
 {
     double mu = 2.0;
@@ -38,18 +33,16 @@ int diffusion(double* s, double* ret, double dt=1.0, bool real=false)
 }
 int get_obs(double* s, double* obs, bool is_clean=false)
 {
-    for(int i=0; i< ndim; i++)
+    for(int i=0; i< ndim_obs; i++)
         obs[i] = 0;
     if(is_clean)
     {
         obs[0] = s[0];
-        obs[1] = s[1];
         return 0;
     }
-    double noise[ndim] = {0};
+    double noise[ndim_obs] = {0};
     multivar_normal(zero, ovar, noise, ndim_obs); 
     obs[0] = s[0] + noise[0];
-    obs[1] = s[1] + noise[1];
     return 0;
 }
 double holding_time(double* s, double r)
@@ -60,4 +53,23 @@ double holding_time(double* s, double r)
     return h*h/(pvar[0] + h*norm(ret));
 }
 
+int integrate_system(double* curr_state, double dt, bool is_clean=false)
+{
+    double integration_delta = min(1e-3, dt/2.0);
+    double runner_time = 0;
+    while(runner_time < dt)
+    {
+        double next_state_delta[ndim] ={0};
+        drift(curr_state, next_state_delta, integration_delta, true);
+        double noise[ndim] = {0};
+        if(!is_clean)
+        {
+            diffusion(curr_state, noise, integration_delta, true);
+            add(noise, next_state_delta);
+        }
+        add(next_state_delta, curr_state);
+        runner_time = runner_time + integration_delta;
+    }
+    return 0;
+}
 #endif

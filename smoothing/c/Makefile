@@ -13,7 +13,7 @@ INCS = -I./ -I systems/ -I utils/ -I /home/pratik/apps/eigen/
 LIBS = -L./
 
 CFLAGS = -Wall -g -pg -O3
-CPPFLAGS = -Wall -g -pg -O0 -std=c++0x
+CPPFLAGS = -Wall -g -pg -O3 -std=c++0x
 LDFLAGS = -g -pg
 
 all: $(BIN)
