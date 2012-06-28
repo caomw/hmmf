@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cmath>
 #include <vector>
+#include <string.h>
 #include <fstream>
 #include <cstdlib>
 #include <sys/time.h>
@@ -23,22 +24,22 @@ using namespace Eigen;
 #define RANDF       (rand()/(RAND_MAX+1.0))
 
 
-double randn();
-void multivar_normal(double *mean, double *var, double *ret, int dim);
-double sq(double x);
-double normal_val(double *mean, double *var, double *tocalci, int dim);
+float randn();
+void multivar_normal(float *mean, float *var, float *ret, int dim);
+float sq(float x);
+float normal_val(float *mean, float *var, float *tocalci, int dim);
 
 inline
-double sq(double x)
+float sq(float x)
 {
     return (x)*(x);
 }
 
 inline
-double normal_val(double *mean, double *var, double *tocalci, int dim)
+float normal_val(float *mean, float *var, float *tocalci, int dim)
 {
-    double top = 0;
-    double det = 1;
+    float top = 0;
+    float det = 1;
     for(int i=0; i<dim; i++)
     {
         top += sq(mean[i] - tocalci[i])/2/var[i];
@@ -46,10 +47,10 @@ double normal_val(double *mean, double *var, double *tocalci, int dim)
         det = det*var[i];
     }
     top = exp(-0.5*top);
-    double to_ret = (top/pow(2*M_PI, dim/2.0))/ sqrt( det );
+    float to_ret = (top/pow(2*M_PI, dim/2.0))/ sqrt( det );
    
-    if ( to_ret < 1e-60)
-        to_ret = 1e-60;
+    if ( to_ret < 1e-10)
+        to_ret = 1e-10;
 
     return to_ret;
 }

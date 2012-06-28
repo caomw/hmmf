@@ -1,22 +1,22 @@
 #ifndef __sysutil__
 #define __sysutil__
 
-int add(double* src, double* dest)
+int add(float* src, float* dest)
 {
     // puts result in dest
     for(int i=0; i< ndim; i++)
         dest[i] = dest[i] + src[i];
     return 0;
 }
-int copy(double* src, double* dest)
+int copy(float* src, float* dest)
 {
     for(int i=0; i< ndim; i++)
         dest[i] = src[i];
     return 0;
 }
-double max_norm(double* src, int dim=ndim)
+float max_norm(float* src, int dim=ndim)
 {
-    double m = -1;
+    float m = -1;
     for(int i=0; i<dim; i++)
     {
         if(m < src[i])
@@ -24,16 +24,16 @@ double max_norm(double* src, int dim=ndim)
     }
     return m;
 }
-int print(double* src, int dim=ndim)
+int print_state(float* src, int dim=ndim)
 {
     for(int i=0; i<dim; i++)
         cout<<src[i]<<" ";
     cout<<endl;
     return 0;
 }
-double norm(double* s)
+float norm(float* s)
 {
-    double sum = 0;
+    float sum = 0;
     for(int i=0; i<ndim;i++)
         sum = sum + sq(s[i]);
     return sqrt(sum);

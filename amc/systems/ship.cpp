@@ -10,10 +10,10 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = -12;
-        max_states[i] = 12;
-        init_state.x[i] = -11;
-        init_state_real.x[i] = -11;
+        min_states[i] = -10;
+        max_states[i] = 10;
+        init_state.x[i] = -5;
+        init_state_real.x[i] = -5;
     }
     init_state.x[2] = 0;
     init_state.x[3] = 0;
@@ -22,8 +22,8 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        process_noise[i] = 1e-1;
-        obs_noise[i] = 1e-1;
+        process_noise[i] = 1e-2;
+        obs_noise[i] = 1e-2;
         init_var[i] = 1e-2;
     }
     

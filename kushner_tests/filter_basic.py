@@ -208,8 +208,8 @@ class Approximate_chain:
         plot(kfestimates, 'c-')
         grid()
         show()
-        #return fabs(np.linalg.norm(np.array(truth)-np.array(estimates))**2 - np.linalg.norm(np.array(truth)-np.array(kfestimates))**2)
-        return (np.linalg.norm(np.array(truth)-np.array(estimates))**2)/(max_time/self.delta)
+        return 1/(max_time/self.delta)*fabs(np.linalg.norm(np.array(truth)-np.array(estimates))**2 - np.linalg.norm(np.array(truth)-np.array(kfestimates))**2)
+        #return (np.linalg.norm(np.array(truth)-np.array(estimates))**2)/(max_time/self.delta)
 
 if __name__ == "__main__":
     
@@ -222,7 +222,6 @@ if __name__ == "__main__":
         amc.simulate_trajectories()
     """
 
-    
     np.random.seed(10)
     first, last, step = 1000, 1001, 1
     if(len(sys.argv) > 1):

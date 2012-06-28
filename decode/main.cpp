@@ -59,43 +59,47 @@ void get_interpolated_error(Graph& graph, double& bpe)
                 bp_next = bp_last_element;
         }
     }
-    bpe = bpe/(double)graph.truth.size();
+    bpe = bpe*graph.system->max_states[0]/(double)graph.truth.size();
 }
 
 int do_batch(int tot_vert)
 {
     System sys;
     Graph graph(sys);
+    graph.propagate_system();
 
     double start = get_msec();
     
     srand(0);
     graph.vlist.reserve(tot_vert);
 
-#if 1 
     tic();
-    int begin = 1000;
-    int end = 1000;
-    // seeding
-    for(int i=0; i< begin; i++)
-        graph.add_sample(1);
-    
-    for(unsigned int i=0; i< graph.num_vert; i++)
+    double tprob = 0;
+    for(int i=0; i< tot_vert; i++)
+    {
+        double r = RANDF;
+        Vertex* v;
+        if( r < 0.1)
+        {
+            v = graph.add_sample(1);
+            v->prob_best_path = normal_val(&(graph.system->init_state.x[1]), graph.system->init_var,\
+                    &(v->s.x[1]), NUM_DIM-1);
+            tprob += v->prob_best_path;
+        }
+        else if(r > 0.9)
+            graph.add_sample(2);
+        else
+            graph.add_sample(0);
+    }
+    graph.seeding_finished = true;
+    for(unsigned int i=0; i< graph.vlist.size(); i++)
     {
         Vertex* v = graph.vlist[i];
-        v->prob_best_path = normal_val(&(graph.system->init_state.x[1]), graph.system->init_var,\
-                &(v->s.x[1]), NUM_DIM-1);
+        if(v->prob_best_path > 0)
+        {
+            v->prob_best_path = v->prob_best_path/tprob;
+        }
     }
-    graph.normalize_density();
-    graph.seeding_finished = true;
-
-
-#if 1
-    for(int i=0; i< end; i++)
-        graph.add_sample(2);
-    
-    for(int i=0; i< tot_vert-begin-end; i++)
-        graph.add_sample();
     
     for(unsigned int i=0; i< graph.vlist.size(); i++)
     {
@@ -113,8 +117,6 @@ int do_batch(int tot_vert)
     double bpe_avg = 0;
     for(int i=0; i< tries; i++)
     {
-        srand(0);
-        graph.propagate_system();
         graph.get_best_path();
         double bpe=0;
         get_interpolated_error(graph, bpe);
@@ -122,9 +124,6 @@ int do_batch(int tot_vert)
         bpe_avg += bpe;
     }
     cout<<"bpe: "<< bpe_avg/(double)tries<< endl;
-#endif
-
-#endif
      
     graph.plot_trajectory();
     //graph.plot_graph();

@@ -6,22 +6,22 @@
 #define ndim        (4)
 #define ndim_obs    (3)
 
-double init_var[ndim] = {1e-2, 1e-2, 1e-2, 1e-2};
-double init_state[ndim] = {1/1.414, 0, 0, 1/1.414};             // pointing upwards
-double init_state_real[ndim] = {1/1.414, 0, 0, 1/1.414};
-double pvar[ndim] = {1e-4, 1e-4, 1e-4, 1e-4};
-double ovar[3] = {1e-4, 1e-4, 1e-4};
-double zero[ndim] = {0};
-double nomw[3] = {0.1,0.1,0.1};
+float init_var[ndim] = {1e-2, 1e-2, 1e-2, 1e-2};
+float init_state[ndim] = {1/1.414, 0, 0, 1/1.414};             // pointing upwards
+float init_state_real[ndim] = {1/1.414, 0, 0, 1/1.414};
+float pvar[ndim] = {1e-4, 1e-4, 1e-4, 1e-4};
+float ovar[3] = {1e-4, 1e-4, 1e-4};
+float zero[ndim] = {0};
+float nomw[3] = {0.1,0.1,0.1};
 
-double norm(double* s)
+float norm(float* s)
 {
-    double sum = 0;
+    float sum = 0;
     for(int i=0; i<ndim;i++)
         sum = sum + sq(s[i]);
     return sqrt(sum);
 }
-int drift(double* q, double *ret, double dt=1.0, bool real=false)
+int drift(float* q, float *ret, float dt=1.0, bool real=false)
 {
     ret[0] = -0.5*(nomw[0]*q[1] + nomw[1]*q[2] + nomw[2]*q[3])*dt;
     ret[1] = 0.5*(nomw[0]*q[0] + nomw[2]*q[2] - nomw[1]*q[3])*dt;
@@ -33,9 +33,9 @@ int drift(double* q, double *ret, double dt=1.0, bool real=false)
 
     return 0;
 }
-int diffusion(double* q, double* ret, double dt=1.0, bool real=false)
+int diffusion(float* q, float* ret, float dt=1.0, bool real=false)
 {
-    double var[ndim] ={0};
+    float var[ndim] ={0};
     for(int i=0; i<ndim; i++)
         var[i] = pvar[i]*dt;
     
@@ -43,9 +43,9 @@ int diffusion(double* q, double* ret, double dt=1.0, bool real=false)
     
     return 0;
 }
-int get_obs(double* s, double* obs, bool is_clean=false)
+int get_obs(float* s, float* obs, bool is_clean=false)
 {
-    double sphi = 1; // sqrt(1 - s[0]*s[0]);
+    float sphi = 1; // sqrt(1 - s[0]*s[0]);
     for(int i=0; i< ndim_obs; i++)
         obs[i] = 0;
     if(is_clean)
@@ -55,23 +55,23 @@ int get_obs(double* s, double* obs, bool is_clean=false)
         obs[2] = s[3]/sphi;
         return 0;
     }
-    double noise[3] = {0};
+    float noise[3] = {0};
     multivar_normal(zero, ovar, noise, 3); 
     
     obs[0] = s[1]/sphi + noise[0];
     obs[1] = s[2]/sphi + noise[1];
     obs[2] = s[3]/sphi + noise[2];
-    double len = 1; //sqrt(obs[0]*obs[0] +obs[1]*obs[1] + obs[2]*obs[2]);
+    float len = 1; //sqrt(obs[0]*obs[0] +obs[1]*obs[1] + obs[2]*obs[2]);
     obs[0] = obs[0]/len;
     obs[1] = obs[1]/len;
     obs[2] = obs[2]/len;
 
     return 0;
 }
-double holding_time(double* s, double r)
+float holding_time(float* s, float r)
 {
-    double h = r*2;
-    double ret[ndim] ={0};
+    float h = r*2;
+    float ret[ndim] ={0};
     drift(s, ret, 1.0, true);
     return h*h/(pvar[0] + h*norm(ret));
 }

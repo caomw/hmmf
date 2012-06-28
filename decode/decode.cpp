@@ -18,8 +18,8 @@ Edge::Edge(Vertex *f, Vertex *t, double prob, double trans_time){
     transition_time = trans_time;
 }
 
-Graph::Graph(System& sys) {
-
+Graph::Graph(System& sys) 
+{
     system = &sys;
 
     vlist.clear();

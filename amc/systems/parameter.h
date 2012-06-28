@@ -100,6 +100,7 @@ class System
         double sim_time_delta;
         
         State init_state;
+        State init_state_real;
 
         System();
         ~System();

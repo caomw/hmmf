@@ -12,7 +12,7 @@ rc('font', family='serif')
 rc('text', usetex='True')
 
 times = []
-NUM_DIM = 4
+NUM_DIM = 2
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -189,7 +189,7 @@ def plot_trajs():
         figure(2)    
         plot( tsys[:], sys[:,1], 'r-', label='sys', lw=1.5)
         plot( tbp[:], bp[:,1], 'g-', label='hmm', lw=1.5)
-        #plot( tkf[:], kf[:,1], 'c-', label='kf', lw=0.5)
+        plot( tkf[:], kf[:,1], 'c-', label='kf', lw=0.5)
         plot( tpf[:], pf[:,1], 'y-', label='pf', lw=1.5)
         axis('tight')
         legend(loc=7)
@@ -202,7 +202,7 @@ def plot_trajs():
         figure(3)    
         plot( tsys[:], sys[:,2], 'r-', label='sys', lw=1.5)
         plot( tbp[:], bp[:,2], 'g-', label='hmm', lw=1.5)
-        #plot( tkf[:], kf[:,2], 'c-', label='kf', lw=0.5)
+        plot( tkf[:], kf[:,2], 'c-', label='kf', lw=0.5)
         plot( tpf[:], pf[:,2], 'y-', label='pf', lw=1.5)
         axis('tight')
         legend(loc=7)

@@ -7,8 +7,11 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mcolor
 
+rc('font', family='serif')
+rc('text', usetex='True')
+
 times = []
-NUM_DIM = 2
+NUM_DIM = 1
 
 if len(argv) > 1:
     save_name = argv[1]
@@ -159,25 +162,41 @@ def plot_trajs():
    
     times = tobs
 
-    figure(1)
+    fig = figure(1)
+    ax = fig.add_subplot(111, aspect='equal')
+    setp(ax.get_xticklabels(), fontsize=20)
+    setp(ax.get_yticklabels(), fontsize=20)
     if len(sys) != 0:
         plot( tsys, sys[:,0], 'r-', label='sys', lw=1.5)
     if len(bp) != 0:
-        plot( tbp, bp[:,0], 'go-', label='hmm', lw=1.5)
+        plot( tbp, bp[:,0], 'go-', label='decode', lw=1.5)
     #if len(obs) != 0:
         #plot( tobs, obs[:,0], 'bx', label='obs')
     grid()
+    legend()
     axis('tight')
+    xlabel(r'$t(s)$')
+    ylabel(r'$x(t)$')
+    title(r'$20,000$ samples')
+    savefig('x1.pdf', bbox_inches='tight')
 
     if NUM_DIM == 2:
-        figure(2)
+        fig = figure(2)
+        ax = fig.add_subplot(111, aspect='equal')
+        setp(ax.get_xticklabels(), fontsize=20)
+        setp(ax.get_yticklabels(), fontsize=20)
         if len(sys) != 0:
             plot( tsys, sys[:,1], 'r-', label='sys', lw=1.5)
         if len(bp) != 0:
-            plot( tbp, bp[:,1], 'go-', label='sys', lw=1.5)
+            plot( tbp, bp[:,1], 'go-', label='decode', lw=1.5)
         #if len(obs) != 0:
             #plot( tobs, obs[:,1], 'bx', label='obs')
         grid()
+        legend()
+        axis('tight')
+        xlabel(r'$t$(s)')
+        ylabel(r'$x(t)$')
+        title(r'$20,000$ samples')
 
 def plot_sim_trajs():
 

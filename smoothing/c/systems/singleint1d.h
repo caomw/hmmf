@@ -1,58 +1,53 @@
-#ifndef __parameter__
-#define __parameter__
+#ifndef __singleint1d__
+#define __singleint1d__
 
-#define ndim (2)
-#define ndim_obs (1)
+#define ndim        (1)
+#define ndim_obs    (1)
 
 #include "sysutil.h"
 
-float zmin[ndim] = {-1, -1};
-float zmax[ndim] = {1, 1};
-float init_var[ndim] = {1e-2, 1e-1};
-float init_state[ndim] = {0.0, 0.8};
-float init_state_real[ndim] = {0.0, 0.5};
-float pvar[ndim] = {1e-2, 1e-2};
+float zmin[ndim] = {-1};
+float zmax[ndim] = {1};
+float zdiff[ndim] = {1};
+float init_var[ndim] = {1e-2};
+float init_state[ndim] = {0.8};
+float init_state_real[ndim] = {0.8};
+float pvar[ndim] = {1e-2};
 float ovar[ndim] = {1e-2};
 float zero[ndim] = {0};
 
 int drift(float* s, float *ret, float dt=1.0, bool real=false)
 {
-    float phi = s[1];
-    if(real)
-        phi = 0.5;
-    ret[0] = s[0]*cos(2*M_PI*phi*s[0])*dt;
-    ret[1] = 0*dt;
+    ret[0] = -s[0]*dt;
     return 0;
 }
 int diffusion(float* s, float* ret, float dt=1.0, bool real=false)
 {
     float var[ndim] ={0};
     var[0] = pvar[0]*dt;
-    var[1] = pvar[1]*dt;
     multivar_normal(zero, var, ret, ndim);
-    //cout<<ret[0] <<" "<< ret[1] <<endl;
-    if(real)
-        ret[1] = 0;
     return 0;
 }
-int get_obs(float* s, float* obs, bool is_clean = false)
+int get_obs(float* s, float* obs, bool is_clean=false)
 {
-    for(int i=0; i< ndim; i++)
+    for(int i=0; i< ndim_obs; i++)
         obs[i] = 0;
     if(is_clean)
     {
-        obs[0] = s[0];
+        for(int i=0;i<ndim_obs; i++)
+            obs[i] = s[i];
         return 0;
     }
     float noise[ndim_obs] = {0};
-    multivar_normal(zero, ovar, noise, ndim_obs);
-    obs[0] = s[0] + noise[0];
+    multivar_normal(zero, ovar, noise, ndim_obs); 
+    for(int i=0;i<ndim_obs; i++)
+        obs[i] = s[i] + noise[i];
     return 0;
 }
 float holding_time(float* s, float r)
 {
-    float h = r*(zmax[1] - zmin[1]);
-    float ret[ndim] = {0};
+    float h = r*(zmax[0] - zmin[0]);
+    float ret[ndim] ={0};
     drift(s, ret, 1.0, true);
     return h*h/(max_norm(pvar) + h*norm(ret));
 }
@@ -76,11 +71,11 @@ int integrate_system(float* curr_state, float dt, bool is_clean=false)
     }
     return 0;
 }
-
 int get_kalman_path(vector< vector<float> >& kfp, vector< vector<float> >& observations, float dt)
 {
     kfp.clear();
     kfp = vector< vector<float> >(observations.size(), vector<float>(ndim,0));
     return 0;
 }
+
 #endif

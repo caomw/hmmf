@@ -187,7 +187,7 @@ int do_batch(int tot_vert)
     graph.propagate_system();
     graph.get_kalman_path();
     tic();
-    graph.get_pf_path(5000);
+    graph.get_pf_path(1000);
     cout<<"pf time: "<< toc() << endl;
 #endif
     
@@ -516,8 +516,8 @@ int main(int argc, char* argv[])
 
     // do_err_convergence_incremental();
     // do_err_convergence();
-    do_error_plot(tot_vert);
-    // do_batch(tot_vert);
+    // do_error_plot(tot_vert);
+    do_batch(tot_vert);
     // do_incremental(tot_vert);
 
     // do_timing_plot();

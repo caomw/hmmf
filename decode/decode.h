@@ -2,7 +2,7 @@
 #define __decode_h__
 
 #include "utils/common.h"
-#include "systems/vanderpol.h"
+#include "systems/singleint.h"
 
 class Edge;
 class Vertex;

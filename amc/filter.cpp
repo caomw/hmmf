@@ -31,7 +31,7 @@ Graph::Graph(System& sys) {
     obs_interval = 1;
     obs_curr_index = 0;
     delta = system->sim_time_delta;
-    max_obs_time = 1;
+    max_obs_time = 10;
 
     min_holding_time = delta;
     seeding_finished = false;
@@ -473,8 +473,8 @@ void Graph::update_density_implicit_no_obs_all()
 void Graph::update_density_implicit_all(double covar)
 {
     //double key_covar = 0.1;
-    //double key_covar = 3*sqrt(covar + system->process_noise[0]*delta)/fabs(system->max_states[0] - system->min_states[0]);
-    //key_covar = max(key_covar, 0.1);
+    double key_covar = 3*sqrt(covar + system->process_noise[0]*delta)/fabs(system->max_states[0] - system->min_states[0]);
+    key_covar = max(key_covar, 0.1);
     //cout<<key_covar<<endl;
     bool to_normalize = false;
     State last_mean = best_path.back();
@@ -483,7 +483,7 @@ void Graph::update_density_implicit_all(double covar)
     // zero whole buffer
     for(unsigned int j = 0; j< num_vert; j++)
         vlist[j]->prob_best_path_buffer = 0;
-#if 0
+#if 1
     double key[NUM_DIM] ={0};
     system->get_key(next_mean, key);
     kdres *res;

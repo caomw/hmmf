@@ -10,11 +10,13 @@ System::System()
 
     for(int i=0; i< NUM_DIM; i++)
     {
-        min_states[i] = -0.5;
-        max_states[i] = 1.5;
+        min_states[i] = 0;
+        max_states[i] = 1;
     }
     init_state.x[0] = 0;
     init_state.x[1] = 0.9;
+    init_state_real.x[0] = 0;
+    init_state_real.x[1] = 0.5;
 
     for(int i=0; i< NUM_DIM; i++)
     {
