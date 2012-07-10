@@ -27,7 +27,7 @@ Graph::Graph(System& sys)
     obs_curr_index = 0;
     expt_time = system->max_states[0];
     
-    sim_delta = 1e-4;
+    sim_delta = 1e-3;
     delta = sim_delta;
 
     min_holding_time = delta;
@@ -431,47 +431,26 @@ bool Graph::is_edge_free( Edge *etmp)
     return true;
 }
 
-Vertex* Graph::add_sample(int is_seed)
+Vertex* Graph::add_sample()
 {
     State stmp;
     
-    if(is_seed == 0)
-        stmp = system->sample();
-    else if(is_seed == 1)
+    float p = RANDF;
+
+    if(p < 0.05)
     {
         multivar_normal(&(system->init_state.x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
         stmp.x[0] = system->min_states[0];
     }
-    else if(is_seed == 2)
+    else if(p < 0.15)
     {
-        //multivar_normal(&(truth.back().x[1]), system->init_var, &(stmp.x[1]), NUM_DIM-1);
         stmp = system->sample();
         stmp.x[0] = system->max_states[0];
     }
     else
-    {
-        cout<<"Random demands for seeding"<<endl;
-        exit(0);
-    }
+        stmp = system->sample();
+    
     Vertex *v = new Vertex(stmp);
-
-    /*
-       if(num_vert != 0)
-       {
-       double extend_dist = 0.1;
-       if( vlist.size() != 0)
-       {
-       Vertex *near = nearest_vertex( v->s );
-
-       double d = dist( v->s, near->s);
-       if ( d > extend_dist)
-       {
-       for(int i=0; i< NUM_DIM; i++)
-       v->s.x[i] = near->s.x[i] + (v->s.x[i] - near->s.x[i])*extend_dist/d;
-       }
-       }
-       }
-       */
 
     vlist.push_back(v);
     num_vert++;
@@ -537,8 +516,6 @@ int Graph::connect_edges_approx(Vertex* v)
    
     double *next_state = new double[NUM_DIM];
     double *sys_var = new double[NUM_DIM];
-
-    //double holding_time = system->get_holding_time(v->s, gamma, num_vert);
 
     double pos[NUM_DIM] = {0};
     while( !kd_res_end(res) )
@@ -613,7 +590,7 @@ void Graph::get_best_path()
     {
         Vertex* vcurr = (*runner).second;
     
-        if( (vcurr->s.x[0] - system->min_states[0]) > 1e-5)
+        if( vcurr->prob_best_path < 0 )
         {
             update_viterbi(vcurr);
         }

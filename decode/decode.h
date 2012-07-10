@@ -126,7 +126,7 @@ class Graph{
         // algorithm functions
         
         void iterate();
-        Vertex* add_sample(int is_seed=0);
+        Vertex* add_sample();
         bool is_edge_free( Edge *etmp);
         
         int reconnect_edges_neighbors(Vertex* v);

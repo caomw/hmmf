@@ -23,7 +23,7 @@ System::System()
         process_noise[i] = 1e-2;
         init_var[i-1] = 1e-1;
     }
-    process_noise[0] = 1e-3;
+    process_noise[0] = 5e-1;
 
     for(int i=0; i< NUM_DIM_OBS-1; i++)
     {
